@@ -1,4 +1,7 @@
-document.getElementById('version-watermark').innerText = APP_VERSION;
+// Nustatome versijos pavadinimą ir pakeičiame jo dizainą per JS (panaikiname didelį foninį tekstą)
+const watermarkEl = document.getElementById('version-watermark');
+watermarkEl.innerText = APP_VERSION;
+watermarkEl.style.cssText = "position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: #888; font-weight: normal; z-index: 100; pointer-events: none; font-family: sans-serif; opacity: 0.7;";
         
 let isGridOn = true;
 function toggleGrid() {
@@ -425,12 +428,39 @@ function addModuleToWorkspace(modData, collectionKey) {
     if(modData.expandable) { el.dataset.sleepw = modData.sleepW; el.dataset.sleeph = modData.sleepH; }
     if(modData.isChaise) { el.dataset.isChaise = 'true'; el.dataset.sleepw = modData.sleepW; el.dataset.sleeph = modData.sleepH; }
     
-    let spawnX = (window.innerWidth < 768 ? 50 : 350) - currentPanX;
-    let spawnY = (window.innerWidth < 768 ? 50 : 150) - currentPanY;
+    let baseSpawnX = (window.innerWidth < 768 ? 50 : 350) - currentPanX;
+    let baseSpawnY = (window.innerWidth < 768 ? 50 : 150) - currentPanY;
 
-    el.style.cssText = `width:${modData.w*scale}px; height:${modData.h*scale}px; top:${spawnY}px; left:${spawnX}px; z-index:${zIndexCounter++};`;
+    let finalSpawnX = baseSpawnX;
+    let finalSpawnY = baseSpawnY;
+
+    const existingModules = Array.from(document.querySelectorAll('.canvas-module'));
+    
+    if (existingModules.length > 0) {
+        let maxRightX = -Infinity;
+        let referenceY = baseSpawnY;
+
+        existingModules.forEach(m => {
+            let mLeft = parseFloat(m.style.left) || 0;
+            let mWidth = parseFloat(m.style.width) || 0;
+            let mRight = mLeft + mWidth; 
+            
+            if (mRight > maxRightX) {
+                maxRightX = mRight;
+                referenceY = parseFloat(m.style.top) || baseSpawnY; 
+            }
+        });
+
+        finalSpawnX = maxRightX + 15;
+        finalSpawnY = referenceY; 
+    }
+
+    el.style.cssText = `width:${modData.w*scale}px; height:${modData.h*scale}px; top:${finalSpawnY}px; left:${finalSpawnX}px; z-index:${zIndexCounter++};`;
     el.innerHTML = modData.svg + `<span class="label"></span>`;
-    attachEvents(el); canvasArea.appendChild(el); selectModule(el); saveState();
+    attachEvents(el); canvasArea.appendChild(el); selectModule(el); 
+    
+    saveState(); 
+    updateDimensions();
 }
 
 function globalDragOrPan(e) {
