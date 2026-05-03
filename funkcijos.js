@@ -135,7 +135,12 @@ function changeZoom(f, e = null) {
 
 let saveStateTimeout = null;
 function saveState() { 
-    const s = Array.from(document.querySelectorAll('.canvas-module')).map(m=>({id:m.dataset.id, n:m.dataset.name, p:m.dataset.price, c:m.dataset.collection, w:m.dataset.w, h:m.dataset.h, l:m.style.left, t:m.style.top, a:m.dataset.angle, z:m.style.zIndex, exp: m.dataset.isExpanded})); 
+    const s = Array.from(document.querySelectorAll('.canvas-module')).map(m=>({
+        id:m.dataset.id, n:m.dataset.name, p:m.dataset.price, c:m.dataset.collection, w:m.dataset.w, h:m.dataset.h, 
+        l: (parseFloat(m.style.left) || 0) / scale, // Pataisyta: Išsaugomas loginis (nepriklausomas nuo mastelio) X
+        t: (parseFloat(m.style.top) || 0) / scale,  // Pataisyta: Išsaugomas loginis Y
+        a:m.dataset.angle, z:m.style.zIndex, exp: m.dataset.isExpanded
+    })); 
     const stateStr = JSON.stringify(s);
     
     historyStack.push(stateStr); 
@@ -158,7 +163,12 @@ function restoreState(data) {
         if (!modBase) return;
         const el=document.createElement('div'); el.className='canvas-module'; 
         Object.assign(el.dataset,{id:d.id, name:d.n, price:d.p, collection:d.c, w:d.w, h:d.h, angle:d.a, isExpanded: d.exp || 'false'}); 
-        el.style.cssText=`width:${d.w*scale}px; height:${d.h*scale}px; left:${d.l}; top:${d.t}; z-index:${d.z}; transform:rotate(${d.a}deg)`; 
+        
+        // Atgalinis suderinamumas, jei atmintyje liko sugadinti atstumai (string su 'px')
+        let leftVal = (typeof d.l === 'string' && d.l.includes('px')) ? parseFloat(d.l) : parseFloat(d.l) * scale;
+        let topVal = (typeof d.t === 'string' && d.t.includes('px')) ? parseFloat(d.t) : parseFloat(d.t) * scale;
+
+        el.style.cssText=`width:${d.w*scale}px; height:${d.h*scale}px; left:${leftVal}px; top:${topVal}px; z-index:${d.z}; transform:rotate(${d.a}deg)`; 
         el.innerHTML= (d.exp === 'true' && modBase.expandable ? modBase.svgExpanded : modBase.svg) + `<span class="label" style="transform:rotate(${-d.a}deg)"></span>`; 
         attachEvents(el); canvasArea.appendChild(el); 
     }); 
@@ -198,7 +208,6 @@ function updateDimensions() {
     const modules = Array.from(document.querySelectorAll('.canvas-module'));
     const svgAr = document.getElementById('svg-arrows');
     
-    // Ypatingai svarbus pakeitimas: apsaugo linijas nuo nukirpimo (clipping) kai jos išeina už SVG ribų
     svgAr.style.overflow = 'visible';
     
     if (modules.length === 0) { 
@@ -307,11 +316,9 @@ function updateDimensions() {
 
         if (dimState > 0) {
             let offset = 35;
-            // Pilki matmenys dedami pagal lokalias sofos grupės ribas
             let topY = minY - offset, bottomY = maxY + offset;
             let leftX = minX - offset, rightX = maxX + offset;
 
-            // Math.round apvalinimas apsaugo nuo paklaidų peršokant matmenims
             let lineY = (Math.round(cy) <= Math.round(GCY)) ? topY : bottomY;
             let textY = (Math.round(cy) <= Math.round(GCY)) ? (lineY - 6) : (lineY + 16);
             let lineX = (Math.round(cx) >= Math.round(GCX) || groups.length === 1) ? rightX : leftX;
@@ -606,7 +613,8 @@ document.addEventListener('keydown', (e) => {
             id: m.dataset.id, name: m.dataset.name, price: m.dataset.price, collection: m.dataset.collection,
             w: m.dataset.w, h: m.dataset.h, angle: m.dataset.angle || 0, isExpanded: m.dataset.isExpanded,
             isChaise: m.dataset.isChaise, sleepw: m.dataset.sleepw, sleeph: m.dataset.sleeph,
-            left: parseFloat(m.style.left) || 0, top: parseFloat(m.style.top) || 0
+            left: (parseFloat(m.style.left) || 0) / scale, // Pataisyta kopijavimui
+            top: (parseFloat(m.style.top) || 0) / scale
         }));
         return;
     }
@@ -616,7 +624,8 @@ document.addEventListener('keydown', (e) => {
         let newlyPasted = []; selectModule(null);
         
         clipboardData.forEach(d => {
-            d.left += 40; d.top += 40;
+            let pLeft = (d.left * scale) + 40; // Pataisyta įklijavimui
+            let pTop = (d.top * scale) + 40;
             let modBase = furnitureModels[d.collection]?.find(x => x.id === d.id);
             if (!modBase) return;
 
@@ -629,7 +638,7 @@ document.addEventListener('keydown', (e) => {
             if (d.isChaise) el.dataset.isChaise = d.isChaise;
             if (d.sleepw) { el.dataset.sleepw = d.sleepw; el.dataset.sleeph = d.sleeph; }
             
-            el.style.cssText = `width:${d.w*scale}px; height:${d.h*scale}px; left:${d.left}px; top:${d.top}px; z-index:${zIndexCounter++}; transform:rotate(${d.angle}deg)`;
+            el.style.cssText = `width:${d.w*scale}px; height:${d.h*scale}px; left:${pLeft}px; top:${pTop}px; z-index:${zIndexCounter++}; transform:rotate(${d.angle}deg)`;
             el.innerHTML = (d.isExpanded === 'true' && modBase.expandable ? modBase.svgExpanded : modBase.svg) + `<span class="label" style="transform:rotate(${-d.angle}deg)"></span>`;
             
             attachEvents(el); canvasArea.appendChild(el); newlyPasted.push(el);
@@ -654,7 +663,14 @@ function saveAdminSettings() { document.querySelectorAll('.admin-price-input').f
 
 function openArchive() { document.getElementById('archive-modal').style.display = 'flex'; renderArchiveList(); }
 function renderArchiveList() { let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); let html = ''; for(let name in archive) { html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px solid #ddd; border-radius:4px; background:#f9f9f9;"><strong style="font-size:13px; color:#333;">${name}</strong><div style="display:flex; gap:5px;"><button onclick="loadFromArchive('${name}')" style="padding:4px 8px; background:#007bff; color:white; border:none; border-radius:3px; cursor:pointer;">Užkrauti</button><button onclick="deleteFromArchive('${name}')" style="padding:4px 8px; background:#dc3545; color:white; border:none; border-radius:3px; cursor:pointer;">Ištrinti</button></div></div>`; } document.getElementById('archive-list').innerHTML = html || '<div style="color:#888; font-size:13px; text-align:center; padding:10px 0;">Archyvas tuščias</div>'; }
-function saveToArchive() { let name = document.getElementById('archive-name').value.trim(); if(!name) return alert('Prašome įvesti projekto pavadinimą!'); let state = Array.from(document.querySelectorAll('.canvas-module')).map(m=>({id:m.dataset.id, n:m.dataset.name, p:m.dataset.price, c:m.dataset.collection, w:m.dataset.w, h:m.dataset.h, l:m.style.left, t:m.style.top, a:m.dataset.angle, z:m.style.zIndex, exp: m.dataset.isExpanded})); if(state.length === 0) return alert('Nėra ką išsaugoti, sofa tuščia!'); let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); archive[name] = state; localStorage.setItem('houmyArchive', JSON.stringify(archive)); document.getElementById('archive-name').value = ''; renderArchiveList(); }
+function saveToArchive() { let name = document.getElementById('archive-name').value.trim(); if(!name) return alert('Prašome įvesti projekto pavadinimą!'); 
+    let state = Array.from(document.querySelectorAll('.canvas-module')).map(m=>({
+        id:m.dataset.id, n:m.dataset.name, p:m.dataset.price, c:m.dataset.collection, w:m.dataset.w, h:m.dataset.h, 
+        l: (parseFloat(m.style.left) || 0) / scale, // Pataisyta archyvui
+        t: (parseFloat(m.style.top) || 0) / scale,
+        a:m.dataset.angle, z:m.style.zIndex, exp: m.dataset.isExpanded
+    })); 
+    if(state.length === 0) return alert('Nėra ką išsaugoti, sofa tuščia!'); let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); archive[name] = state; localStorage.setItem('houmyArchive', JSON.stringify(archive)); document.getElementById('archive-name').value = ''; renderArchiveList(); }
 function loadFromArchive(name) { let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); if(archive[name] && archive[name].length > 0) { document.getElementById('model-select').value = archive[name][0].c; loadModel(archive[name][0].c); restoreState(archive[name]); document.getElementById('archive-modal').style.display = 'none'; } }
 function deleteFromArchive(name) { if(confirm(`Ar tikrai norite ištrinti projektą "${name}" iš archyvo?`)) { let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); delete archive[name]; localStorage.setItem('houmyArchive', JSON.stringify(archive)); renderArchiveList(); } }
 
@@ -692,7 +708,6 @@ async function generatePDFWithDetails() {
     document.getElementById('zoom-controls').style.display = 'none'; 
     document.getElementById('dimension-display').style.display = 'none'; 
     
-    // Nauja logika: Surenkame sofos išmatavimus (Bounding Box)
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity; 
     modules.forEach(m => { 
         let angle = (parseInt(m.dataset.angle) || 0) * Math.PI / 180, 
@@ -712,8 +727,6 @@ async function generatePDFWithDetails() {
     if (dimState === 1) padding = 90;
     if (dimState === 2) padding = 160;
     
-    // Ypatingai svarbus fixas: Laikinai stumiame visą sofą į teigiamas koordinates,
-    // kad matmenų SVG neatsidurtų už ekrano (html2canvas pjauna neigiamas koordinates).
     let shiftX = padding - minX;
     let shiftY = padding - minY;
 
@@ -723,7 +736,7 @@ async function generatePDFWithDetails() {
         m.style.left = (parseFloat(m.style.left) + shiftX) + 'px';
         m.style.top = (parseFloat(m.style.top) + shiftY) + 'px';
     });
-    updateDimensions(); // Priverčiame perpiešti matmenis teigiamoje zonoje
+    updateDimensions(); 
     
     const tmpWrapper = document.getElementById('canvas-wrapper'); 
     let originalTransform = tmpWrapper.style.transform;
@@ -732,22 +745,17 @@ async function generatePDFWithDetails() {
     
     tmpWrapper.style.transform = 'translate(0px, 0px)';
     document.getElementById('workspace').style.backgroundPosition = '0px 0px';
-    
-    // Drobės plotis ir ilgis dabar visada 100% tiksliai apgaubia paslinktą sofą su matmenimis
     tmpWrapper.style.width = ((maxX - minX) + padding * 2) + 'px'; 
     tmpWrapper.style.height = ((maxY - minY) + padding * 2) + 'px'; 
     
     await new Promise(r => setTimeout(r, 250));
     
-    // Dabar visada fotografuojame tiksliai nuo 0,0 koordinatės
     const canvas = await html2canvas(tmpWrapper, { 
-        scale: 2, backgroundColor: "#ffffff", 
-        x: 0, y: 0, 
-        width: (maxX - minX) + padding * 2, height: (maxY - minY) + padding * 2, 
-        useCORS: true, scrollX: 0, scrollY: 0  
+        scale: 2, 
+        backgroundColor: "#ffffff", 
+        useCORS: true
     });
     
-    // Atstatome viską atgal taip, kaip klientas buvo palikęs ekrane
     tmpWrapper.style.transform = originalTransform;
     tmpWrapper.style.width = originalWidth;
     tmpWrapper.style.height = originalHeight;
@@ -758,7 +766,7 @@ async function generatePDFWithDetails() {
         m.style.left = orig.left;
         m.style.top = orig.top;
     });
-    updateDimensions(); // Priverčiame perpiešti matmenis pradinėje vietoje
+    updateDimensions();
     
     document.getElementById('zoom-controls').style.display = 'flex'; 
     document.getElementById('dimension-display').style.display = 'block'; 
@@ -867,7 +875,6 @@ async function executeExportBlueprint() {
     if (dimState === 1) padding = 90;
     if (dimState === 2) padding = 160;
     
-    // Perstumiame sofą Gamybos brėžiniui taip pat kaip ir PDF pasiūlymui
     let shiftX = padding - minX;
     let shiftY = padding - minY;
 
@@ -892,10 +899,9 @@ async function executeExportBlueprint() {
     await new Promise(r => setTimeout(r, 250)); 
     
     const canvas = await html2canvas(tmpWrapper, { 
-        scale: 2, backgroundColor: "#ffffff", 
-        x: 0, y: 0, 
-        width: (maxX - minX) + padding * 2, height: (maxY - minY) + padding * 2, 
-        useCORS: true, scrollX: 0, scrollY: 0  
+        scale: 2, 
+        backgroundColor: "#ffffff", 
+        useCORS: true
     }); 
     
     tmpWrapper.style.transform = originalTransform;
@@ -903,7 +909,6 @@ async function executeExportBlueprint() {
     tmpWrapper.style.height = originalHeight;
     document.getElementById('workspace').style.backgroundPosition = `${currentPanX}px ${currentPanY}px`;
     
-    // Atstatome sofos vietą
     modules.forEach(m => {
         let orig = originalPositions.get(m);
         m.style.left = orig.left;
@@ -953,7 +958,6 @@ async function executeExportBlueprint() {
     bpTemplate.style.display = 'none'; 
 }
 
-// --- NAUJA FUNKCIJA: DALIJIMASIS NUORODA (SUSPAUSTAS FORMATAS) ---
 function shareConfiguration() {
     const modules = Array.from(document.querySelectorAll('.canvas-module'));
     if (modules.length === 0) {
@@ -993,7 +997,6 @@ function shareConfiguration() {
     });
 }
 
-// --- NAUJA FUNKCIJA: SPALVŲ PASIRINKIMAS (COLOR PICKER) ---
 const colors = [
     { name: 'Balta (Standartinė)', hex: '#ffffff' },
     { name: 'Šviesiai Kreminė', hex: '#fdf4e3' },
@@ -1039,10 +1042,8 @@ function changeSofaColor(hex, dotEl) {
     if(dotEl) dotEl.classList.add('active');
 }
 
-// Pridedame mygtukus ir valdymą į dešinį šoninį meniu
 const rightSidebarMenu = document.getElementById('sidebar-right');
 if (rightSidebarMenu) {
-    // 1. Įterpiame Spalvų paletę (pačiame viršuje)
     const wrapper = document.createElement('div');
     wrapper.className = 'color-picker-wrapper';
     
@@ -1066,7 +1067,6 @@ if (rightSidebarMenu) {
     wrapper.appendChild(container);
     rightSidebarMenu.insertBefore(wrapper, rightSidebarMenu.firstChild);
 
-    // 2. Įterpiame Dalijimosi mygtuką (virš PDF mygtuko)
     if (!document.getElementById('share-btn')) {
         const shareBtn = document.createElement('button');
         shareBtn.id = 'share-btn';
@@ -1083,7 +1083,6 @@ if (rightSidebarMenu) {
 
 updateZoomText();
 
-// -- URL Parametrų Logika --
 const urlParams = new URLSearchParams(window.location.search);
 const requestedModel = urlParams.get('kolekcija');
 const sharedStateOld = urlParams.get('share'); 
@@ -1135,6 +1134,7 @@ if (sharedStateNew || sharedStateOld) {
             if(modBase.expandable) { el.dataset.sleepw = modBase.sleepW; el.dataset.sleeph = modBase.sleepH; }
             if(modBase.isChaise) { el.dataset.isChaise = 'true'; el.dataset.sleepw = modBase.sleepW; el.dataset.sleeph = modBase.sleepH; }
 
+            // Naudojame mastelį atstatymui (Backwards compatibility nereikia iš naujo, nes nuoroda visada fresh)
             el.style.cssText = `width:${modBase.w*scale}px; height:${modBase.h*scale}px; left:${d.x*scale}px; top:${d.y*scale}px; z-index:${zIndexCounter++}; transform:rotate(${d.a}deg)`; 
             el.innerHTML = (d.e === 1 && modBase.expandable ? modBase.svgExpanded : modBase.svg) + `<span class="label" style="transform:rotate(${-d.a}deg)"></span>`; 
             
