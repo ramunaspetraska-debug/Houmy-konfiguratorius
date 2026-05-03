@@ -1,6 +1,6 @@
 // Nustatome versijos pavadinimą
 const watermarkEl = document.getElementById('version-watermark');
-watermarkEl.innerText = "V1.18";
+watermarkEl.innerText = "V1.20";
 watermarkEl.style.cssText = "position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: #888; z-index: 100; pointer-events: none; opacity: 0.7;";
 
 let isGridOn = true;
@@ -45,17 +45,9 @@ function getDisplayName(modData, isMixed) { return isMixed ? `${modData.collecti
 
 function generateModuleChainText(modules, isMixed) {
     if (!modules || modules.length === 0) return "";
-    if (!isMixed) {
-        let sorted = [...modules].sort((a,b) => parseFloat(a.style.left) - parseFloat(b.style.left));
-        return sorted.map(m => m.dataset.name).join(' + ');
-    } else {
-        let collections = {};
-        [...modules].forEach(m => { let col = m.dataset.collection; if (!collections[col]) collections[col] = []; collections[col].push(m); });
-        return Object.keys(collections).map(col => {
-            let sorted = collections[col].sort((a,b) => parseFloat(a.style.left) - parseFloat(b.style.left));
-            return sorted.map(m => `${col.toUpperCase()} ${m.dataset.name}`).join(' + ');
-        }).join('  |  ');
-    }
+    let sorted = [...modules].sort((a,b) => parseFloat(a.style.left) - parseFloat(b.style.left));
+    if (!isMixed) return sorted.map(m => m.dataset.name).join(' + ');
+    return sorted.map(m => `${m.dataset.collection.toUpperCase()} ${m.dataset.name}`).join(' + ');
 }
 
 function updateLabels() {
@@ -119,6 +111,15 @@ function restoreState(data) {
         attachEvents(el); canvasArea.appendChild(el); 
     }); 
     updateOrderSummary(); updateLabels(); setTimeout(() => { updateDimensions(); }, 50);
+}
+
+function clearWorkspace() { 
+    if(confirm("Išvalyti viską?")) { 
+        canvasArea.innerHTML = ''; currentPanX = 0; currentPanY = 0;
+        document.getElementById('canvas-wrapper').style.transform = `translate(0px, 0px)`;
+        document.getElementById('workspace').style.backgroundPosition = `0px 0px`;
+        saveState(); updateDimensions(); 
+    } 
 }
 
 function updateOrderSummary() {
@@ -220,12 +221,36 @@ function getConnectedGroup(startModule) {
     return Array.from(group);
 }
 
+function rotateSelected(degrees) {
+    if (!selectedModule) return;
+    let targetGroup = document.getElementById('group-toggle').checked ? getConnectedGroup(selectedModule) : [selectedModule];
+    if (targetGroup.length === 1) {
+        let m = targetGroup[0]; let curA = parseInt(m.dataset.angle) || 0;
+        m.dataset.angle = curA + degrees; m.style.transform = `rotate(${m.dataset.angle}deg)`;
+        m.querySelector('.label').style.transform = `rotate(${-m.dataset.angle}deg)`;
+    } else {
+        let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+        targetGroup.forEach(m => { let w=parseFloat(m.style.width), h=parseFloat(m.style.height), cx=parseFloat(m.style.left)+w/2, cy=parseFloat(m.style.top)+h/2; minX=Math.min(minX,cx-w/2); minY=Math.min(minY,cy-h/2); maxX=Math.max(maxX,cx+w/2); maxY=Math.max(maxY,cy+h/2); });
+        let gCX = (minX+maxX)/2, gCY = (minY+maxY)/2;
+        targetGroup.forEach(m => {
+            let w=parseFloat(m.style.width), h=parseFloat(m.style.height), cx=parseFloat(m.style.left)+w/2, cy=parseFloat(m.style.top)+h/2, nx, ny;
+            if(degrees===90) { nx = gCX-(cy-gCY); ny = gCY+(cx-gCX); } else if(degrees===-90) { nx = gCX+(cy-gCY); ny = gCY-(cx-gCX); } else { nx = gCX-(cx-gCX); ny = gCY-(cy-gCY); }
+            m.style.left = (nx-w/2)+'px'; m.style.top = (ny-h/2)+'px';
+            m.dataset.angle = (parseInt(m.dataset.angle)||0)+degrees; m.style.transform = `rotate(${m.dataset.angle}deg)`;
+            m.querySelector('.label').style.transform = `rotate(${-m.dataset.angle}deg)`;
+        });
+    }
+    setTimeout(() => { updateDimensions(); saveState(); }, 50);
+}
+
+function deleteSelected() { if (!selectedModule) return; let tg = document.getElementById('group-toggle').checked ? getConnectedGroup(selectedModule) : [selectedModule]; tg.forEach(m => m.remove()); selectModule(null); saveState(); updateDimensions(); }
+
 function addModuleToWorkspace(modData, collectionKey) {
     const el = document.createElement('div'); el.className = 'canvas-module'; Object.assign(el.dataset, { id:modData.id, name:modData.name, price:modData.price, collection:collectionKey, w:modData.w, h:modData.h, angle:0, isExpanded:'false' });
-    let baseSpawnX = (window.innerWidth < 768 ? 50 : 350) - currentPanX, baseSpawnY = (window.innerWidth < 768 ? 50 : 150) - currentPanY, finalSpawnX = baseSpawnX, finalSpawnY = baseSpawnY;
+    let baseSpawnX = (window.innerWidth < 768 ? 50 : 350) - currentPanX, baseSpawnY = (window.innerWidth < 768 ? 50 : 150) - currentPanY, finalX = baseSpawnX, finalY = baseSpawnY;
     const existing = Array.from(document.querySelectorAll('.canvas-module'));
-    if (existing.length > 0) { let maxR = -Infinity, refY = baseSpawnY; existing.forEach(m => { let r = (parseFloat(m.style.left)||0) + (parseFloat(m.style.width)||0); if (r > maxR) { maxR = r; refY = parseFloat(m.style.top) || baseSpawnY; } }); finalSpawnX = maxR + 15; finalSpawnY = refY; }
-    el.style.cssText = `width:${modData.w*scale}px; height:${modData.h*scale}px; top:${finalSpawnY}px; left:${finalSpawnX}px; z-index:${zIndexCounter++};`;
+    if (existing.length > 0) { let maxR = -Infinity, refY = baseSpawnY; existing.forEach(m => { let r = (parseFloat(m.style.left)||0) + (parseFloat(m.style.width)||0); if (r > maxR) { maxR = r; refY = parseFloat(m.style.top) || baseSpawnY; } }); finalX = maxR + 15; finalY = refY; }
+    el.style.cssText = `width:${modData.w*scale}px; height:${modData.h*scale}px; top:${finalY}px; left:${finalX}px; z-index:${zIndexCounter++};`;
     el.innerHTML = modData.svg + `<span class="label"></span>`; attachEvents(el); canvasArea.appendChild(el); selectModule(el); saveState(); setTimeout(() => updateDimensions(), 50);
 }
 
@@ -274,52 +299,17 @@ function attachEvents(modEl) {
         if(e.cancelable && !e.type.includes('touch')) e.preventDefault(); 
     }
     modEl.addEventListener('mousedown', startDrag); modEl.addEventListener('touchstart', startDrag, {passive: false});
-    modEl.addEventListener('dblclick', () => toggleExpand(modEl));
-    let lastTap = 0; modEl.addEventListener('touchend', (e) => { let now = new Date().getTime(); if (now - lastTap < 300) { toggleExpand(modEl); e.preventDefault(); } lastTap = now; });
 }
 
-async function generatePDFWithDetails() { 
-    appSettings.prodTerm = document.getElementById('client-term').value.trim(); appSettings.deliveryNote = document.getElementById('client-delivery').value.trim(); localStorage.setItem('houmySettings', JSON.stringify(appSettings)); 
-    document.getElementById('client-modal').style.display = 'none'; selectModule(null); 
-    const modules = Array.from(document.querySelectorAll('.canvas-module')); 
-    let pName = document.getElementById('project-name').value.trim(), discountVal = parseInt(document.getElementById('client-discount').value) || 0;
-    document.getElementById('pdf-main-title').innerText = pName || "Komercinis Pasiūlymas"; 
-    document.querySelectorAll('.dynamic-bb').forEach(e => e.style.display = 'none'); 
-    document.getElementById('zoom-controls').style.display = 'none'; 
-    document.getElementById('dimension-display').style.display = 'none'; 
-    
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity; 
-    modules.forEach(m => { 
-        let angle = (parseInt(m.dataset.angle) || 0) * Math.PI/180, baseW = parseFloat(m.dataset.w)*scale, baseH = parseFloat(m.dataset.h)*scale, cx = parseFloat(m.style.left)+baseW/2, cy = parseFloat(m.style.top)+baseH/2, dx = baseW/2, dy = baseH/2; 
-        [{x:-dx,y:-dy},{x:dx,y:-dy},{x:dx,y:dy},{x:-dx,y:dy}].forEach(c => { let rx = cx + c.x*Math.cos(angle) - c.y*Math.sin(angle), ry = cy + c.x*Math.sin(angle) + c.y*Math.cos(angle); minX=Math.min(minX,rx); maxX=Math.max(maxX,rx); minY=Math.min(minY,ry); maxY=Math.max(maxY,ry); });
-    }); 
-    
-    let padding = dimState === 2 ? 160 : 90, shiftX = padding - minX, shiftY = padding - minY, originalPos = new Map();
-    modules.forEach(m => { originalPos.set(m, { l: m.style.left, t: m.style.top }); m.style.left = (parseFloat(m.style.left)+shiftX)+'px'; m.style.top = (parseFloat(m.style.top)+shiftY)+'px'; });
-    updateDimensions(); 
-    const tmpWrapper = document.getElementById('canvas-wrapper'); 
-    let oTrans = tmpWrapper.style.transform, oW = tmpWrapper.style.width, oH = tmpWrapper.style.height;
-    tmpWrapper.style.transform = 'translate(0px, 0px)'; tmpWrapper.style.width = ((maxX-minX)+padding*2)+'px'; tmpWrapper.style.height = ((maxY-minY)+padding*2)+'px';
-    
-    await new Promise(r => setTimeout(r, 250));
-    const canvas = await html2canvas(tmpWrapper, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
-    
-    tmpWrapper.style.transform = oTrans; tmpWrapper.style.width = oW; tmpWrapper.style.height = oH;
-    modules.forEach(m => { let o = originalPos.get(m); m.style.left = o.l; m.style.top = o.t; });
-    updateDimensions(); document.getElementById('zoom-controls').style.display = 'flex'; document.getElementById('dimension-display').style.display = 'block'; 
-    
-    document.getElementById('pdf-sofa-img').src = canvas.toDataURL('image/jpeg', 0.95); 
-    const tbody = document.getElementById('pdf-table-body'); tbody.innerHTML = '';
-    const isMixed = new Set(modules.map(m => m.dataset.collection)).size > 1; let counts = {}, total = 0;
-    modules.forEach(m => { let dN = getDisplayName({collection:m.dataset.collection, name:m.dataset.name}, isMixed), p = getModulePrice(m.dataset.collection, m.dataset.id); if(!counts[dN]) counts[dN] = { q:0, p:p }; counts[dN].q++; total += p; });
-    for(let n in counts) { tbody.innerHTML += `<tr><td style="padding:6px 8px; border-bottom:1px solid #eee;">${n}</td><td style="text-align:center; padding:6px 8px; border-bottom:1px solid #eee;">${counts[n].q} vnt.</td><td style="text-align:right; padding:6px 8px; border-bottom:1px solid #eee;"><b>${counts[n].p * counts[n].q} €</b></td></tr>`; }
-    
-    let fTotal = discountVal > 0 ? total - Math.round(total * (discountVal/100)) : total;
-    document.getElementById('pdf-price-breakdown').innerHTML = `<div style="font-size:16px; font-weight:bold; border-top: 2px solid #333; padding-top: 4px;">Viso su PVM: ${fTotal} €</div>`;
-    const pdfTemplate = document.getElementById('pdf-template'); pdfTemplate.style.display = 'flex';
-    await html2canvas(pdfTemplate, { scale: 2, useCORS: true }).then(c => { const pdf = new jspdf.jsPDF('p', 'mm', 'a4'); pdf.addImage(c.toDataURL('image/jpeg', 0.98), 'JPEG', 0, 0, 210, 297); pdf.save(pName ? `Houmy_${pName}.pdf` : 'Houmy_Pasiulymas.pdf'); });
-    pdfTemplate.style.display = 'none';
-}
+// --- VEIKSMŲ MYGTUKAI ---
+function openAdmin() { document.getElementById('admin-modal').style.display = 'flex'; let cont = document.getElementById('admin-prices-container'); cont.innerHTML = ''; for(let k in rawModels) { cont.innerHTML += `<h4 style="text-transform:uppercase; margin-top:15px; border-bottom:1px solid #eee;">${k}</h4><div class="admin-price-grid">` + rawModels[k].map(m => { let pK = k+'_'+m.id; return `<div class="admin-price-card"><div>${m.name}</div><input type="number" data-pkey="${pK}" class="admin-price-input" value="${appSettings.customPrices[pK]||m.price||getPrice(m.w,m.h)}"></div>`; }).join('') + `</div>`; } }
+function closeAdmin() { document.getElementById('admin-modal').style.display = 'none'; }
+function saveAdminSettings() { document.querySelectorAll('.admin-price-input').forEach(i => { let v = parseInt(i.value); if(v>0) appSettings.customPrices[i.dataset.pkey]=v; else delete appSettings.customPrices[i.dataset.pkey]; }); localStorage.setItem('houmySettings', JSON.stringify(appSettings)); location.reload(); }
+function openArchive() { document.getElementById('archive-modal').style.display = 'flex'; renderArchiveList(); }
+function renderArchiveList() { let arc = JSON.parse(localStorage.getItem('houmyArchive')||'{}'), html = ''; for(let n in arc) { html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px solid #ddd; margin-bottom:5px;"><strong>${n}</strong><div><button onclick="loadFromArchive('${n}')" style="margin-right:5px; background:#007bff; color:white; border:none; padding:4px 8px; cursor:pointer;">Užkrauti</button><button onclick="deleteFromArchive('${n}')" style="background:#dc3545; color:white; border:none; padding:4px 8px; cursor:pointer;">Ištrinti</button></div></div>`; } document.getElementById('archive-list').innerHTML = html || 'Archyvas tuščias'; }
+function saveToArchive() { let n = document.getElementById('archive-name').value.trim(); if(!n) return alert("Įveskite pavadinimą"); let s = Array.from(document.querySelectorAll('.canvas-module')).map(m=>({ id:m.dataset.id, n:m.dataset.name, p:m.dataset.price, c:m.dataset.collection, w:m.dataset.w, h:m.dataset.h, l:parseFloat(m.style.left)/scale, t:parseFloat(m.style.top)/scale, a:m.dataset.angle, exp:m.dataset.isExpanded })); let arc = JSON.parse(localStorage.getItem('houmyArchive')||'{}'); arc[n]=s; localStorage.setItem('houmyArchive', JSON.stringify(arc)); document.getElementById('archive-name').value=''; renderArchiveList(); }
+function loadFromArchive(n) { let arc = JSON.parse(localStorage.getItem('houmyArchive')||'{}'); if(arc[n]) { restoreState(arc[n]); document.getElementById('archive-modal').style.display='none'; } }
+function deleteFromArchive(n) { if(confirm("Trinti?")) { let arc = JSON.parse(localStorage.getItem('houmyArchive')||'{}'); delete arc[n]; localStorage.setItem('houmyArchive', JSON.stringify(arc)); renderArchiveList(); } }
 
 function shareConfiguration() {
     const modules = Array.from(document.querySelectorAll('.canvas-module')); if (modules.length === 0) return alert("Sofa tuščia!");
@@ -328,66 +318,93 @@ function shareConfiguration() {
     navigator.clipboard.writeText(shareUrl).then(() => { const btn = document.getElementById('share-btn'); const old = btn.innerHTML; btn.innerHTML = '✅ Nuoroda nukopijuota!'; setTimeout(() => btn.innerHTML = old, 2000); });
 }
 
-// --- COLOR PICKER (V1.18 FIX) ---
-const colors = [
-    { name: 'Balta', hex: '#ffffff' }, { name: 'Kreminė', hex: '#fdf4e3' }, { name: 'Šv. Pilka', hex: '#e2e2e2' }, { name: 'Rusva', hex: '#c9bcae' },
-    { name: 'Smėlio', hex: '#d2b48c' }, { name: 'Garstyčių', hex: '#d4af37' }, { name: 'Ryža', hex: '#c86b3c' }, { name: 'Ruda', hex: '#6b4423' },
-    { name: 'Alyvuogių', hex: '#a3b18a' }, { name: 'Žalia', hex: '#5f7a61' }, { name: 'Pilka', hex: '#7a7a7a' }, { name: 'Mėlyna', hex: '#3b4d61' }
-];
+// --- PDF IR BRĖŽINIAI ---
+async function generatePDFWithDetails() { 
+    appSettings.prodTerm = document.getElementById('client-term').value.trim(); appSettings.deliveryNote = document.getElementById('client-delivery').value.trim(); localStorage.setItem('houmySettings', JSON.stringify(appSettings)); 
+    document.getElementById('client-modal').style.display = 'none'; selectModule(null); 
+    const modules = Array.from(document.querySelectorAll('.canvas-module')); if(modules.length===0) return;
+    let pName = document.getElementById('project-name').value.trim(), discountVal = parseInt(document.getElementById('client-discount').value) || 0;
+    document.getElementById('pdf-main-title').innerText = pName || "Komercinis Pasiūlymas"; 
+    document.querySelectorAll('.dynamic-bb').forEach(e => e.style.display = 'none'); 
+    document.getElementById('zoom-controls').style.display = 'none'; document.getElementById('dimension-display').style.display = 'none'; 
+    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity; 
+    modules.forEach(m => { let a=(parseInt(m.dataset.angle)||0)*Math.PI/180, w=parseFloat(m.dataset.w)*scale, h=parseFloat(m.dataset.h)*scale, cx=parseFloat(m.style.left)+w/2, cy=parseFloat(m.style.top)+h/2, dx=w/2, dy=h/2; [{x:-dx,y:-dy},{x:dx,y:-dy},{x:dx,y:dy},{x:-dx,y:dy}].forEach(c => { let rx=cx+c.x*Math.cos(a)-c.y*Math.sin(a), ry=cy+c.x*Math.sin(a)+c.y*Math.cos(a); minX=Math.min(minX,rx); maxX=Math.max(maxX,rx); minY=Math.min(minY,ry); maxY=Math.max(maxY,ry); }); }); 
+    let pad = dimState===2 ? 160 : 90, sX = pad-minX, sY = pad-minY, oP = new Map();
+    modules.forEach(m => { oP.set(m, { l: m.style.left, t: m.style.top }); m.style.left = (parseFloat(m.style.left)+sX)+'px'; m.style.top = (parseFloat(m.style.top)+sY)+'px'; });
+    updateDimensions(); const wrap = document.getElementById('canvas-wrapper'); let oTr = wrap.style.transform, oW = wrap.style.width, oH = wrap.style.height;
+    wrap.style.transform = 'translate(0px, 0px)'; wrap.style.width = ((maxX-minX)+pad*2)+'px'; wrap.style.height = ((maxY-minY)+pad*2)+'px';
+    await new Promise(r => setTimeout(r, 250)); const canvas = await html2canvas(wrap, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+    wrap.style.transform = oTr; wrap.style.width = oW; wrap.style.height = oH; modules.forEach(m => { let o = oP.get(m); m.style.left = o.l; m.style.top = o.t; });
+    updateDimensions(); document.getElementById('zoom-controls').style.display = 'flex'; document.getElementById('dimension-display').style.display = 'block'; 
+    document.getElementById('pdf-sofa-img').src = canvas.toDataURL('image/jpeg', 0.95); 
+    const tb = document.getElementById('pdf-table-body'); tb.innerHTML = '';
+    const isM = new Set(modules.map(m => m.dataset.collection)).size > 1; let counts = {}, total = 0;
+    modules.forEach(m => { let dN = getDisplayName({collection:m.dataset.collection, name:m.dataset.name}, isM), p = getModulePrice(m.dataset.collection, m.dataset.id); if(!counts[dN]) counts[dN] = { q:0, p:p }; counts[dN].q++; total += p; });
+    for(let n in counts) { tb.innerHTML += `<tr><td style="padding:6px 8px; border-bottom:1px solid #eee;">${n}</td><td style="text-align:center; border-bottom:1px solid #eee;">${counts[n].q} vnt.</td><td style="text-align:right; border-bottom:1px solid #eee;"><b>${counts[n].p * counts[n].q} €</b></td></tr>`; }
+    let fT = discountVal > 0 ? total - Math.round(total * (discountVal/100)) : total;
+    document.getElementById('pdf-price-breakdown').innerHTML = `<div style="font-size:16px; font-weight:bold; border-top: 2px solid #333; padding-top: 4px;">Viso su PVM: ${fT} €</div>`;
+    const pdfT = document.getElementById('pdf-template'); pdfT.style.display = 'flex';
+    await html2canvas(pdfT, { scale: 2, useCORS: true }).then(c => { const pdf = new jspdf.jsPDF('p', 'mm', 'a4'); pdf.addImage(c.toDataURL('image/jpeg', 0.98), 'JPEG', 0, 0, 210, 297); pdf.save(pName ? `Houmy_${pName}.pdf` : 'Houmy_Pasiulymas.pdf'); });
+    pdfT.style.display = 'none';
+}
 
+function openBlueprintModal() { if(document.querySelectorAll('.canvas-module').length === 0) return alert("Sofa tuščia!"); document.getElementById('blueprint-modal').style.display = 'flex'; }
+
+async function executeExportBlueprint() { 
+    document.getElementById('blueprint-modal').style.display = 'none'; selectModule(null); 
+    const modules = Array.from(document.querySelectorAll('.canvas-module')); if(modules.length===0) return;
+    document.querySelectorAll('.dynamic-bb').forEach(e => e.style.display = 'none'); 
+    document.getElementById('zoom-controls').style.display = 'none'; document.getElementById('dimension-display').style.display = 'none'; 
+    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity; 
+    modules.forEach(m => { let a=(parseInt(m.dataset.angle)||0)*Math.PI/180, w=parseFloat(m.dataset.w)*scale, h=parseFloat(m.dataset.h)*scale, cx=parseFloat(m.style.left)+w/2, cy=parseFloat(m.style.top)+h/2, dx=w/2, dy=h/2; [{x:-dx,y:-dy},{x:dx,y:-dy},{x:dx,y:dy},{x:-dx,y:dy}].forEach(c => { let rx=cx+c.x*Math.cos(a)-c.y*Math.sin(a), ry=cy+c.x*Math.sin(a)+c.y*Math.cos(a); minX=Math.min(minX,rx); maxX=Math.max(maxX,rx); minY=Math.min(minY,ry); maxY=Math.max(maxY,ry); }); }); 
+    let pad = dimState===2 ? 160 : 90, sX = pad-minX, sY = pad-minY, oP = new Map();
+    modules.forEach(m => { oP.set(m, { l: m.style.left, t: m.style.top }); m.style.left = (parseFloat(m.style.left)+sX)+'px'; m.style.top = (parseFloat(m.style.top)+sY)+'px'; });
+    updateDimensions(); const wrap = document.getElementById('canvas-wrapper'); let oTr = wrap.style.transform, oW = wrap.style.width, oH = wrap.style.height;
+    wrap.style.transform = 'translate(0px, 0px)'; wrap.style.width = ((maxX-minX)+pad*2)+'px'; wrap.style.height = ((maxY-minY)+pad*2)+'px';
+    await new Promise(r => setTimeout(r, 250)); const canvas = await html2canvas(wrap, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+    wrap.style.transform = oTr; wrap.style.width = oW; wrap.style.height = oH; modules.forEach(m => { let o = oP.get(m); m.style.left = o.l; m.style.top = o.t; });
+    updateDimensions(); document.getElementById('zoom-controls').style.display = 'flex'; document.getElementById('dimension-display').style.display = 'block'; 
+    document.getElementById('bp-img-container').innerHTML = `<img src="${canvas.toDataURL('image/jpeg', 0.95)}" style="max-width:100%">`;
+    const isM = new Set(modules.map(m => m.dataset.collection)).size > 1;
+    document.getElementById('bp-collection').innerText = Array.from(new Set(modules.map(m => m.dataset.collection.toUpperCase()))).join(' + ');
+    document.getElementById('bp-chain').innerText = generateModuleChainText(modules, isM);
+    const bpT = document.getElementById('blueprint-template'); bpT.style.display = 'flex';
+    await html2canvas(bpT, { scale: 2, useCORS: true }).then(c => { let l = document.createElement('a'); l.download = 'Houmy_Brezinys.jpg'; l.href = c.toDataURL('image/jpeg', 0.9); l.click(); });
+    bpT.style.display = 'none';
+}
+
+// --- SPALVŲ PASIRINKIMAS IR MOBILI VERSIJA ---
+const colors = [{ name: 'Balta', hex: '#ffffff' }, { name: 'Kreminė', hex: '#fdf4e3' }, { name: 'Šv. Pilka', hex: '#e2e2e2' }, { name: 'Rusva', hex: '#c9bcae' }, { name: 'Smėlio', hex: '#d2b48c' }, { name: 'Garstyčių', hex: '#d4af37' }, { name: 'Ryža', hex: '#c86b3c' }, { name: 'Ruda', hex: '#6b4423' }, { name: 'Alyvuogių', hex: '#a3b18a' }, { name: 'Žalia', hex: '#5f7a61' }, { name: 'Pilka', hex: '#7a7a7a' }, { name: 'Mėlyna', hex: '#3b4d61' }];
 if(!appSettings.fabricColor) appSettings.fabricColor = '#ffffff';
 document.documentElement.style.setProperty('--sofa-color', appSettings.fabricColor);
-
 const colorStyle = document.createElement('style');
-colorStyle.innerHTML = `
-    .canvas-module svg *:not([fill="none"]) { fill: var(--sofa-color) !important; transition: fill 0.3s; }
-    .color-picker-wrapper { background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #eee; }
-    .color-picker-title { font-weight: bold; margin-bottom: 8px; font-size: 11px; text-transform: uppercase; color: #555; text-align: center; }
-    .color-picker-container { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
-    .color-dot { width: 24px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid #ccc; transition: 0.2s; }
-    .color-dot.active { border-color: #222; transform: scale(1.1); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-    @media (max-width: 768px) {
-        .color-picker-wrapper { position: fixed; bottom: -300px; left: 0; right: 0; margin-bottom: 0; z-index: 1001; box-shadow: 0 -5px 20px rgba(0,0,0,0.2); transition: bottom 0.3s ease; border-radius: 15px 15px 0 0; padding: 20px; }
-        .color-picker-wrapper.open { bottom: 0; }
-        .mobile-color-btn { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: #007bff; color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border: none; }
-        .color-dot { width: 35px; height: 35px; }
-    }
-`;
+colorStyle.innerHTML = `.canvas-module svg *:not([fill="none"]) { fill: var(--sofa-color) !important; transition: fill 0.3s; } .color-picker-wrapper { background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #eee; } .color-picker-container { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; } .color-dot { width: 24px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid #ccc; transition: 0.2s; } .color-dot.active { border-color: #222; transform: scale(1.1); } @media (max-width: 768px) { .color-picker-wrapper { position: fixed; bottom: -300px; left: 0; right: 0; margin-bottom: 0; z-index: 1001; box-shadow: 0 -5px 20px rgba(0,0,0,0.2); transition: bottom 0.3s; border-radius: 15px 15px 0 0; padding: 20px; } .color-picker-wrapper.open { bottom: 0; } .mobile-color-btn { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: #007bff; color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border: none; } }`;
 document.head.appendChild(colorStyle);
-
-function changeSofaColor(hex, dotEl) {
-    appSettings.fabricColor = hex; localStorage.setItem('houmySettings', JSON.stringify(appSettings));
-    document.documentElement.style.setProperty('--sofa-color', hex);
-    document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active')); if(dotEl) dotEl.classList.add('active');
-    if(window.innerWidth <= 768) document.querySelector('.color-picker-wrapper').classList.remove('open');
+function changeSofaColor(hex, dotEl) { appSettings.fabricColor = hex; localStorage.setItem('houmySettings', JSON.stringify(appSettings)); document.documentElement.style.setProperty('--sofa-color', hex); document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active')); if(dotEl) dotEl.classList.add('active'); if(window.innerWidth <= 768) document.querySelector('.color-picker-wrapper').classList.remove('open'); }
+const sideR = document.getElementById('sidebar-right');
+if (sideR) {
+    const wrap = document.createElement('div'); wrap.className = 'color-picker-wrapper';
+    const cont = document.createElement('div'); cont.className = 'color-picker-container';
+    colors.forEach(c => { const dot = document.createElement('div'); dot.className = 'color-dot' + (appSettings.fabricColor === c.hex ? ' active' : ''); dot.style.background = c.hex; dot.onclick = () => changeSofaColor(c.hex, dot); cont.appendChild(dot); });
+    wrap.innerHTML = `<div style="text-align:center; font-weight:bold; font-size:11px; margin-bottom:8px; color:#555;">Audinio Spalva</div>`; wrap.appendChild(cont); sideR.insertBefore(wrap, sideR.firstChild);
+    if (!document.getElementById('share-btn')) { let sB = document.createElement('button'); sB.id = 'share-btn'; sB.className = 'action-btn'; sB.style.cssText = "background:#6c757d; margin-bottom: 6px;"; sB.innerHTML = "🔗 Dalintis nuoroda"; sB.onclick = shareConfiguration; let pB = sideR.querySelector('button[onclick="openClientModal()"]'); if (pB) sideR.insertBefore(sB, pB); else sideR.appendChild(sB); }
+    if(window.innerWidth <= 768) { let mB = document.createElement('button'); mB.className = 'mobile-color-btn'; mB.innerHTML = '🎨'; mB.onclick = (e) => { e.stopPropagation(); wrap.classList.toggle('open'); }; document.body.appendChild(mB); document.addEventListener('click', () => wrap.classList.remove('open')); wrap.onclick = (e) => e.stopPropagation(); }
 }
 
-const rightSidebarMenu = document.getElementById('sidebar-right');
-if (rightSidebarMenu) {
-    const wrapper = document.createElement('div'); wrapper.className = 'color-picker-wrapper';
-    const title = document.createElement('div'); title.className = 'color-picker-title'; title.innerText = "Audinio Spalva";
-    const container = document.createElement('div'); container.className = 'color-picker-container';
-    colors.forEach(c => { const dot = document.createElement('div'); dot.className = 'color-dot' + (appSettings.fabricColor === c.hex ? ' active' : ''); dot.style.background = c.hex; dot.onclick = () => changeSofaColor(c.hex, dot); container.appendChild(dot); });
-    wrapper.appendChild(title); wrapper.appendChild(container); rightSidebarMenu.insertBefore(wrapper, rightSidebarMenu.firstChild);
-    if(window.innerWidth <= 768) {
-        const mobBtn = document.createElement('button'); mobBtn.className = 'mobile-color-btn'; mobBtn.innerHTML = '🎨';
-        mobBtn.onclick = (e) => { e.stopPropagation(); wrapper.classList.toggle('open'); }; document.body.appendChild(mobBtn);
-        document.addEventListener('click', () => wrapper.classList.remove('open')); wrapper.onclick = (e) => e.stopPropagation();
-    }
-}
+// --- KLAVIATŪRA IR PRADINIS UŽKROVIMAS ---
+document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if(e.ctrlKey && e.key === 'z') undo();
+    if(selectedModule) { if(e.key === 'q') rotateSelected(-90); if(e.key === 'e') rotateSelected(90); if(e.key === 'Delete' || e.key === 'Backspace') deleteSelected(); }
+});
 
 updateZoomText();
-const urlParams = new URLSearchParams(window.location.search), sharedStateNew = urlParams.get('s');
-if (sharedStateNew) {
+const sN = new URLSearchParams(window.location.search).get('s');
+if (sN) {
     try {
-        let parsed = []; atob(sharedStateNew).split('~').forEach(g => { const p = g.split(':'); if (p[1]) p[1].split('!').forEach(m => { const [i,x,y,a,e] = m.split(','); parsed.push({c:p[0], i, x:parseInt(x), y:parseInt(y), a:parseInt(a), e:parseInt(e)}); }); });
-        loadModel(parsed[0].c); canvasArea.innerHTML = '';
-        parsed.forEach(d => {
-            let b = furnitureModels[d.c]?.find(x => x.id === d.i); if (!b) return;
-            const el = document.createElement('div'); el.className = 'canvas-module'; Object.assign(el.dataset, { id: d.i, name: b.name, price: b.price, collection: d.c, w: b.w, h: b.h, angle: d.a, isExpanded: d.e === 1 ? 'true' : 'false' });
-            el.style.cssText = `width:${b.w*scale}px; height:${b.h*scale}px; left:${d.x*scale}px; top:${d.y*scale}px; z-index:${zIndexCounter++}; transform:rotate(${d.a}deg)`;
-            el.innerHTML = (d.e === 1 && b.expandable ? b.svgExpanded : b.svg) + `<span class="label" style="transform:rotate(${-d.a}deg)"></span>`; attachEvents(el); canvasArea.appendChild(el);
-        });
+        let p = []; atob(sN).split('~').forEach(g => { const x = g.split(':'); if (x[1]) x[1].split('!').forEach(m => { const [i,lx,ty,a,e] = m.split(','); p.push({c:x[0], i, x:parseInt(lx), y:parseInt(ty), a:parseInt(a), e:parseInt(e)}); }); });
+        loadModel(p[0].c); canvasArea.innerHTML = '';
+        p.forEach(d => { let b = furnitureModels[d.c]?.find(x => x.id === d.i); if (!b) return; const el = document.createElement('div'); el.className = 'canvas-module'; Object.assign(el.dataset, { id: d.i, name: b.name, price: b.price, collection: d.c, w: b.w, h: b.h, angle: d.a, isExpanded: d.e === 1 ? 'true' : 'false' }); el.style.cssText = `width:${b.w*scale}px; height:${b.h*scale}px; left:${d.x*scale}px; top:${d.y*scale}px; z-index:${zIndexCounter++}; transform:rotate(${d.a}deg)`; el.innerHTML = (d.e === 1 && b.expandable ? b.svgExpanded : b.svg) + `<span class="label" style="transform:rotate(${-d.a}deg)"></span>`; attachEvents(el); canvasArea.appendChild(el); });
         updateOrderSummary(); updateLabels(); setTimeout(() => updateDimensions(), 50); saveState();
-    } catch (e) { alert("Nuoroda sugadinta."); }
+    } catch (e) { console.log("URL error"); }
 } else { loadModel(modelSelect.value); const saved = localStorage.getItem('sofaState'); if(saved) restoreState(JSON.parse(saved)); }
