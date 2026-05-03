@@ -307,11 +307,11 @@ function updateDimensions() {
 
         if (dimState > 0) {
             let offset = 35;
-            // Pakeitimas nr. 1: Pilki matmenys dedami pagal lokalias sofos grupės ribas, o ne globalias
+            // Pilki matmenys dedami pagal lokalias sofos grupės ribas
             let topY = minY - offset, bottomY = maxY + offset;
             let leftX = minX - offset, rightX = maxX + offset;
 
-            // Pakeitimas nr. 2: Math.round apvalinimas apsaugo nuo paklaidų peršokant matmenims
+            // Math.round apvalinimas apsaugo nuo paklaidų peršokant matmenims
             let lineY = (Math.round(cy) <= Math.round(GCY)) ? topY : bottomY;
             let textY = (Math.round(cy) <= Math.round(GCY)) ? (lineY - 6) : (lineY + 16);
             let lineX = (Math.round(cx) >= Math.round(GCX) || groups.length === 1) ? rightX : leftX;
@@ -692,6 +692,7 @@ async function generatePDFWithDetails() {
     document.getElementById('zoom-controls').style.display = 'none'; 
     document.getElementById('dimension-display').style.display = 'none'; 
     
+    // Nauja logika: Surenkame sofos išmatavimus (Bounding Box)
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity; 
     modules.forEach(m => { 
         let angle = (parseInt(m.dataset.angle) || 0) * Math.PI / 180, 
@@ -711,6 +712,19 @@ async function generatePDFWithDetails() {
     if (dimState === 1) padding = 90;
     if (dimState === 2) padding = 160;
     
+    // Ypatingai svarbus fixas: Laikinai stumiame visą sofą į teigiamas koordinates,
+    // kad matmenų SVG neatsidurtų už ekrano (html2canvas pjauna neigiamas koordinates).
+    let shiftX = padding - minX;
+    let shiftY = padding - minY;
+
+    let originalPositions = new Map();
+    modules.forEach(m => {
+        originalPositions.set(m, { left: m.style.left, top: m.style.top });
+        m.style.left = (parseFloat(m.style.left) + shiftX) + 'px';
+        m.style.top = (parseFloat(m.style.top) + shiftY) + 'px';
+    });
+    updateDimensions(); // Priverčiame perpiešti matmenis teigiamoje zonoje
+    
     const tmpWrapper = document.getElementById('canvas-wrapper'); 
     let originalTransform = tmpWrapper.style.transform;
     let originalWidth = tmpWrapper.style.width;
@@ -718,21 +732,33 @@ async function generatePDFWithDetails() {
     
     tmpWrapper.style.transform = 'translate(0px, 0px)';
     document.getElementById('workspace').style.backgroundPosition = '0px 0px';
-    tmpWrapper.style.width = (maxX + padding * 2) + 'px'; 
-    tmpWrapper.style.height = (maxY + padding * 2) + 'px'; 
+    
+    // Drobės plotis ir ilgis dabar visada 100% tiksliai apgaubia paslinktą sofą su matmenimis
+    tmpWrapper.style.width = ((maxX - minX) + padding * 2) + 'px'; 
+    tmpWrapper.style.height = ((maxY - minY) + padding * 2) + 'px'; 
     
     await new Promise(r => setTimeout(r, 250));
     
+    // Dabar visada fotografuojame tiksliai nuo 0,0 koordinatės
     const canvas = await html2canvas(tmpWrapper, { 
-        scale: 2, backgroundColor: "#ffffff", x: minX - padding, y: minY - padding, 
+        scale: 2, backgroundColor: "#ffffff", 
+        x: 0, y: 0, 
         width: (maxX - minX) + padding * 2, height: (maxY - minY) + padding * 2, 
         useCORS: true, scrollX: 0, scrollY: 0  
     });
     
+    // Atstatome viską atgal taip, kaip klientas buvo palikęs ekrane
     tmpWrapper.style.transform = originalTransform;
     tmpWrapper.style.width = originalWidth;
     tmpWrapper.style.height = originalHeight;
     document.getElementById('workspace').style.backgroundPosition = `${currentPanX}px ${currentPanY}px`;
+    
+    modules.forEach(m => {
+        let orig = originalPositions.get(m);
+        m.style.left = orig.left;
+        m.style.top = orig.top;
+    });
+    updateDimensions(); // Priverčiame perpiešti matmenis pradinėje vietoje
     
     document.getElementById('zoom-controls').style.display = 'flex'; 
     document.getElementById('dimension-display').style.display = 'block'; 
@@ -841,6 +867,18 @@ async function executeExportBlueprint() {
     if (dimState === 1) padding = 90;
     if (dimState === 2) padding = 160;
     
+    // Perstumiame sofą Gamybos brėžiniui taip pat kaip ir PDF pasiūlymui
+    let shiftX = padding - minX;
+    let shiftY = padding - minY;
+
+    let originalPositions = new Map();
+    modules.forEach(m => {
+        originalPositions.set(m, { left: m.style.left, top: m.style.top });
+        m.style.left = (parseFloat(m.style.left) + shiftX) + 'px';
+        m.style.top = (parseFloat(m.style.top) + shiftY) + 'px';
+    });
+    updateDimensions(); 
+
     const tmpWrapper = document.getElementById('canvas-wrapper'); 
     let originalTransform = tmpWrapper.style.transform;
     let originalWidth = tmpWrapper.style.width;
@@ -848,13 +886,14 @@ async function executeExportBlueprint() {
     
     tmpWrapper.style.transform = 'translate(0px, 0px)';
     document.getElementById('workspace').style.backgroundPosition = '0px 0px';
-    tmpWrapper.style.width = (maxX + padding * 2) + 'px'; 
-    tmpWrapper.style.height = (maxY + padding * 2) + 'px'; 
+    tmpWrapper.style.width = ((maxX - minX) + padding * 2) + 'px'; 
+    tmpWrapper.style.height = ((maxY - minY) + padding * 2) + 'px'; 
     
     await new Promise(r => setTimeout(r, 250)); 
     
     const canvas = await html2canvas(tmpWrapper, { 
-        scale: 2, backgroundColor: "#ffffff", x: minX - padding, y: minY - padding, 
+        scale: 2, backgroundColor: "#ffffff", 
+        x: 0, y: 0, 
         width: (maxX - minX) + padding * 2, height: (maxY - minY) + padding * 2, 
         useCORS: true, scrollX: 0, scrollY: 0  
     }); 
@@ -864,6 +903,14 @@ async function executeExportBlueprint() {
     tmpWrapper.style.height = originalHeight;
     document.getElementById('workspace').style.backgroundPosition = `${currentPanX}px ${currentPanY}px`;
     
+    // Atstatome sofos vietą
+    modules.forEach(m => {
+        let orig = originalPositions.get(m);
+        m.style.left = orig.left;
+        m.style.top = orig.top;
+    });
+    updateDimensions();
+
     document.getElementById('zoom-controls').style.display = 'flex'; 
     document.getElementById('dimension-display').style.display = 'block'; 
     
