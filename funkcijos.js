@@ -1,4 +1,4 @@
-// Nustatome versijos pavadinimą ir pakeičiame jo dizainą per JS (panaikiname didelį foninį tekstą)
+// Nustatome versijos pavadinimą ir pakeičiame jo dizainą per JS
 const watermarkEl = document.getElementById('version-watermark');
 watermarkEl.innerText = APP_VERSION;
 watermarkEl.style.cssText = "position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: #888; font-weight: normal; z-index: 100; pointer-events: none; font-family: sans-serif; opacity: 0.7;";
@@ -162,7 +162,8 @@ function restoreState(data) {
         el.innerHTML= (d.exp === 'true' && modBase.expandable ? modBase.svgExpanded : modBase.svg) + `<span class="label" style="transform:rotate(${-d.a}deg)"></span>`; 
         attachEvents(el); canvasArea.appendChild(el); 
     }); 
-    updateOrderSummary(); updateLabels(); updateDimensions();
+    updateOrderSummary(); updateLabels(); 
+    setTimeout(() => { updateDimensions(); }, 50);
 }
 
 function clearWorkspace() { 
@@ -460,7 +461,7 @@ function addModuleToWorkspace(modData, collectionKey) {
     attachEvents(el); canvasArea.appendChild(el); selectModule(el); 
     
     saveState(); 
-    updateDimensions();
+    setTimeout(() => { updateDimensions(); }, 50);
 }
 
 function globalDragOrPan(e) {
@@ -899,13 +900,117 @@ async function executeExportBlueprint() {
     bpTemplate.style.display = 'none'; 
 }
 
+// --- NAUJA FUNKCIJA: DALIJIMASIS NUORODA ---
+function shareConfiguration() {
+    const modules = Array.from(document.querySelectorAll('.canvas-module'));
+    if (modules.length === 0) {
+        alert("Sofa tuščia, nėra kuo dalintis!");
+        return;
+    }
+
+    // Sukuriame minimalų duomenų paketą su išsaugotomis proporcijomis
+    const minimalState = modules.map(m => ({
+        i: m.dataset.id,
+        c: m.dataset.collection,
+        x: Math.round((parseFloat(m.style.left) || 0) / scale), // Daliname iš mastelio, kad tiktų visiems ekranams
+        y: Math.round((parseFloat(m.style.top) || 0) / scale),
+        a: parseInt(m.dataset.angle) || 0,
+        e: m.dataset.isExpanded === 'true' ? 1 : 0
+    }));
+
+    // Užkoduojame duomenis, kad jie saugiai "tilptų" į internetinę nuorodą
+    const encodedState = btoa(encodeURIComponent(JSON.stringify(minimalState))); 
+    const baseUrl = window.location.href.split('?')[0]; 
+    const shareUrl = `${baseUrl}?share=${encodedState}`; // Pridedame parametrą ?share=
+
+    // Kopijuojame nuorodą į kompiuterio atmintį
+    navigator.clipboard.writeText(shareUrl).then(() => {
+        const btn = document.getElementById('share-btn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '✅ Nuoroda nukopijuota!';
+        btn.style.background = '#17a2b8'; // Pakeičiame mygtuko spalvą
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.style.background = '#6c757d'; // Grąžiname pilką spalvą
+        }, 2000);
+    }).catch(err => {
+        alert("Nepavyko automatiškai nukopijuoti nuorodos. Gali būti, kad jūsų naršyklė to neleidžia. \nŠtai jūsų nuoroda:\n" + shareUrl);
+    });
+}
+
+// Sukuriame dalijimosi mygtuką ir įklijuojame jį virš PDF mygtuko automatiškai
+const rightSidebar = document.getElementById('sidebar-right');
+if (rightSidebar) {
+    const shareBtn = document.createElement('button');
+    shareBtn.id = 'share-btn';
+    shareBtn.className = 'action-btn';
+    shareBtn.style.cssText = "background:#6c757d; margin-bottom: 6px;";
+    shareBtn.innerHTML = "🔗 Dalintis nuoroda";
+    shareBtn.onclick = shareConfiguration;
+    
+    const pdfBtn = rightSidebar.querySelector('button[onclick="openClientModal()"]');
+    if (pdfBtn) rightSidebar.insertBefore(shareBtn, pdfBtn);
+    else rightSidebar.appendChild(shareBtn);
+}
+
+
 updateZoomText();
 
 // -- URL Parametrų Logika --
 const urlParams = new URLSearchParams(window.location.search);
 const requestedModel = urlParams.get('kolekcija');
+const sharedState = urlParams.get('share'); // Tikriname, ar vartotojas neatidarė specialios pasidalinimo nuorodos
 
-if (requestedModel && rawModels[requestedModel]) {
+if (sharedState) {
+    try {
+        // Iškoduojame nuorodoje paslėptus modulius
+        const parsedState = JSON.parse(decodeURIComponent(atob(sharedState)));
+        
+        // Atrenkame unikalias kolekcijas. Jei viskas iš vienos – užfiksuojame meniu
+        let uniqueCollections = [...new Set(parsedState.map(m => m.c))];
+        if (uniqueCollections.length === 1 && rawModels[uniqueCollections[0]]) {
+            modelSelect.value = uniqueCollections[0];
+            modelSelect.style.display = 'none';
+            const collectionLabel = document.createElement('div');
+            collectionLabel.style.cssText = "font-weight: bold; padding: 8px; background: #eef5ff; border: 1px solid #b8daff; border-radius: 4px; margin-bottom: 12px; text-transform: uppercase; text-align: center; color: #007bff; font-size: 13px;";
+            collectionLabel.innerText = uniqueCollections[0] + " KOLEKCIJA";
+            modelSelect.parentNode.insertBefore(collectionLabel, modelSelect);
+        }
+
+        loadModel(modelSelect.value);
+        canvasArea.innerHTML = ''; 
+
+        // Atkuriame visus sofos modulius ant drobės
+        parsedState.forEach(d => {
+            let modBase = furnitureModels[d.c]?.find(x => x.id === d.i);
+            if (!modBase) return;
+            
+            const el = document.createElement('div'); el.className = 'canvas-module'; 
+            Object.assign(el.dataset, {
+                id: d.i, name: modBase.name, price: modBase.price, collection: d.c, 
+                w: modBase.w, h: modBase.h, angle: d.a, isExpanded: d.e === 1 ? 'true' : 'false'
+            }); 
+            
+            if(modBase.expandable) { el.dataset.sleepw = modBase.sleepW; el.dataset.sleeph = modBase.sleepH; }
+            if(modBase.isChaise) { el.dataset.isChaise = 'true'; el.dataset.sleepw = modBase.sleepW; el.dataset.sleeph = modBase.sleepH; }
+
+            el.style.cssText = `width:${modBase.w*scale}px; height:${modBase.h*scale}px; left:${d.x*scale}px; top:${d.y*scale}px; z-index:${zIndexCounter++}; transform:rotate(${d.a}deg)`; 
+            el.innerHTML = (d.e === 1 && modBase.expandable ? modBase.svgExpanded : modBase.svg) + `<span class="label" style="transform:rotate(${-d.a}deg)"></span>`; 
+            
+            attachEvents(el); 
+            canvasArea.appendChild(el);
+        });
+        
+        updateOrderSummary(); updateLabels(); 
+        setTimeout(() => { updateDimensions(); }, 50);
+        saveState(); // Išsaugome į vietinę atmintį ateičiai
+
+    } catch (e) {
+        console.error("Failed to load shared state", e);
+        alert("Nepavyko užkrauti pasidalintos konfigūracijos (nuoroda gali būti sugadinta).");
+    }
+} else if (requestedModel && rawModels[requestedModel]) {
+    // Esama tiesioginės nuorodos "?kolekcija=" logika
     modelSelect.value = requestedModel; 
     modelSelect.style.display = 'none'; 
     
@@ -915,9 +1020,14 @@ if (requestedModel && rawModels[requestedModel]) {
     modelSelect.parentNode.insertBefore(collectionLabel, modelSelect);
     
     loadModel(requestedModel);
+    
+    // Iškart atstatome ir iš atminties, jei toks yra
+    const saved = localStorage.getItem('sofaState');
+    if(saved) restoreState(JSON.parse(saved));
+    
 } else {
+    // Standartinis užkrovimas (be parametrų)
     loadModel(modelSelect.value);
+    const saved = localStorage.getItem('sofaState');
+    if(saved) restoreState(JSON.parse(saved));
 }
-
-const saved = localStorage.getItem('sofaState');
-if(saved) restoreState(JSON.parse(saved));
