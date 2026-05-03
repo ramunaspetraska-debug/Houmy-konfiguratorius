@@ -198,6 +198,9 @@ function updateDimensions() {
     const modules = Array.from(document.querySelectorAll('.canvas-module'));
     const svgAr = document.getElementById('svg-arrows');
     
+    // Ypatingai svarbus pakeitimas: apsaugo linijas nuo nukirpimo (clipping) kai jos išeina už SVG ribų
+    svgAr.style.overflow = 'visible';
+    
     if (modules.length === 0) { 
         document.getElementById('dimension-display').innerHTML = 'Išmatavimai: <b>0 x 0 cm</b>'; 
         svgAr.style.display = 'none'; 
@@ -304,19 +307,21 @@ function updateDimensions() {
 
         if (dimState > 0) {
             let offset = 35;
-            let topY = GMinY - offset, bottomY = GMaxY + offset;
-            let leftX = GMinX - offset, rightX = GMaxX + offset;
+            // Pakeitimas nr. 1: Pilki matmenys dedami pagal lokalias sofos grupės ribas, o ne globalias
+            let topY = minY - offset, bottomY = maxY + offset;
+            let leftX = minX - offset, rightX = maxX + offset;
 
-            let lineY = (cy <= GCY) ? topY : bottomY;
-            let textY = (cy <= GCY) ? (lineY - 6) : (lineY + 16);
-            let lineX = (cx >= GCX || groups.length === 1) ? rightX : leftX;
-            let textX = (cx >= GCX || groups.length === 1) ? (lineX + 16) : (lineX - 6);
+            // Pakeitimas nr. 2: Math.round apvalinimas apsaugo nuo paklaidų peršokant matmenims
+            let lineY = (Math.round(cy) <= Math.round(GCY)) ? topY : bottomY;
+            let textY = (Math.round(cy) <= Math.round(GCY)) ? (lineY - 6) : (lineY + 16);
+            let lineX = (Math.round(cx) >= Math.round(GCX) || groups.length === 1) ? rightX : leftX;
+            let textX = (Math.round(cx) >= Math.round(GCX) || groups.length === 1) ? (lineX + 16) : (lineX - 6);
 
             let extStyle = "stroke='#aaa' stroke-width='0.5' stroke-dasharray='4,4' fill='none'";
-            svgContent += `<line x1="${minX}" y1="${cy<=GCY ? minY : maxY}" x2="${minX}" y2="${lineY}" ${extStyle} />`;
-            svgContent += `<line x1="${maxX}" y1="${cy<=GCY ? minY : maxY}" x2="${maxX}" y2="${lineY}" ${extStyle} />`;
-            svgContent += `<line x1="${cx>=GCX||groups.length===1 ? maxX : minX}" y1="${minY}" x2="${lineX}" y2="${minY}" ${extStyle} />`;
-            svgContent += `<line x1="${cx>=GCX||groups.length===1 ? maxX : minX}" y1="${maxY}" x2="${lineX}" y2="${maxY}" ${extStyle} />`;
+            svgContent += `<line x1="${minX}" y1="${Math.round(cy)<=Math.round(GCY) ? minY : maxY}" x2="${minX}" y2="${lineY}" ${extStyle} />`;
+            svgContent += `<line x1="${maxX}" y1="${Math.round(cy)<=Math.round(GCY) ? minY : maxY}" x2="${maxX}" y2="${lineY}" ${extStyle} />`;
+            svgContent += `<line x1="${Math.round(cx)>=Math.round(GCX)||groups.length===1 ? maxX : minX}" y1="${minY}" x2="${lineX}" y2="${minY}" ${extStyle} />`;
+            svgContent += `<line x1="${Math.round(cx)>=Math.round(GCX)||groups.length===1 ? maxX : minX}" y1="${maxY}" x2="${lineX}" y2="${maxY}" ${extStyle} />`;
 
             svgContent += `<path d="M ${minX} ${lineY} L ${maxX} ${lineY}" stroke="#555" stroke-width="0.8" fill="none" marker-start="url(#tick)" marker-end="url(#tick)" />`;
             svgContent += `<text x="${cx}" y="${textY}" fill="#333" font-size="12" font-weight="500" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="3">${totalW} cm</text>`;
@@ -327,7 +332,7 @@ function updateDimensions() {
     });
 
     if (dimState === 2 && groups.length > 1) {
-        let offset = 80; 
+        let offset = 85; 
         let totalW = Math.round((GMaxX - GMinX) / scale), totalH = Math.round((GMaxY - GMinY) / scale);
         
         let extStyle = "stroke='#007bff' stroke-width='0.5' stroke-dasharray='4,4' fill='none' opacity='0.5'";
