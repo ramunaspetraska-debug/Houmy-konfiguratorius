@@ -944,13 +944,17 @@ function shareConfiguration() {
 // --- NAUJA FUNKCIJA: SPALVŲ PASIRINKIMAS (COLOR PICKER) ---
 const colors = [
     { name: 'Balta (Standartinė)', hex: '#ffffff' },
+    { name: 'Šviesiai Kreminė', hex: '#fdf4e3' },
     { name: 'Šviesiai Pilka', hex: '#e2e2e2' },
-    { name: 'Grafito Pilka', hex: '#7a7a7a' },
+    { name: 'Šviesiai Rusva', hex: '#c9bcae' },
     { name: 'Smėlio / Kapučino', hex: '#d2b48c' },
-    { name: 'Samanų Žalia', hex: '#5f7a61' },
-    { name: 'Karališka Mėlyna', hex: '#3b4d61' },
+    { name: 'Garstyčių', hex: '#d4af37' },
+    { name: 'Ryža (Terakota)', hex: '#c86b3c' },
     { name: 'Šokolado Ruda', hex: '#6b4423' },
-    { name: 'Garstyčių', hex: '#d4af37' }
+    { name: 'Pastelinė Alyvuogių', hex: '#a3b18a' },
+    { name: 'Samanų Žalia', hex: '#5f7a61' },
+    { name: 'Grafito Pilka', hex: '#7a7a7a' },
+    { name: 'Karališka Mėlyna', hex: '#3b4d61' }
 ];
 
 if(!appSettings.fabricColor) appSettings.fabricColor = '#ffffff';
