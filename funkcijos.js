@@ -1,6 +1,6 @@
 // Nustatome versijos pavadinimą ir pakeičiame jo dizainą per JS
 const watermarkEl = document.getElementById('version-watermark');
-watermarkEl.innerText = APP_VERSION;
+watermarkEl.innerText = "V1.16";
 watermarkEl.style.cssText = "position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: #888; font-weight: normal; z-index: 100; pointer-events: none; font-family: sans-serif; opacity: 0.7;";
 
 let isGridOn = true;
@@ -137,8 +137,8 @@ let saveStateTimeout = null;
 function saveState() { 
     const s = Array.from(document.querySelectorAll('.canvas-module')).map(m=>({
         id:m.dataset.id, n:m.dataset.name, p:m.dataset.price, c:m.dataset.collection, w:m.dataset.w, h:m.dataset.h, 
-        l: (parseFloat(m.style.left) || 0) / scale, // Pataisyta: Išsaugomas loginis (nepriklausomas nuo mastelio) X
-        t: (parseFloat(m.style.top) || 0) / scale,  // Pataisyta: Išsaugomas loginis Y
+        l: (parseFloat(m.style.left) || 0) / scale,
+        t: (parseFloat(m.style.top) || 0) / scale,
         a:m.dataset.angle, z:m.style.zIndex, exp: m.dataset.isExpanded
     })); 
     const stateStr = JSON.stringify(s);
@@ -164,7 +164,6 @@ function restoreState(data) {
         const el=document.createElement('div'); el.className='canvas-module'; 
         Object.assign(el.dataset,{id:d.id, name:d.n, price:d.p, collection:d.c, w:d.w, h:d.h, angle:d.a, isExpanded: d.exp || 'false'}); 
         
-        // Atgalinis suderinamumas, jei atmintyje liko sugadinti atstumai (string su 'px')
         let leftVal = (typeof d.l === 'string' && d.l.includes('px')) ? parseFloat(d.l) : parseFloat(d.l) * scale;
         let topVal = (typeof d.t === 'string' && d.t.includes('px')) ? parseFloat(d.t) : parseFloat(d.t) * scale;
 
@@ -613,7 +612,7 @@ document.addEventListener('keydown', (e) => {
             id: m.dataset.id, name: m.dataset.name, price: m.dataset.price, collection: m.dataset.collection,
             w: m.dataset.w, h: m.dataset.h, angle: m.dataset.angle || 0, isExpanded: m.dataset.isExpanded,
             isChaise: m.dataset.isChaise, sleepw: m.dataset.sleepw, sleeph: m.dataset.sleeph,
-            left: (parseFloat(m.style.left) || 0) / scale, // Pataisyta kopijavimui
+            left: (parseFloat(m.style.left) || 0) / scale,
             top: (parseFloat(m.style.top) || 0) / scale
         }));
         return;
@@ -624,7 +623,7 @@ document.addEventListener('keydown', (e) => {
         let newlyPasted = []; selectModule(null);
         
         clipboardData.forEach(d => {
-            let pLeft = (d.left * scale) + 40; // Pataisyta įklijavimui
+            let pLeft = (d.left * scale) + 40;
             let pTop = (d.top * scale) + 40;
             let modBase = furnitureModels[d.collection]?.find(x => x.id === d.id);
             if (!modBase) return;
@@ -666,7 +665,7 @@ function renderArchiveList() { let archive = JSON.parse(localStorage.getItem('ho
 function saveToArchive() { let name = document.getElementById('archive-name').value.trim(); if(!name) return alert('Prašome įvesti projekto pavadinimą!'); 
     let state = Array.from(document.querySelectorAll('.canvas-module')).map(m=>({
         id:m.dataset.id, n:m.dataset.name, p:m.dataset.price, c:m.dataset.collection, w:m.dataset.w, h:m.dataset.h, 
-        l: (parseFloat(m.style.left) || 0) / scale, // Pataisyta archyvui
+        l: (parseFloat(m.style.left) || 0) / scale,
         t: (parseFloat(m.style.top) || 0) / scale,
         a:m.dataset.angle, z:m.style.zIndex, exp: m.dataset.isExpanded
     })); 
@@ -1134,7 +1133,6 @@ if (sharedStateNew || sharedStateOld) {
             if(modBase.expandable) { el.dataset.sleepw = modBase.sleepW; el.dataset.sleeph = modBase.sleepH; }
             if(modBase.isChaise) { el.dataset.isChaise = 'true'; el.dataset.sleepw = modBase.sleepW; el.dataset.sleeph = modBase.sleepH; }
 
-            // Naudojame mastelį atstatymui (Backwards compatibility nereikia iš naujo, nes nuoroda visada fresh)
             el.style.cssText = `width:${modBase.w*scale}px; height:${modBase.h*scale}px; left:${d.x*scale}px; top:${d.y*scale}px; z-index:${zIndexCounter++}; transform:rotate(${d.a}deg)`; 
             el.innerHTML = (d.e === 1 && modBase.expandable ? modBase.svgExpanded : modBase.svg) + `<span class="label" style="transform:rotate(${-d.a}deg)"></span>`; 
             
