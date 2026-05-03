@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HOUMY Baldų Konfigūratorius</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+    <div id="sidebar-left">
+        <div class="sidebar-header">
+            <h2>Kolekcija:</h2>
+            <select id="model-select">
+                <option value="dizy">DIZY</option>
+                <option value="cloud" selected>CLOUD</option>
+                <option value="core">CORE</option>
+                <option value="cushy">CUSHY</option>
+                <option value="dream">DREAM</option>
+                <option value="hola">HOLA</option>
+                <option value="lazy">LAZY</option>
+                <option value="muto">MUTO</option>
+            </select>
+            
+            <h2>Audinio grupė:</h2>
+            <select id="fabric-group-select">
+                <option value="1" selected>I Grupė (Bazinė)</option>
+                <option value="2">II Grupė</option>
+                <option value="3">III Grupė</option>
+                <option value="4">IV Grupė</option>
+                <option value="5">V Grupė</option>
+            </select>
+        </div>
+        <div id="module-list"></div>
+    </div>
+
+    <div id="main-area">
+        <div id="toolbar">
+            <label class="toggle-label" title="Grupuoti"><input type="checkbox" id="group-toggle"><span>🔗</span></label>
+            
+            <div class="toggle-label" id="arrow-toggle-btn" onclick="cycleDimensions()" title="Matmenys (Grupės / Visi / Išjungta)" style="cursor:pointer; background: #eef5ff; border-color: #b8daff; filter: drop-shadow(0px 0px 2px rgba(0,123,255,0.5)); margin-left:5px;">
+                <span>📏<sup id="dim-state-indicator" style="font-size:10px; font-weight:bold; color:#007bff; margin-left:1px;">1</sup></span>
+            </div>
+            
+            <div style="border-left: 1px solid #ddd; height: 20px; margin: 0 5px;"></div>
+            
+            <button class="tool-btn" onclick="toggleGrid()" title="Tinklelis On/Off">▦</button>
+            <button class="tool-btn" onclick="openArchive()" title="Archyvas">📂</button>
+            <button class="tool-btn" onclick="undo()" title="Atšaukti">↩</button>
+            <button class="tool-btn" onclick="rotateSelected(-90)" title="Pasukti kairėn">↺</button>
+            <button class="tool-btn" onclick="rotateSelected(90)" title="Pasukti dešinėn">↻</button>
+            <button class="tool-btn danger-btn" onclick="deleteSelected()" title="Ištrinti">🗑️</button>
+            <button class="tool-btn" onclick="openAdmin()" title="Nustatymai" style="margin-left: 10px;">⚙️</button>
+            <div style="flex-grow:1;"></div>
+            <button class="tool-btn danger-btn" onclick="clearWorkspace()" title="Išvalyti viską">🧹</button>
+        </div>
+
+        <div id="workspace">
+            <div id="version-watermark"></div>
+
+            <div id="zoom-controls">
+                <button onclick="changeZoom(-0.15)">-</button>
+                <span id="zoom-level">100%</span>
+                <button onclick="changeZoom(0.15)">+</button>
+            </div>
+            
+            <div id="canvas-wrapper">
+                <svg id="svg-arrows" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:85;">
+                </svg>
+                <div id="canvas-area"></div>
+            </div>
+            
+            <div id="dimension-display">Išmatavimai: <b>0 x 0 cm</b></div>
+        </div>
+    </div>
+
+    <div id="sidebar-right">
+        <h2 style="margin: 0 0 5px 0;">Sąmata</h2>
+        <div id="order-list"></div>
+        <div id="module-chain-display" style="font-size:10px; color:#666; font-weight:bold; margin-bottom:10px; border-top:1px solid #eee; padding-top:5px; min-height: 15px;"></div>
+        <div class="order-total">
+            <span id="discount-display" style="display:none; font-size:11px; color:#d9534f; text-decoration:line-through; margin-bottom:4px;"></span><br>
+            Suma: <span id="total-price" style="color:#111;">0</span> €
+        </div>
+        <button class="action-btn" onclick="openClientModal()" style="margin-bottom: 6px;">📄 Komercinis Pasiūlymas</button>
+        <button class="action-btn" onclick="openBlueprintModal()" style="background:#007bff; font-size: 11px; padding: 8px;">🖼️ Gamybos Brėžinys</button>
+    </div>
+
+    <div id="admin-modal" class="custom-modal">
+        <div class="admin-content">
+            <div class="admin-header">
+                <h2 style="color:white; margin:0;">Administratoriaus Skydelis</h2>
+                <button onclick="closeAdmin()">✖ Uždaryti</button>
+            </div>
+            <div class="admin-body">
+                <div class="admin-section">
+                    <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="let el=document.getElementById('price-config'); el.style.display=el.style.display==='none'?'block':'none';">
+                        <h3 style="margin:0; color:#007bff; border-bottom:none;">Bazinės Modulių Kainos (I gr.)</h3>
+                    </div>
+                    <div id="price-config" style="display:none; margin-top:15px; border-top:1px solid #ddd; padding-top:15px;">
+                        <div style="background:#fff; padding:15px; border:1px solid #ddd; border-radius:6px; margin-bottom:20px;">
+                            <h4 style="margin:0 0 10px 0; color:#d9534f;">Masinis kainų keitimas (%)</h4>
+                            <div style="margin-bottom: 10px; display:flex; flex-wrap:wrap; gap:10px;">
+                                <label><input type="checkbox" class="bulk-col" value="dizy"> DIZY</label>
+                                <label><input type="checkbox" class="bulk-col" value="cloud"> CLOUD</label>
+                                <label><input type="checkbox" class="bulk-col" value="core"> CORE</label>
+                                <label><input type="checkbox" class="bulk-col" value="cushy"> CUSHY</label>
+                                <label><input type="checkbox" class="bulk-col" value="dream"> DREAM</label>
+                                <label><input type="checkbox" class="bulk-col" value="hola"> HOLA</label>
+                                <label><input type="checkbox" class="bulk-col" value="lazy"> LAZY</label>
+                                <label><input type="checkbox" class="bulk-col" value="muto"> MUTO</label>
+                            </div>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <input type="number" id="bulk-percent" placeholder="Procentai (pvz. 10)" style="width:140px; padding:6px;">
+                                <button type="button" onclick="applyBulkPrice(1)" style="padding:6px 12px; background:#28a745; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">+ Padidinti</button>
+                                <button type="button" onclick="applyBulkPrice(-1)" style="padding:6px 12px; background:#dc3545; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">- Sumažinti</button>
+                            </div>
+                        </div>
+                        <p style="font-size:12px; color:#666; margin-top:0;">Pakeiskite pavienio modulio bazinę (I gr.) kainą. Priedai už aukštesnes grupes skaičiuojami automatiškai iš duomenų bazės.</p>
+                        <div id="admin-prices-container"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="admin-footer">
+                <button onclick="saveAdminSettings()" class="action-btn" style="width:auto; margin:0; padding:10px 20px;">💾 Išsaugoti visus nustatymus</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="archive-modal" class="custom-modal">
+        <div style="background:#fff; padding:20px; border-radius:8px; width:100%; max-width:500px; display:flex; flex-direction:column; gap:10px;">
+            <h3 style="margin-top:0; color:#007bff;">Projektų Archyvas</h3>
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="archive-name" placeholder="Įveskite projekto pavadinimą išsaugojimui" style="flex-grow:1; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                <button onclick="saveToArchive()" style="padding:8px 15px; background:#28a745; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">Išsaugoti</button>
+            </div>
+            <div id="archive-list" style="margin-top:10px; max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:5px;"></div>
+            <div style="text-align:right; margin-top:15px; border-top:1px solid #eee; padding-top:10px;">
+                <button onclick="document.getElementById('archive-modal').style.display='none'" style="padding:8px 15px; cursor:pointer; border:1px solid #ccc; border-radius:4px; background:#f4f4f4;">Uždaryti</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="client-modal" class="custom-modal">
+        <div style="background:#fff; padding:20px; border-radius:8px; width:100%; max-width:500px; display:flex; flex-direction:column; gap:12px;">
+            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;">Kliento informacija (PDF)</h3>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <input type="text" id="client-name" placeholder="Vardas Pavardė / Įmonė" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="text" id="client-address" placeholder="Pristatymo adresas" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="text" id="project-name" placeholder="Projekto pavadinimas (nebūtina)" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="text" id="client-fabric" placeholder="Audinio pavadinimas / kodas" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="text" id="client-designer" placeholder="Dizaineris" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="number" id="client-discount" placeholder="Suteikiama nuolaida (%)" min="0" max="100" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="text" id="client-term" placeholder="Gamybos terminas" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+            </div>
+            <input type="text" id="client-delivery" placeholder="Pristatymo sąlygos" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+            <textarea id="client-additional" placeholder="Papildoma informacija" rows="3" style="padding:10px; border:1px solid #ccc; border-radius:4px; font-family: inherit; resize: vertical;"></textarea>
+            
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+                <button onclick="document.getElementById('client-modal').style.display='none'" style="padding:10px; cursor:pointer; border:1px solid #ccc; border-radius:4px; background:#f4f4f4;">Atšaukti</button>
+                <button onclick="generatePDFWithDetails()" style="padding:10px 15px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Generuoti PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="blueprint-modal" class="custom-modal">
+        <div style="background:#fff; padding:20px; border-radius:8px; width:100%; max-width:400px; display:flex; flex-direction:column; gap:12px;">
+            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;">Gamybos brėžinys</h3>
+            <input type="text" id="blueprint-fabric" placeholder="Įveskite audinį" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+            <textarea id="blueprint-notes" placeholder="Pastabos gamintojui (Notes)" rows="3" style="padding:10px; border:1px solid #ccc; border-radius:4px; font-family: inherit; resize: vertical;"></textarea>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+                <button onclick="document.getElementById('blueprint-modal').style.display='none'" style="padding:10px; cursor:pointer; border:1px solid #ccc; border-radius:4px; background:#f4f4f4;">Atšaukti</button>
+                <button onclick="executeExportBlueprint()" style="padding:10px 15px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Generuoti Brėžinį</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pdf-template">
+        <div class="pdf-header">
+            <div class="pdf-company-info">
+                <div class="pdf-logo">HOUMY</div>
+                <div class="pdf-details">
+                    <b>MB Praktiški baldai</b><br>
+                    Savanorių pr. 290, Kaunas.<br>
+                    Įm. kodas: 303372464 | PVM: LT100014280515<br>
+                    A/S: LT507300010140193353<br>
+                    📞 +370 675 04607 | ✉️ info@houmy.lt
+                </div>
+                <div id="pdf-client-info" class="pdf-client-info"></div>
+            </div>
+            <div class="pdf-title">
+                <h1 id="pdf-main-title">Komercinis Pasiūlymas</h1>
+                <p id="pdf-date"></p>
+            </div>
+        </div>
+        <div class="pdf-image-box">
+            <img id="pdf-sofa-img" src="" alt="Sofos brėžinys" />
+        </div>
+        <div class="pdf-content-bottom">
+            <div id="pdf-module-chain" class="pdf-module-chain"></div>
+            <table class="pdf-table">
+                <thead><tr><th>Modulis</th><th style="text-align:center;">Kiekis</th><th style="text-align:right;">Vnt. Kaina</th><th style="text-align:right;">Suma</th></tr></thead>
+                <tbody id="pdf-table-body"></tbody>
+            </table>
+            <div class="pdf-summary">
+                <div style="flex-grow:1;">
+                    <div id="pdf-dimensions"></div>
+                    <div id="pdf-terms"></div>
+                </div>
+                <div style="text-align:right;">
+                    <div id="pdf-discount-text" style="font-size:11px; color:#d9534f; text-decoration:line-through; display:none; margin-bottom:5px;"></div>
+                    <div id="pdf-price-breakdown"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="blueprint-template">
+        <h2 style="margin: 0 0 20px 0; border-bottom: 3px solid #111; padding-bottom: 10px; text-transform: uppercase;">PRODUCTION BLUEPRINT</h2>
+        <div id="bp-img-container" style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px; padding: 20px; background: #fff; border: 1px solid #eee;"></div>
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 5px solid #007bff;">
+            <p style="margin: 0 0 10px 0; font-size: 18px;"><b>Collection:</b> <span id="bp-collection" style="color: #333;"></span></p>
+            <p style="margin: 0 0 10px 0; font-size: 16px; display: none;" id="bp-fabric-container"><b>Fabric:</b> <span id="bp-fabric" style="color: #333;"></span></p>
+            <p id="bp-dims-container" style="margin: 0 0 10px 0; font-size: 16px;"><b>Dimensions:</b><br><span id="bp-dims" style="color: #007bff;"></span></p>
+            <p style="margin: 0 0 10px 0; font-size: 16px;"><b>Specification (L➔R):</b> <span id="bp-chain"></span></p>
+            <p style="margin: 0; font-size: 14px; color: #555;" id="bp-notes"></p>
+        </div>
+    </div>
+
+    <script src="duomenys.js"></script>
+    
+    <script src="funkcijos.js"></script>
+</body>
+</html>
