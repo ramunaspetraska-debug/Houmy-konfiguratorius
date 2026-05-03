@@ -900,7 +900,7 @@ async function executeExportBlueprint() {
     bpTemplate.style.display = 'none'; 
 }
 
-// --- NAUJA FUNKCIJA: DALIJIMASIS NUORODA ---
+// --- NAUJA FUNKCIJA: DALIJIMASIS NUORODA (SUSPAUSTAS FORMATAS) ---
 function shareConfiguration() {
     const modules = Array.from(document.querySelectorAll('.canvas-module'));
     if (modules.length === 0) {
@@ -908,39 +908,46 @@ function shareConfiguration() {
         return;
     }
 
-    // Sukuriame minimalų duomenų paketą su išsaugotomis proporcijomis
-    const minimalState = modules.map(m => ({
-        i: m.dataset.id,
-        c: m.dataset.collection,
-        x: Math.round((parseFloat(m.style.left) || 0) / scale), // Daliname iš mastelio, kad tiktų visiems ekranams
-        y: Math.round((parseFloat(m.style.top) || 0) / scale),
-        a: parseInt(m.dataset.angle) || 0,
-        e: m.dataset.isExpanded === 'true' ? 1 : 0
-    }));
+    // 1. Sugrupuojame modulius pagal kolekciją ir suspaudžiame duomenis
+    const cols = {};
+    modules.forEach(m => {
+        const c = m.dataset.collection;
+        if (!cols[c]) cols[c] = [];
+        const i = m.dataset.id;
+        const x = Math.round((parseFloat(m.style.left) || 0) / scale);
+        const y = Math.round((parseFloat(m.style.top) || 0) / scale);
+        const a = parseInt(m.dataset.angle) || 0;
+        const e = m.dataset.isExpanded === 'true' ? 1 : 0;
+        // Formatas: id,x,y,kampas,išskleista
+        cols[c].push(`${i},${x},${y},${a},${e}`);
+    });
 
-    // Užkoduojame duomenis, kad jie saugiai "tilptų" į internetinę nuorodą
-    const encodedState = btoa(encodeURIComponent(JSON.stringify(minimalState))); 
+    // 2. Sukuriame itin trumpą tekstą (pvz. "cloud:e1,10,10,0,0!e2,50,10,0,0")
+    const compressedString = Object.keys(cols).map(c => `${c}:${cols[c].join('!')}`).join('~');
+    
+    // 3. Užkoduojame, kad tiktų URL nuorodai
+    const encodedState = btoa(compressedString); 
     const baseUrl = window.location.href.split('?')[0]; 
-    const shareUrl = `${baseUrl}?share=${encodedState}`; // Pridedame parametrą ?share=
+    const shareUrl = `${baseUrl}?s=${encodedState}`; // Naudojame itin trumpą parametrą ?s=
 
     // Kopijuojame nuorodą į kompiuterio atmintį
     navigator.clipboard.writeText(shareUrl).then(() => {
         const btn = document.getElementById('share-btn');
         const originalText = btn.innerHTML;
         btn.innerHTML = '✅ Nuoroda nukopijuota!';
-        btn.style.background = '#17a2b8'; // Pakeičiame mygtuko spalvą
+        btn.style.background = '#17a2b8'; 
         setTimeout(() => {
             btn.innerHTML = originalText;
-            btn.style.background = '#6c757d'; // Grąžiname pilką spalvą
+            btn.style.background = '#6c757d'; 
         }, 2000);
     }).catch(err => {
-        alert("Nepavyko automatiškai nukopijuoti nuorodos. Gali būti, kad jūsų naršyklė to neleidžia. \nŠtai jūsų nuoroda:\n" + shareUrl);
+        alert("Nepavyko automatiškai nukopijuoti nuorodos. Štai jūsų nuoroda:\n" + shareUrl);
     });
 }
 
 // Sukuriame dalijimosi mygtuką ir įklijuojame jį virš PDF mygtuko automatiškai
 const rightSidebar = document.getElementById('sidebar-right');
-if (rightSidebar) {
+if (rightSidebar && !document.getElementById('share-btn')) {
     const shareBtn = document.createElement('button');
     shareBtn.id = 'share-btn';
     shareBtn.className = 'action-btn';
@@ -959,14 +966,34 @@ updateZoomText();
 // -- URL Parametrų Logika --
 const urlParams = new URLSearchParams(window.location.search);
 const requestedModel = urlParams.get('kolekcija');
-const sharedState = urlParams.get('share'); // Tikriname, ar vartotojas neatidarė specialios pasidalinimo nuorodos
 
-if (sharedState) {
+// Tikriname, ar yra senas (?share=) arba naujas suspaustas (?s=) formatas
+const sharedStateOld = urlParams.get('share'); 
+const sharedStateNew = urlParams.get('s');
+
+if (sharedStateNew || sharedStateOld) {
     try {
-        // Iškoduojame nuorodoje paslėptus modulius
-        const parsedState = JSON.parse(decodeURIComponent(atob(sharedState)));
+        let parsedState = [];
         
-        // Atrenkame unikalias kolekcijas. Jei viskas iš vienos – užfiksuojame meniu
+        if (sharedStateNew) {
+            // Iškoduojame naują suspaustą formatą
+            const decodedStr = atob(sharedStateNew);
+            decodedStr.split('~').forEach(colGroup => {
+                const parts = colGroup.split(':');
+                const c = parts[0];
+                if (parts[1]) {
+                    parts[1].split('!').forEach(mod => {
+                        const [i, x, y, a, e] = mod.split(',');
+                        parsedState.push({ c: c, i: i, x: parseInt(x), y: parseInt(y), a: parseInt(a), e: parseInt(e) });
+                    });
+                }
+            });
+        } else {
+            // Paliekame atgalinį suderinamumą, jei kas nors atidarys jūsų seną ilgą nuorodą
+            parsedState = JSON.parse(decodeURIComponent(atob(sharedStateOld)));
+        }
+        
+        // Atrenkame unikalias kolekcijas
         let uniqueCollections = [...new Set(parsedState.map(m => m.c))];
         if (uniqueCollections.length === 1 && rawModels[uniqueCollections[0]]) {
             modelSelect.value = uniqueCollections[0];
@@ -1021,12 +1048,10 @@ if (sharedState) {
     
     loadModel(requestedModel);
     
-    // Iškart atstatome ir iš atminties, jei toks yra
     const saved = localStorage.getItem('sofaState');
     if(saved) restoreState(JSON.parse(saved));
     
 } else {
-    // Standartinis užkrovimas (be parametrų)
     loadModel(modelSelect.value);
     const saved = localStorage.getItem('sofaState');
     if(saved) restoreState(JSON.parse(saved));
