@@ -2,7 +2,7 @@
 const watermarkEl = document.getElementById('version-watermark');
 watermarkEl.innerText = APP_VERSION;
 watermarkEl.style.cssText = "position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: #888; font-weight: normal; z-index: 100; pointer-events: none; font-family: sans-serif; opacity: 0.7;";
-        
+
 let isGridOn = true;
 function toggleGrid() {
     const ws = document.getElementById('workspace');
@@ -130,7 +130,7 @@ function changeZoom(f, e = null) {
         m.style.top = (parseFloat(m.style.top) * ratio) + 'px';
     });
     updateZoomText(); 
-    updateDimensions();
+    setTimeout(() => { updateDimensions(); }, 50); 
 }
 
 let saveStateTimeout = null;
@@ -514,6 +514,7 @@ function globalStopDragOrPan() {
     if (isPanning) {
         isPanning = false;
         document.getElementById('workspace').style.cursor = 'crosshair';
+        setTimeout(() => { updateDimensions(); }, 50); 
     }
 }
 
@@ -908,7 +909,6 @@ function shareConfiguration() {
         return;
     }
 
-    // 1. Sugrupuojame modulius pagal kolekciją ir suspaudžiame duomenis
     const cols = {};
     modules.forEach(m => {
         const c = m.dataset.collection;
@@ -918,19 +918,15 @@ function shareConfiguration() {
         const y = Math.round((parseFloat(m.style.top) || 0) / scale);
         const a = parseInt(m.dataset.angle) || 0;
         const e = m.dataset.isExpanded === 'true' ? 1 : 0;
-        // Formatas: id,x,y,kampas,išskleista
         cols[c].push(`${i},${x},${y},${a},${e}`);
     });
 
-    // 2. Sukuriame itin trumpą tekstą (pvz. "cloud:e1,10,10,0,0!e2,50,10,0,0")
     const compressedString = Object.keys(cols).map(c => `${c}:${cols[c].join('!')}`).join('~');
     
-    // 3. Užkoduojame, kad tiktų URL nuorodai
     const encodedState = btoa(compressedString); 
     const baseUrl = window.location.href.split('?')[0]; 
-    const shareUrl = `${baseUrl}?s=${encodedState}`; // Naudojame itin trumpą parametrą ?s=
+    const shareUrl = `${baseUrl}?s=${encodedState}`; 
 
-    // Kopijuojame nuorodą į kompiuterio atmintį
     navigator.clipboard.writeText(shareUrl).then(() => {
         const btn = document.getElementById('share-btn');
         const originalText = btn.innerHTML;
@@ -945,29 +941,95 @@ function shareConfiguration() {
     });
 }
 
-// Sukuriame dalijimosi mygtuką ir įklijuojame jį virš PDF mygtuko automatiškai
-const rightSidebar = document.getElementById('sidebar-right');
-if (rightSidebar && !document.getElementById('share-btn')) {
-    const shareBtn = document.createElement('button');
-    shareBtn.id = 'share-btn';
-    shareBtn.className = 'action-btn';
-    shareBtn.style.cssText = "background:#6c757d; margin-bottom: 6px;";
-    shareBtn.innerHTML = "🔗 Dalintis nuoroda";
-    shareBtn.onclick = shareConfiguration;
+// --- NAUJA FUNKCIJA: SPALVŲ PASIRINKIMAS (COLOR PICKER) ---
+const colors = [
+    { name: 'Balta (Standartinė)', hex: '#ffffff' },
+    { name: 'Šviesiai Pilka', hex: '#e2e2e2' },
+    { name: 'Grafito Pilka', hex: '#7a7a7a' },
+    { name: 'Smėlio / Kapučino', hex: '#d2b48c' },
+    { name: 'Samanų Žalia', hex: '#5f7a61' },
+    { name: 'Karališka Mėlyna', hex: '#3b4d61' },
+    { name: 'Šokolado Ruda', hex: '#6b4423' },
+    { name: 'Garstyčių', hex: '#d4af37' }
+];
+
+if(!appSettings.fabricColor) appSettings.fabricColor = '#ffffff';
+document.documentElement.style.setProperty('--sofa-color', appSettings.fabricColor);
+
+const colorStyle = document.createElement('style');
+colorStyle.innerHTML = `
+    .canvas-module svg rect:not([fill="none"]),
+    .canvas-module svg path:not([fill="none"]),
+    .canvas-module svg polygon:not([fill="none"]),
+    .canvas-module svg circle:not([fill="none"]) {
+        fill: var(--sofa-color) !important;
+        transition: fill 0.3s ease;
+    }
+    .color-picker-wrapper { background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #eee; }
+    .color-picker-title { font-weight: bold; margin-bottom: 10px; font-size: 12px; text-transform: uppercase; color: #555; text-align: center;}
+    .color-picker-container { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .color-dot { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid #ccc; transition: all 0.2s; }
+    .color-dot:hover { transform: scale(1.15); }
+    .color-dot.active { border-color: #222; transform: scale(1.15); box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+`;
+document.head.appendChild(colorStyle);
+
+function changeSofaColor(hex, dotEl) {
+    appSettings.fabricColor = hex;
+    localStorage.setItem('houmySettings', JSON.stringify(appSettings));
+    document.documentElement.style.setProperty('--sofa-color', hex);
     
-    const pdfBtn = rightSidebar.querySelector('button[onclick="openClientModal()"]');
-    if (pdfBtn) rightSidebar.insertBefore(shareBtn, pdfBtn);
-    else rightSidebar.appendChild(shareBtn);
+    document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+    if(dotEl) dotEl.classList.add('active');
 }
 
+// Pridedame mygtukus ir valdymą į dešinį šoninį meniu
+const rightSidebarMenu = document.getElementById('sidebar-right');
+if (rightSidebarMenu) {
+    // 1. Įterpiame Spalvų paletę (pačiame viršuje)
+    const wrapper = document.createElement('div');
+    wrapper.className = 'color-picker-wrapper';
+    
+    const title = document.createElement('div');
+    title.className = 'color-picker-title';
+    title.innerText = "Sofa / Audinio Spalva";
+    
+    const container = document.createElement('div');
+    container.className = 'color-picker-container';
+    
+    colors.forEach(c => {
+        const dot = document.createElement('div');
+        dot.className = 'color-dot' + (appSettings.fabricColor === c.hex ? ' active' : '');
+        dot.style.background = c.hex;
+        dot.title = c.name;
+        dot.onclick = () => changeSofaColor(c.hex, dot);
+        container.appendChild(dot);
+    });
+
+    wrapper.appendChild(title);
+    wrapper.appendChild(container);
+    rightSidebarMenu.insertBefore(wrapper, rightSidebarMenu.firstChild);
+
+    // 2. Įterpiame Dalijimosi mygtuką (virš PDF mygtuko)
+    if (!document.getElementById('share-btn')) {
+        const shareBtn = document.createElement('button');
+        shareBtn.id = 'share-btn';
+        shareBtn.className = 'action-btn';
+        shareBtn.style.cssText = "background:#6c757d; margin-bottom: 6px;";
+        shareBtn.innerHTML = "🔗 Dalintis nuoroda";
+        shareBtn.onclick = shareConfiguration;
+        
+        const pdfBtn = rightSidebarMenu.querySelector('button[onclick="openClientModal()"]');
+        if (pdfBtn) rightSidebarMenu.insertBefore(shareBtn, pdfBtn);
+        else rightSidebarMenu.appendChild(shareBtn);
+    }
+}
 
 updateZoomText();
 
 // -- URL Parametrų Logika --
 const urlParams = new URLSearchParams(window.location.search);
 const requestedModel = urlParams.get('kolekcija');
-
-// Tikriname, ar yra senas (?share=) arba naujas suspaustas (?s=) formatas
 const sharedStateOld = urlParams.get('share'); 
 const sharedStateNew = urlParams.get('s');
 
@@ -976,7 +1038,6 @@ if (sharedStateNew || sharedStateOld) {
         let parsedState = [];
         
         if (sharedStateNew) {
-            // Iškoduojame naują suspaustą formatą
             const decodedStr = atob(sharedStateNew);
             decodedStr.split('~').forEach(colGroup => {
                 const parts = colGroup.split(':');
@@ -989,11 +1050,9 @@ if (sharedStateNew || sharedStateOld) {
                 }
             });
         } else {
-            // Paliekame atgalinį suderinamumą, jei kas nors atidarys jūsų seną ilgą nuorodą
             parsedState = JSON.parse(decodeURIComponent(atob(sharedStateOld)));
         }
         
-        // Atrenkame unikalias kolekcijas
         let uniqueCollections = [...new Set(parsedState.map(m => m.c))];
         if (uniqueCollections.length === 1 && rawModels[uniqueCollections[0]]) {
             modelSelect.value = uniqueCollections[0];
@@ -1007,7 +1066,6 @@ if (sharedStateNew || sharedStateOld) {
         loadModel(modelSelect.value);
         canvasArea.innerHTML = ''; 
 
-        // Atkuriame visus sofos modulius ant drobės
         parsedState.forEach(d => {
             let modBase = furnitureModels[d.c]?.find(x => x.id === d.i);
             if (!modBase) return;
@@ -1030,14 +1088,13 @@ if (sharedStateNew || sharedStateOld) {
         
         updateOrderSummary(); updateLabels(); 
         setTimeout(() => { updateDimensions(); }, 50);
-        saveState(); // Išsaugome į vietinę atmintį ateičiai
+        saveState();
 
     } catch (e) {
         console.error("Failed to load shared state", e);
         alert("Nepavyko užkrauti pasidalintos konfigūracijos (nuoroda gali būti sugadinta).");
     }
 } else if (requestedModel && rawModels[requestedModel]) {
-    // Esama tiesioginės nuorodos "?kolekcija=" logika
     modelSelect.value = requestedModel; 
     modelSelect.style.display = 'none'; 
     
