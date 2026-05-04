@@ -1,6 +1,6 @@
 // Nustatome versijos pavadinimą ir pakeičiame jo dizainą per JS
 const watermarkEl = document.getElementById('version-watermark');
-watermarkEl.innerText = "V1.19";
+watermarkEl.innerText = "V1.21";
 watermarkEl.style.cssText = "position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: #888; font-weight: normal; z-index: 100; pointer-events: none; font-family: sans-serif; opacity: 0.7;";
 
 let isGridOn = true;
@@ -133,7 +133,6 @@ function changeZoom(f, e = null) {
     setTimeout(() => { updateDimensions(); }, 50); 
 }
 
-// NAUJA FUNKCIJA: Centruoja ekraną į atsiradusius baldus
 function centerWorkspaceToModules() {
     const modules = Array.from(document.querySelectorAll('.canvas-module'));
     if (modules.length === 0) return;
@@ -696,6 +695,7 @@ function saveAdminSettings() { document.querySelectorAll('.admin-price-input').f
 
 function openArchive() { document.getElementById('archive-modal').style.display = 'flex'; renderArchiveList(); }
 function renderArchiveList() { let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); let html = ''; for(let name in archive) { html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px solid #ddd; border-radius:4px; background:#f9f9f9;"><strong style="font-size:13px; color:#333;">${name}</strong><div style="display:flex; gap:5px;"><button onclick="loadFromArchive('${name}')" style="padding:4px 8px; background:#007bff; color:white; border:none; border-radius:3px; cursor:pointer;">Užkrauti</button><button onclick="deleteFromArchive('${name}')" style="padding:4px 8px; background:#dc3545; color:white; border:none; border-radius:3px; cursor:pointer;">Ištrinti</button></div></div>`; } document.getElementById('archive-list').innerHTML = html || '<div style="color:#888; font-size:13px; text-align:center; padding:10px 0;">Archyvas tuščias</div>'; }
+
 function saveToArchive() { 
     let name = document.getElementById('archive-name').value.trim(); 
     if(!name) return alert('Prašome įvesti projekto pavadinimą!'); 
@@ -711,10 +711,9 @@ function saveToArchive() {
     
     let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); 
     
-    // NAUJA LOGIKA: Patikriname, ar toks pavadinimas jau yra
     if (archive[name]) {
         if (!confirm(`Projektas pavadinimu "${name}" jau egzistuoja. Ar norite jį perrašyti?`)) {
-            return; // Vartotojas paspaudė "Atšaukti", todėl nutraukiame išsaugojimą
+            return;
         }
     }
     
@@ -723,12 +722,13 @@ function saveToArchive() {
     document.getElementById('archive-name').value = ''; 
     renderArchiveList(); 
 }
+
 function loadFromArchive(name) { 
     let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); 
     if(archive[name] && archive[name].length > 0) { 
         document.getElementById('model-select').value = archive[name][0].c; 
         loadModel(archive[name][0].c); 
-        restoreState(archive[name], true); // Centruoti vaizdą po užkrovimo
+        restoreState(archive[name], true); 
         document.getElementById('archive-modal').style.display = 'none'; 
     } 
 }
@@ -1096,7 +1096,7 @@ colorStyle.innerHTML = `
     #mobile-color-fab {
         display: none; /* Paslėpta ant desktopo */
         position: fixed;
-        bottom: 20px;
+        bottom: 90px; 
         right: 20px;
         width: 50px;
         height: 50px;
@@ -1163,16 +1163,7 @@ function changeSofaColor(hex) {
     document.getElementById('mobile-color-overlay').classList.remove('active');
 }
 
-const rightSidebarMenu = document.getElementById('sidebar-right');
-if (rightSidebarMenu) {
-    const desktopWrapper = document.createElement('div');
-    desktopWrapper.className = 'color-picker-wrapper desktop-color-picker';
-    
-    const title = document.createElement('div');
-    title.className = 'color-picker-title';
-    title.innerText = "Sofa / Audinio Spalva";
-    
-    // 1. DESKTOP VERSIJOS PALETĖ (Šoniniame meniu)
+// 1. DESKTOP VERSIJOS PALETĖ (Šoniniame meniu)
 const rightSidebarMenu = document.getElementById('sidebar-right');
 if (rightSidebarMenu) {
     const desktopWrapper = document.createElement('div');
@@ -1185,7 +1176,6 @@ if (rightSidebarMenu) {
     const container = document.createElement('div');
     container.className = 'color-picker-container';
     
-    // Sugeneruojame standartines spalvas
     colors.forEach(c => {
         const dot = document.createElement('div');
         dot.className = 'color-dot' + (appSettings.fabricColor === c.hex ? ' active' : '');
@@ -1199,7 +1189,6 @@ if (rightSidebarMenu) {
     // --- NAUJA DALIS: Custom spalvos mygtukas (Vaivorykštinis) ---
     const customWrapper = document.createElement('div');
     customWrapper.className = 'color-dot';
-    // Sukuriame vaivorykštės foną, kad vartotojas suprastų, jog tai visų spalvų paletė
     customWrapper.style.background = 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)';
     customWrapper.title = 'Pasirinkti bet kokią spalvą (sava spalva)';
     customWrapper.style.position = 'relative';
@@ -1208,10 +1197,8 @@ if (rightSidebarMenu) {
     const nativeInput = document.createElement('input');
     nativeInput.type = 'color';
     nativeInput.value = appSettings.fabricColor;
-    // Paslepiame patį inputą, kad matytųsi tik mūsų gražus vaivorykštinis rutuliukas
     nativeInput.style.cssText = 'position: absolute; opacity: 0; width: 200%; height: 200%; top: -50%; left: -50%; cursor: pointer;';
     
-    // Naudojame 'input' įvykį, todėl sofos spalva keisis gyvai, kai vartotojas slinks spalvų slankiklį
     nativeInput.addEventListener('input', (e) => {
         changeSofaColor(e.target.value);
     });
@@ -1237,6 +1224,8 @@ if (rightSidebarMenu) {
         else rightSidebarMenu.appendChild(shareBtn);
     }
 }
+
+// 2. MOBILIOSIOS VERSIJOS ELEMENTAI (Kuriami tiesiai Body elemente)
 const mobileOverlay = document.createElement('div');
 mobileOverlay.id = 'mobile-color-overlay';
 mobileOverlay.onclick = () => { 
@@ -1372,47 +1361,44 @@ if (sharedStateNew || sharedStateOld) {
         restoreState(JSON.parse(saved), true);
     }
 }
+
 // --- MOBILIOSIOS VERSIJOS UI OPTIMIZAVIMAS ---
 function optimizeMobileLayout() {
-    // Tikriname, ar ekranas yra mobiliojo įrenginio dydžio (siauresnis nei 768px)
     if (window.innerWidth > 768) return;
 
-    // 1. TOP SEKCIJA: Kolekcija ir Audinio grupė į vieną eilutę
     const modelSelect = document.getElementById('model-select');
     const fabricSelect = document.getElementById('fabric-group-select');
     
+    // 1. PASLEPIAME UŽRAŠUS (Audinio grupė, Kolekcija ir pan.)
+    if (fabricSelect && fabricSelect.previousElementSibling) {
+        fabricSelect.previousElementSibling.style.display = 'none';
+    }
+    if (modelSelect && modelSelect.previousElementSibling && modelSelect.previousElementSibling.id !== 'mobile-top-wrap') {
+        modelSelect.previousElementSibling.style.display = 'none';
+    }
+
+    // 2. TOP SEKCIJA: Pasirinkimai į vieną eilutę
     if (modelSelect && fabricSelect && !document.getElementById('mobile-top-wrap')) {
         const wrap = document.createElement('div');
         wrap.id = 'mobile-top-wrap';
         wrap.style.cssText = 'display: flex; gap: 8px; width: 100%; margin-bottom: 10px; align-items: stretch;';
         
-        // Įterpiame naują konteinerį į puslapį
         modelSelect.parentNode.insertBefore(wrap, modelSelect);
         
-        // Tikriname, ar puslapis užkrautas per Share nuorodą (kai sukurtas DIV vietoj pasirinkimo)
+        // Paslepiame perteklinį Kolekcijos etiketės lauką, jei puslapis krautas iš Share nuorodos
         const colLabel = Array.from(wrap.parentNode.children).find(el => el.tagName === 'DIV' && el.innerText.includes('KOLEKCIJA'));
+        if (colLabel) colLabel.style.display = 'none';
         
-        if (colLabel) {
-            colLabel.style.flex = '1';
-            colLabel.style.marginBottom = '0';
-            colLabel.style.padding = '8px 4px';
-            colLabel.style.fontSize = '12px';
-            colLabel.style.display = 'flex';
-            colLabel.style.alignItems = 'center';
-            colLabel.style.justifyContent = 'center';
-            wrap.appendChild(colLabel);
-        } else {
-            modelSelect.style.flex = '1';
-            modelSelect.style.width = 'auto'; // Panaikiname fiksuotą plotį
-            wrap.appendChild(modelSelect);
-        }
+        modelSelect.style.flex = '1';
+        modelSelect.style.width = 'auto'; 
+        wrap.appendChild(modelSelect);
         
         fabricSelect.style.flex = '1';
         fabricSelect.style.width = 'auto';
         wrap.appendChild(fabricSelect);
     }
 
-    // 2. BOTTOM SEKCIJA: Mygtukai į vieną eilutę po Suma
+    // 3. BOTTOM SEKCIJA: Mygtukai į vieną eilutę po Suma
     const btnPdf = document.querySelector('button[onclick="openClientModal()"]');
     const btnBp = document.querySelector('button[onclick="openBlueprintModal()"]');
     const btnShare = document.getElementById('share-btn');
@@ -1420,20 +1406,17 @@ function optimizeMobileLayout() {
     if (btnPdf && btnBp && btnShare && !document.getElementById('mobile-btn-wrap')) {
         const btnWrap = document.createElement('div');
         btnWrap.id = 'mobile-btn-wrap';
-        // Flexbox eilutė su tarpais
         btnWrap.style.cssText = 'display: flex; gap: 6px; width: 100%; justify-content: space-between; margin-top: 15px;';
         
-        // Sutrumpiname tekstus, kad idealiai tilptų siauruose ekranuose
         if(btnPdf.innerHTML.includes('Komercinis')) btnPdf.innerHTML = '📄 Pasiūlymas';
         if(btnBp.innerHTML.includes('Gamybos')) btnBp.innerHTML = '📐 Brėžinys';
         if(btnShare.innerHTML.includes('nuoroda')) btnShare.innerHTML = '🔗 Dalintis';
 
-        // Pritaikiame vienodą prisitaikantį stilių visiems trims mygtukams
         [btnShare, btnPdf, btnBp].forEach(btn => {
             btn.style.flex = '1';
             btn.style.fontSize = '11px';
             btn.style.padding = '10px 4px';
-            btn.style.margin = '0'; // Panaikiname senus tarpus
+            btn.style.margin = '0'; 
             btn.style.whiteSpace = 'normal';
             btn.style.lineHeight = '1.2';
             btn.style.display = 'flex';
@@ -1443,7 +1426,6 @@ function optimizeMobileLayout() {
             btnWrap.appendChild(btn);
         });
         
-        // Įkeliame mygtukų eilutę atgal į dešinį šoninį meniu (jie automatiškai atsidurs po Suma)
         const sidebar = document.getElementById('sidebar-right');
         if (sidebar) {
             sidebar.appendChild(btnWrap);
