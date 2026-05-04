@@ -1172,9 +1172,20 @@ if (rightSidebarMenu) {
     title.className = 'color-picker-title';
     title.innerText = "Sofa / Audinio Spalva";
     
+    // 1. DESKTOP VERSIJOS PALETĖ (Šoniniame meniu)
+const rightSidebarMenu = document.getElementById('sidebar-right');
+if (rightSidebarMenu) {
+    const desktopWrapper = document.createElement('div');
+    desktopWrapper.className = 'color-picker-wrapper desktop-color-picker';
+    
+    const title = document.createElement('div');
+    title.className = 'color-picker-title';
+    title.innerText = "Sofa / Audinio Spalva";
+    
     const container = document.createElement('div');
     container.className = 'color-picker-container';
     
+    // Sugeneruojame standartines spalvas
     colors.forEach(c => {
         const dot = document.createElement('div');
         dot.className = 'color-dot' + (appSettings.fabricColor === c.hex ? ' active' : '');
@@ -1184,6 +1195,30 @@ if (rightSidebarMenu) {
         dot.onclick = () => changeSofaColor(c.hex);
         container.appendChild(dot);
     });
+
+    // --- NAUJA DALIS: Custom spalvos mygtukas (Vaivorykštinis) ---
+    const customWrapper = document.createElement('div');
+    customWrapper.className = 'color-dot';
+    // Sukuriame vaivorykštės foną, kad vartotojas suprastų, jog tai visų spalvų paletė
+    customWrapper.style.background = 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)';
+    customWrapper.title = 'Pasirinkti bet kokią spalvą (sava spalva)';
+    customWrapper.style.position = 'relative';
+    customWrapper.style.overflow = 'hidden';
+
+    const nativeInput = document.createElement('input');
+    nativeInput.type = 'color';
+    nativeInput.value = appSettings.fabricColor;
+    // Paslepiame patį inputą, kad matytųsi tik mūsų gražus vaivorykštinis rutuliukas
+    nativeInput.style.cssText = 'position: absolute; opacity: 0; width: 200%; height: 200%; top: -50%; left: -50%; cursor: pointer;';
+    
+    // Naudojame 'input' įvykį, todėl sofos spalva keisis gyvai, kai vartotojas slinks spalvų slankiklį
+    nativeInput.addEventListener('input', (e) => {
+        changeSofaColor(e.target.value);
+    });
+
+    customWrapper.appendChild(nativeInput);
+    container.appendChild(customWrapper);
+    // ---------------------------------------------------------------
 
     desktopWrapper.appendChild(title);
     desktopWrapper.appendChild(container);
@@ -1202,7 +1237,6 @@ if (rightSidebarMenu) {
         else rightSidebarMenu.appendChild(shareBtn);
     }
 }
-
 const mobileOverlay = document.createElement('div');
 mobileOverlay.id = 'mobile-color-overlay';
 mobileOverlay.onclick = () => { 
