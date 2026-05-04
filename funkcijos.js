@@ -1,6 +1,6 @@
 // Nustatome versijos pavadinimą ir pakeičiame jo dizainą per JS
 const watermarkEl = document.getElementById('version-watermark');
-watermarkEl.innerText = "V1.25";
+watermarkEl.innerText = "V1.27";
 watermarkEl.style.cssText = "position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: #888; font-weight: normal; z-index: 100; pointer-events: none; font-family: sans-serif; opacity: 0.7;";
 
 let isGridOn = true;
@@ -97,9 +97,18 @@ function updateLabels() {
 function getModulePrice(collectionKey, moduleId) {
     let modBase = rawModels[collectionKey]?.find(m => m.id === moduleId);
     if (!modBase) return 0;
-    let basePrice = appSettings.customPrices[collectionKey + '_' + moduleId] !== undefined ? appSettings.customPrices[collectionKey + '_' + moduleId] : (modBase.price || getPrice(modBase.w, modBase.h));
+    
     let group = parseInt(document.getElementById('fabric-group-select').value) || 1;
-    let surcharge = modBase.prices && group > 1 ? modBase.prices['gr' + group] || 0 : 0;
+    let pKey = collectionKey + '_' + moduleId;
+    let specificGroupKey = group === 1 ? pKey : pKey + '_gr' + group;
+    
+    if (appSettings.customPrices[specificGroupKey] !== undefined) {
+        return appSettings.customPrices[specificGroupKey];
+    }
+    
+    let basePrice = appSettings.customPrices[pKey] !== undefined ? appSettings.customPrices[pKey] : (modBase.price || getPrice(modBase.w, modBase.h));
+    let surcharge = modBase.prices && group > 1 ? (modBase.prices['gr' + group] || 0) : 0;
+    
     return basePrice + surcharge;
 }
 
@@ -750,7 +759,9 @@ document.addEventListener('keydown', (e) => {
     else if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
 });
 
-// --- ADMIN IMPORT / EXPORT / HISTORY FUNKCIJOS ---
+// --- ADMIN PANELIO LOGIKA SU GRUPĖMIS IR IŠSKLEIDŽIAMU SĄRAŠU ---
+let tempAdminPrices = {};
+
 function exportPrices() {
     let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appSettings.customPrices));
     let dlAnchorElem = document.createElement('a');
@@ -760,22 +771,50 @@ function exportPrices() {
 }
 
 function exportToExcel() {
-    let csvContent = "\uFEFF"; // UTF-8 BOM, kad Excel tvarkingai rodytų lietuviškas raides
-    csvContent += "Kolekcija;Modulis;Matmenys (cm);Kaina (EUR)\n";
+    let html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel">
+    <head><meta charset="utf-8"></head>
+    <body>
+        <table border="1" style="font-family: Arial, sans-serif; border-collapse: collapse;">
+            <tr>
+                <th style="background-color: #f8f9fa; padding: 10px;">Kolekcija</th>
+                <th style="background-color: #f8f9fa; padding: 10px;">Modulis</th>
+                <th style="background-color: #f8f9fa; padding: 10px;">Matmenys (cm)</th>
+                <th style="background-color: #fff9e6; padding: 10px; font-weight: bold; border: 2px solid #333;">I Grupė (Bazinė)</th>
+                <th style="background-color: #f8f9fa; padding: 10px;">II Grupė</th>
+                <th style="background-color: #f8f9fa; padding: 10px;">III Grupė</th>
+                <th style="background-color: #f8f9fa; padding: 10px;">IV Grupė</th>
+            </tr>`;
     
     for(let key in rawModels) {
         rawModels[key].forEach(mod => {
             let pKey = key + '_' + mod.id;
-            let currentPrice = appSettings.customPrices[pKey] !== undefined ? appSettings.customPrices[pKey] : (mod.price || getPrice(mod.w, mod.h));
-            csvContent += `${key.toUpperCase()};${mod.name};${mod.w}x${mod.h};${currentPrice}\n`;
+            
+            let basePriceDefault = mod.price || getPrice(mod.w, mod.h);
+            let basePrice = appSettings.customPrices[pKey] !== undefined ? appSettings.customPrices[pKey] : basePriceDefault;
+            
+            let gr2 = appSettings.customPrices[pKey+'_gr2'] !== undefined ? appSettings.customPrices[pKey+'_gr2'] : (basePrice + (mod.prices?.gr2 || 0));
+            let gr3 = appSettings.customPrices[pKey+'_gr3'] !== undefined ? appSettings.customPrices[pKey+'_gr3'] : (basePrice + (mod.prices?.gr3 || 0));
+            let gr4 = appSettings.customPrices[pKey+'_gr4'] !== undefined ? appSettings.customPrices[pKey+'_gr4'] : (basePrice + (mod.prices?.gr4 || 0));
+            
+            html += `<tr>
+                <td style="padding: 5px;">${key.toUpperCase()}</td>
+                <td style="padding: 5px;">${mod.name}</td>
+                <td style="padding: 5px; text-align: center;">${mod.w}x${mod.h}</td>
+                <td style="padding: 5px; font-weight: bold; border-left: 2px solid #333; border-right: 2px solid #333; text-align: center;">${basePrice} €</td>
+                <td style="padding: 5px; text-align: center;">${gr2 > basePrice ? gr2 + ' €' : '-'}</td>
+                <td style="padding: 5px; text-align: center;">${gr3 > basePrice ? gr3 + ' €' : '-'}</td>
+                <td style="padding: 5px; text-align: center;">${gr4 > basePrice ? gr4 + ' €' : '-'}</td>
+            </tr>`;
         });
     }
     
-    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    html += `</table></body></html>`;
+    
+    let blob = new Blob([html], { type: 'application/vnd.ms-excel' });
     let url = URL.createObjectURL(blob);
     let link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", "Houmy_Kainorastis.csv");
+    link.setAttribute("download", "Houmy_Kainorastis.xls");
     link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
@@ -789,14 +828,14 @@ function importPrices(event) {
     reader.onload = function(e) {
         try {
             let imported = JSON.parse(e.target.result);
-            if (confirm("Ar tikrai norite perrašyti visas dabartines kainas iš failo? (Senos pritaikytos kainos bus ištrintos)")) {
+            if (confirm("Ar tikrai norite perrašyti visas dabartines kainas iš failo?")) {
                 appSettings.customPrices = imported;
                 localStorage.setItem('houmySettings', JSON.stringify(appSettings));
                 alert("Kainos sėkmingai importuotos!");
                 location.reload();
             }
         } catch(err) {
-            alert("Klaida skaitant failą. Įsitikinkite, kad pasirinkote teisingą '.json' atsarginę kopiją.");
+            alert("Klaida skaitant failą.");
         }
     };
     reader.readAsText(file);
@@ -824,7 +863,7 @@ function showPriceHistory() {
                 <div style="padding: 6px 10px; border-left: 2px solid #b8daff; margin-left: 10px; background: #fafafa;">`;
             
             grouped[day].forEach(change => {
-                let cleanName = change.item.replace('_', ' '); 
+                let cleanName = change.item.replace(/_/g, ' '); 
                 histHtml += `<div style="font-size: 12px; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px dashed #eee;">
                     <span style="color:#888; font-size:11px;">[${change.time}]</span> 
                     <strong style="color:#333;">${cleanName}</strong><br>
@@ -849,13 +888,101 @@ function showPriceHistory() {
     document.body.appendChild(overlay);
 }
 
+function syncAdminGrid() {
+    document.querySelectorAll('.admin-price-input').forEach(input => {
+        let val = parseInt(input.value);
+        if (val > 0) tempAdminPrices[input.dataset.pkey] = val;
+        else delete tempAdminPrices[input.dataset.pkey];
+    });
+}
+
+function switchAdminCol(key) {
+    syncAdminGrid(); 
+    renderAdminGrid(key);
+}
+
+function renderAdminGrid(key) {
+    let container = document.getElementById('admin-grid-container');
+    if(!container) return;
+    
+    let grid = `<h4 style="text-transform:uppercase; margin-top:0; margin-bottom:10px; color:#333;">${key} Kolekcijos kainos</h4>`;
+    grid += `<div style="display:flex; flex-direction:column; gap:8px;">`; 
+    
+    grid += `<div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap:10px; font-weight:bold; font-size:12px; text-align:center; padding-bottom:5px; border-bottom:2px solid #ddd; min-width: 600px;">
+        <div style="text-align:left;">Modulis</div>
+        <div>I Gr (Bazinė)</div>
+        <div>II Gr</div>
+        <div>III Gr</div>
+        <div>IV Gr</div>
+    </div>`;
+
+    rawModels[key].forEach(mod => { 
+        let pKey = key + '_' + mod.id; 
+        
+        let basePriceDefault = mod.price || getPrice(mod.w, mod.h);
+        
+        let p1 = tempAdminPrices[pKey] !== undefined ? tempAdminPrices[pKey] : basePriceDefault;
+        let p2 = tempAdminPrices[pKey+'_gr2'] !== undefined ? tempAdminPrices[pKey+'_gr2'] : (p1 + (mod.prices?.gr2 || 0));
+        let p3 = tempAdminPrices[pKey+'_gr3'] !== undefined ? tempAdminPrices[pKey+'_gr3'] : (p1 + (mod.prices?.gr3 || 0));
+        let p4 = tempAdminPrices[pKey+'_gr4'] !== undefined ? tempAdminPrices[pKey+'_gr4'] : (p1 + (mod.prices?.gr4 || 0));
+        
+        grid += `<div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap:10px; align-items:center; background:#f9f9f9; padding:8px; border-radius:4px; border:1px solid #eee; min-width: 600px;">
+            <div style="font-size:13px; font-weight:500;">${mod.name} <small style="color:#888; display:block;">${mod.w}x${mod.h} cm</small></div>
+            <input type="number" data-pkey="${pKey}" class="admin-price-input" value="${p1}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
+            <input type="number" data-pkey="${pKey}_gr2" class="admin-price-input" value="${p2}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
+            <input type="number" data-pkey="${pKey}_gr3" class="admin-price-input" value="${p3}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
+            <input type="number" data-pkey="${pKey}_gr4" class="admin-price-input" value="${p4}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
+        </div>`; 
+    }); 
+    grid += `</div>`; 
+    container.innerHTML = grid;
+}
+
+// override seną funkciją (paliekame, kad neišmestų klaidos sename HTML, jei toks yra)
+function applyBulkPrice() {} 
+
+// NAUJA DINAMINĖ MASINIO KEITIMO FUNKCIJA
+function applyDynamicBulk(multiplier) { 
+    let percent = parseFloat(document.getElementById('dyn-bulk-percent').value); 
+    if(isNaN(percent) || percent <= 0) return alert("Įveskite galiojantį procentą (pvz. 10)"); 
+    
+    let targetGroup = document.getElementById('dyn-bulk-group').value;
+    let factor = 1 + (multiplier * (percent / 100)); 
+    
+    let count = 0;
+    document.querySelectorAll('.admin-price-input').forEach(input => { 
+        let pkey = input.dataset.pkey;
+        let isGr2 = pkey.endsWith('_gr2');
+        let isGr3 = pkey.endsWith('_gr3');
+        let isGr4 = pkey.endsWith('_gr4');
+        let isGr1 = !isGr2 && !isGr3 && !isGr4;
+
+        let shouldUpdate = false;
+        if (targetGroup === 'all') shouldUpdate = true;
+        else if (targetGroup === 'gr1' && isGr1) shouldUpdate = true;
+        else if (targetGroup === 'gr2' && isGr2) shouldUpdate = true;
+        else if (targetGroup === 'gr3' && isGr3) shouldUpdate = true;
+        else if (targetGroup === 'gr4' && isGr4) shouldUpdate = true;
+
+        if (shouldUpdate) {
+            input.value = Math.round(parseFloat(input.value) * factor); 
+            count++;
+        }
+    }); 
+    syncAdminGrid();
+    alert(`Pakeista kainų: ${count}. (Nepamirškite išsaugoti nustatymų!)`); 
+}
+
 function openAdmin() { 
+    tempAdminPrices = JSON.parse(JSON.stringify(appSettings.customPrices));
+
     document.getElementById('admin-modal').style.display = 'flex'; 
     let container = document.getElementById('admin-prices-container'); 
     container.innerHTML = ''; 
 
+    // Viršutinis įrankių baras
     let toolbar = document.createElement('div');
-    toolbar.style.cssText = "display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: #eef5ff; padding: 12px; border-radius: 8px; border: 1px solid #b8daff;";
+    toolbar.style.cssText = "display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; background: #eef5ff; padding: 12px; border-radius: 8px; border: 1px solid #b8daff;";
     toolbar.innerHTML = `
         <button onclick="exportPrices()" style="flex:1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; min-width:80px;">📥 JSON (Kopija)</button>
         <button onclick="exportToExcel()" style="flex:1; padding: 8px; background: #20c997; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; min-width:80px;">📊 Excel (Peržiūrai)</button>
@@ -866,24 +993,49 @@ function openAdmin() {
     `;
     container.appendChild(toolbar);
 
-    for(let key in rawModels) { 
-        container.innerHTML += `<h4 style="text-transform:uppercase; margin-top:15px; margin-bottom:5px; border-bottom:1px solid #eee;">${key} Kolekcija</h4>`; 
-        let grid = `<div class="admin-price-grid">`; 
-        rawModels[key].forEach(mod => { 
-            let pKey = key + '_' + mod.id; 
-            let currentPrice = appSettings.customPrices[pKey] !== undefined ? appSettings.customPrices[pKey] : (mod.price || getPrice(mod.w, mod.h)); 
-            grid += `<div class="admin-price-card"><div>${mod.name}</div><input type="number" data-pkey="${pKey}" class="admin-price-input" value="${currentPrice}"></div>`; 
-        }); 
-        grid += `</div>`; 
-        container.innerHTML += grid; 
-    } 
-}
+    // Kolekcijų pasirinkimas
+    let selectWrap = document.createElement('div');
+    selectWrap.style.marginBottom = '15px';
+    let selectHtml = `<select id="admin-col-select" onchange="switchAdminCol(this.value)" style="width:100%; padding:10px; font-size:14px; border-radius:4px; border:1px solid #ccc; font-weight:bold; cursor:pointer;">`;
+    for(let key in rawModels) {
+        selectHtml += `<option value="${key}">${key.toUpperCase()} KOLEKCIJA</option>`;
+    }
+    selectHtml += `</select>`;
+    selectWrap.innerHTML = selectHtml;
+    container.appendChild(selectWrap);
 
-function applyBulkPrice(multiplier) { let percent = parseFloat(document.getElementById('bulk-percent').value); if(isNaN(percent) || percent <= 0) return alert("Įveskite galiojantį procentą (pvz. 10)"); let checkedCols = Array.from(document.querySelectorAll('.bulk-col:checked')).map(cb => cb.value); if(checkedCols.length === 0) return alert("Pažymėkite bent vieną kolekciją!"); let factor = 1 + (multiplier * (percent / 100)); document.querySelectorAll('.admin-price-input').forEach(input => { let col = input.dataset.pkey.split('_')[0]; if (checkedCols.includes(col)) { input.value = Math.round(parseFloat(input.value) * factor); } }); alert(`Kainos ${multiplier > 0 ? 'padidintos' : 'sumažintos'} ${percent}% pažymėtoms kolekcijoms (nepamirškite išsaugoti!).`); }
+    // Masinio keitimo įrankis (išmanusis)
+    let bulkWrap = document.createElement('div');
+    bulkWrap.style.cssText = "background: #fff3cd; padding: 12px; border-radius: 8px; border: 1px solid #ffeeba; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;";
+    bulkWrap.innerHTML = `
+        <strong style="font-size: 13px; color: #856404;">Masinis keitimas:</strong>
+        <input type="number" id="dyn-bulk-percent" placeholder="%" style="width: 60px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;">
+        <select id="dyn-bulk-group" style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; flex: 1; min-width: 130px; cursor:pointer;">
+            <option value="all">Visoms grupėms</option>
+            <option value="gr1">Tik I Grupei (Bazinei)</option>
+            <option value="gr2">Tik II Grupei</option>
+            <option value="gr3">Tik III Grupei</option>
+            <option value="gr4">Tik IV Grupei</option>
+        </select>
+        <button onclick="applyDynamicBulk(1)" style="padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight:bold; font-size: 12px;">+ Pakelti</button>
+        <button onclick="applyDynamicBulk(-1)" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight:bold; font-size: 12px;">- Sumažinti</button>
+    `;
+    container.appendChild(bulkWrap);
+
+    // Lentelės konteineris
+    let gridContainer = document.createElement('div');
+    gridContainer.id = 'admin-grid-container';
+    gridContainer.style.overflowX = 'auto'; 
+    container.appendChild(gridContainer);
+
+    renderAdminGrid(Object.keys(rawModels)[0]);
+}
 
 function closeAdmin() { document.getElementById('admin-modal').style.display = 'none'; }
 
 function saveAdminSettings() { 
+    syncAdminGrid(); 
+    
     let history = JSON.parse(localStorage.getItem('houmyPriceHistory') || '[]');
     let d = new Date();
     let dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -891,40 +1043,29 @@ function saveAdminSettings() {
     let now = dateStr + ' ' + timeStr;
     
     let changes = [];
-
-    document.querySelectorAll('.admin-price-input').forEach(input => { 
-        let val = parseInt(input.value); 
-        let pKey = input.dataset.pkey;
-
-        let parts = pKey.split('_');
-        let coll = parts[0];
-        let modId = parts.slice(1).join('_');
-        let modBase = rawModels[coll]?.find(m => m.id === modId);
-        let defaultPrice = modBase ? (modBase.price || getPrice(modBase.w, modBase.h)) : 0;
-        let oldVal = appSettings.customPrices[pKey] !== undefined ? appSettings.customPrices[pKey] : defaultPrice;
-
-        if (val > 0) {
-            if (val !== oldVal) {
-                changes.push({ date: now, item: pKey, old: oldVal, new: val });
-            }
-            appSettings.customPrices[pKey] = val; 
-        } else {
-            if (oldVal !== defaultPrice) {
-                 changes.push({ date: now, item: pKey + ' (Atstatyta)', old: oldVal, new: defaultPrice });
-            }
-            delete appSettings.customPrices[pKey]; 
+    let allKeys = new Set([...Object.keys(tempAdminPrices), ...Object.keys(appSettings.customPrices)]);
+            
+    allKeys.forEach(k => {
+        let oldV = appSettings.customPrices[k];
+        let newV = tempAdminPrices[k];
+        if (oldV !== newV) {
+            let oText = oldV === undefined ? "Standartinė" : oldV;
+            let nText = newV === undefined ? "Standartinė" : newV;
+            changes.push({ date: now, item: k, old: oText, new: nText });
         }
-    }); 
+    });
 
     if (changes.length > 0) {
         history = [...changes, ...history].slice(0, 100);
         localStorage.setItem('houmyPriceHistory', JSON.stringify(history));
     }
 
+    appSettings.customPrices = tempAdminPrices;
     localStorage.setItem('houmySettings', JSON.stringify(appSettings)); 
     alert("Nustatymai sėkmingai išsaugoti!"); 
     location.reload(); 
 }
+
 // ----------------------------------------------
 
 function openArchive() { document.getElementById('archive-modal').style.display = 'flex'; renderArchiveList(); }
@@ -1435,7 +1576,6 @@ if (rightSidebarMenu) {
         container.appendChild(dot);
     });
 
-    // --- NAUJA DALIS: Custom spalvos mygtukas (Vaivorykštinis) ---
     const customWrapper = document.createElement('div');
     customWrapper.className = 'color-dot';
     customWrapper.style.background = 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)';
@@ -1454,7 +1594,6 @@ if (rightSidebarMenu) {
 
     customWrapper.appendChild(nativeInput);
     container.appendChild(customWrapper);
-    // ---------------------------------------------------------------
 
     desktopWrapper.appendChild(title);
     desktopWrapper.appendChild(container);
