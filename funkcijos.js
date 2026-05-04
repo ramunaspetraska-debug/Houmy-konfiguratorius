@@ -1,6 +1,6 @@
 // Nustatome versijos pavadinimą ir pakeičiame jo dizainą per JS
 const watermarkEl = document.getElementById('version-watermark');
-watermarkEl.innerText = "V1.18";
+watermarkEl.innerText = "V1.19";
 watermarkEl.style.cssText = "position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: #888; font-weight: normal; z-index: 100; pointer-events: none; font-family: sans-serif; opacity: 0.7;";
 
 let isGridOn = true;
@@ -133,6 +133,37 @@ function changeZoom(f, e = null) {
     setTimeout(() => { updateDimensions(); }, 50); 
 }
 
+// NAUJA FUNKCIJA: Centruoja ekraną į atsiradusius baldus
+function centerWorkspaceToModules() {
+    const modules = Array.from(document.querySelectorAll('.canvas-module'));
+    if (modules.length === 0) return;
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    modules.forEach(m => {
+        let angle = (parseInt(m.dataset.angle) || 0) * Math.PI / 180;
+        let w = parseFloat(m.style.width), h = parseFloat(m.style.height);
+        let cx = parseFloat(m.style.left) + w/2, cy = parseFloat(m.style.top) + h/2;
+        let dx = w/2, dy = h/2;
+        
+        [ {x:-dx,y:-dy}, {x:dx,y:-dy}, {x:dx,y:dy}, {x:-dx,y:dy} ].forEach(c => {
+            let rx = cx + c.x * Math.cos(angle) - c.y * Math.sin(angle);
+            let ry = cy + c.x * Math.sin(angle) + c.y * Math.cos(angle);
+            minX = Math.min(minX, rx); maxX = Math.max(maxX, rx);
+            minY = Math.min(minY, ry); maxY = Math.max(maxY, ry);
+        });
+    });
+
+    const wsRect = document.getElementById('workspace').getBoundingClientRect();
+    let sofaCX = (minX + maxX) / 2;
+    let sofaCY = (minY + maxY) / 2;
+    
+    currentPanX = (wsRect.width / 2) - sofaCX;
+    currentPanY = (wsRect.height / 2) - sofaCY;
+
+    document.getElementById('canvas-wrapper').style.transform = `translate(${currentPanX}px, ${currentPanY}px)`;
+    document.getElementById('workspace').style.backgroundPosition = `${currentPanX}px ${currentPanY}px`;
+}
+
 let saveStateTimeout = null;
 function saveState() { 
     const s = Array.from(document.querySelectorAll('.canvas-module')).map(m=>({
@@ -154,9 +185,9 @@ function saveState() {
     updateOrderSummary(); updateLabels();
 }
 
-function undo() { if(historyStack.length>1){ historyStack.pop(); restoreState(JSON.parse(historyStack[historyStack.length-1])); } }
+function undo() { if(historyStack.length>1){ historyStack.pop(); restoreState(JSON.parse(historyStack[historyStack.length-1]), false); } }
 
-function restoreState(data) { 
+function restoreState(data, centerView = false) { 
     canvasArea.innerHTML=''; 
     data.forEach(d=>{ 
         let modBase = furnitureModels[d.c]?.find(x=>x.id===d.id);
@@ -172,7 +203,10 @@ function restoreState(data) {
         attachEvents(el); canvasArea.appendChild(el); 
     }); 
     updateOrderSummary(); updateLabels(); 
-    setTimeout(() => { updateDimensions(); }, 50);
+    setTimeout(() => { 
+        updateDimensions(); 
+        if (centerView) centerWorkspaceToModules(); 
+    }, 50);
 }
 
 function clearWorkspace() { 
@@ -314,7 +348,7 @@ function updateDimensions() {
         displayTexts.push(textPart);
 
         if (dimState > 0) {
-            let offset = 28; // SUMAŽINTA nuo 35
+            let offset = 28;
             let topY = minY - offset, bottomY = maxY + offset;
             let leftX = minX - offset, rightX = maxX + offset;
 
@@ -330,15 +364,15 @@ function updateDimensions() {
             svgContent += `<line x1="${Math.round(cx)>=Math.round(GCX)||groups.length===1 ? maxX : minX}" y1="${maxY}" x2="${lineX}" y2="${maxY}" ${extStyle} />`;
 
             svgContent += `<path d="M ${minX} ${lineY} L ${maxX} ${lineY}" stroke="#555" stroke-width="0.8" fill="none" marker-start="url(#tick)" marker-end="url(#tick)" />`;
-            svgContent += `<text x="${cx}" y="${textY}" fill="#333" font-size="10" font-weight="500" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="3">${totalW} cm</text>`; // ŠRIFTAS 10
+            svgContent += `<text x="${cx}" y="${textY}" fill="#333" font-size="10" font-weight="500" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="3">${totalW} cm</text>`;
             
             svgContent += `<path d="M ${lineX} ${minY} L ${lineX} ${maxY}" stroke="#555" stroke-width="0.8" fill="none" marker-start="url(#tick)" marker-end="url(#tick)" />`;
-            svgContent += `<text x="${textX}" y="${cy + 4}" transform="rotate(-90 ${textX} ${cy + 4})" fill="#333" font-size="10" font-weight="500" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="3">${totalH} cm</text>`; // ŠRIFTAS 10
+            svgContent += `<text x="${textX}" y="${cy + 4}" transform="rotate(-90 ${textX} ${cy + 4})" fill="#333" font-size="10" font-weight="500" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="3">${totalH} cm</text>`;
         }
     });
 
     if (dimState === 2 && groups.length > 1) {
-        let offset = 65; // SUMAŽINTA nuo 85
+        let offset = 65; 
         let totalW = Math.round((GMaxX - GMinX) / scale), totalH = Math.round((GMaxY - GMinY) / scale);
         
         let extStyle = "stroke='#007bff' stroke-width='0.5' stroke-dasharray='4,4' fill='none' opacity='0.5'";
@@ -348,10 +382,10 @@ function updateDimensions() {
         svgContent += `<line x1="${GMaxX}" y1="${GMaxY}" x2="${GMaxX + offset}" y2="${GMaxY}" ${extStyle} />`;
 
         svgContent += `<path d="M ${GMinX} ${GMinY - offset} L ${GMaxX} ${GMinY - offset}" stroke="#007bff" stroke-width="1.2" fill="none" marker-start="url(#tick)" marker-end="url(#tick)" />`;
-        svgContent += `<text x="${GCX}" y="${GMinY - offset - 6}" fill="#007bff" font-size="11" font-weight="bold" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="4">${totalW} cm (Viso)</text>`; // ŠRIFTAS 11
+        svgContent += `<text x="${GCX}" y="${GMinY - offset - 6}" fill="#007bff" font-size="11" font-weight="bold" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="4">${totalW} cm (Viso)</text>`;
         
         svgContent += `<path d="M ${GMaxX + offset} ${GMinY} L ${GMaxX + offset} ${GMaxY}" stroke="#007bff" stroke-width="1.2" fill="none" marker-start="url(#tick)" marker-end="url(#tick)" />`;
-        svgContent += `<text x="${GMaxX + offset + 18}" y="${GCY + 5}" transform="rotate(-90 ${GMaxX + offset + 18} ${GCY + 5})" fill="#007bff" font-size="11" font-weight="bold" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="4">${totalH} cm (Viso)</text>`; // ŠRIFTAS 11
+        svgContent += `<text x="${GMaxX + offset + 18}" y="${GCY + 5}" transform="rotate(-90 ${GMaxX + offset + 18} ${GCY + 5})" fill="#007bff" font-size="11" font-weight="bold" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="4">${totalH} cm (Viso)</text>`;
         
         displayTexts.unshift(`<b>Bendri išmatavimai:</b> <b style="color:#007bff">${totalW} x ${totalH} cm</b>`); 
     }
@@ -670,7 +704,17 @@ function saveToArchive() { let name = document.getElementById('archive-name').va
         a:m.dataset.angle, z:m.style.zIndex, exp: m.dataset.isExpanded
     })); 
     if(state.length === 0) return alert('Nėra ką išsaugoti, sofa tuščia!'); let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); archive[name] = state; localStorage.setItem('houmyArchive', JSON.stringify(archive)); document.getElementById('archive-name').value = ''; renderArchiveList(); }
-function loadFromArchive(name) { let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); if(archive[name] && archive[name].length > 0) { document.getElementById('model-select').value = archive[name][0].c; loadModel(archive[name][0].c); restoreState(archive[name]); document.getElementById('archive-modal').style.display = 'none'; } }
+
+function loadFromArchive(name) { 
+    let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); 
+    if(archive[name] && archive[name].length > 0) { 
+        document.getElementById('model-select').value = archive[name][0].c; 
+        loadModel(archive[name][0].c); 
+        restoreState(archive[name], true); // Centruoti vaizdą po užkrovimo
+        document.getElementById('archive-modal').style.display = 'none'; 
+    } 
+}
+
 function deleteFromArchive(name) { if(confirm(`Ar tikrai norite ištrinti projektą "${name}" iš archyvo?`)) { let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); delete archive[name]; localStorage.setItem('houmyArchive', JSON.stringify(archive)); renderArchiveList(); } }
 
 function openClientModal() { const modules = Array.from(document.querySelectorAll('.canvas-module')); if(modules.length === 0) return alert("Nėra modulių pasiūlymui!"); document.getElementById('client-modal').style.display = 'flex'; document.getElementById('client-term').value = appSettings.prodTerm; document.getElementById('client-delivery').value = appSettings.deliveryNote; document.getElementById('client-additional').value = appSettings.additionalInfo; }
@@ -722,7 +766,6 @@ async function generatePDFWithDetails() {
         }); 
     }); 
     
-    // SUMAŽINTOS PDF PARAŠTĖS (Padding)
     let padding = 30;
     if (dimState === 1) padding = 60;
     if (dimState === 2) padding = 100;
@@ -871,7 +914,6 @@ async function executeExportBlueprint() {
         }); 
     }); 
     
-    // SUMAŽINTOS BRĖŽINIO PARAŠTĖS (Padding)
     let padding = 30;
     if (dimState === 1) padding = 60;
     if (dimState === 2) padding = 100;
@@ -1079,7 +1121,6 @@ colorStyle.innerHTML = `
     }
     #mobile-color-overlay.active { display: block; }
 
-    /* Media query slepia desktopo paletę ir rodo mobilaus mygtuką, jei ekranas siauresnis nei 768px */
     @media (max-width: 768px) {
         .desktop-color-picker { display: none !important; }
         #mobile-color-fab { display: block; }
@@ -1092,7 +1133,6 @@ function changeSofaColor(hex) {
     localStorage.setItem('houmySettings', JSON.stringify(appSettings));
     document.documentElement.style.setProperty('--sofa-color', hex);
     
-    // Sinchronizuojame aktyvią spalvą abiejose (desktop ir mobile) paletėse
     document.querySelectorAll('.color-dot').forEach(d => {
         if(d.dataset.hex === hex) {
             d.classList.add('active');
@@ -1101,16 +1141,14 @@ function changeSofaColor(hex) {
         }
     });
 
-    // Uždaryti mobilųjį langą po pasirinkimo
     document.getElementById('mobile-color-modal').classList.remove('active');
     document.getElementById('mobile-color-overlay').classList.remove('active');
 }
 
-// 1. DESKTOP VERSIJOS PALETĖ (Šoniniame meniu)
 const rightSidebarMenu = document.getElementById('sidebar-right');
 if (rightSidebarMenu) {
     const desktopWrapper = document.createElement('div');
-    desktopWrapper.className = 'color-picker-wrapper desktop-color-picker'; // Pridėta desktop klasė
+    desktopWrapper.className = 'color-picker-wrapper desktop-color-picker';
     
     const title = document.createElement('div');
     title.className = 'color-picker-title';
@@ -1124,7 +1162,7 @@ if (rightSidebarMenu) {
         dot.className = 'color-dot' + (appSettings.fabricColor === c.hex ? ' active' : '');
         dot.style.background = c.hex;
         dot.title = c.name;
-        dot.dataset.hex = c.hex; // Svarbu sinchronizavimui
+        dot.dataset.hex = c.hex;
         dot.onclick = () => changeSofaColor(c.hex);
         container.appendChild(dot);
     });
@@ -1133,7 +1171,6 @@ if (rightSidebarMenu) {
     desktopWrapper.appendChild(container);
     rightSidebarMenu.insertBefore(desktopWrapper, rightSidebarMenu.firstChild);
 
-    // Pridedame "Dalintis" mygtuką, jei jo dar nėra
     if (!document.getElementById('share-btn')) {
         const shareBtn = document.createElement('button');
         shareBtn.id = 'share-btn';
@@ -1148,10 +1185,9 @@ if (rightSidebarMenu) {
     }
 }
 
-// 2. MOBILIOSIOS VERSIJOS ELEMENTAI (Kuriami tiesiai Body elemente)
 const mobileOverlay = document.createElement('div');
 mobileOverlay.id = 'mobile-color-overlay';
-mobileOverlay.onclick = () => { // Paspaudus foną - uždaroma
+mobileOverlay.onclick = () => { 
     document.getElementById('mobile-color-modal').classList.remove('active');
     mobileOverlay.classList.remove('active');
 };
@@ -1173,8 +1209,8 @@ colors.forEach(c => {
     dot.className = 'color-dot' + (appSettings.fabricColor === c.hex ? ' active' : '');
     dot.style.background = c.hex;
     dot.title = c.name;
-    dot.dataset.hex = c.hex; // Svarbu sinchronizavimui
-    dot.style.width = "32px"; // Šiek tiek didesni taškai mobiliesiems
+    dot.dataset.hex = c.hex;
+    dot.style.width = "32px";
     dot.style.height = "32px";
     dot.onclick = () => changeSofaColor(c.hex);
     mobileContainer.appendChild(dot);
@@ -1254,7 +1290,7 @@ if (sharedStateNew || sharedStateOld) {
         });
         
         updateOrderSummary(); updateLabels(); 
-        setTimeout(() => { updateDimensions(); }, 50);
+        setTimeout(() => { updateDimensions(); centerWorkspaceToModules(); }, 50);
         saveState();
 
     } catch (e) {
@@ -1273,10 +1309,14 @@ if (sharedStateNew || sharedStateOld) {
     loadModel(requestedModel);
     
     const saved = localStorage.getItem('sofaState');
-    if(saved) restoreState(JSON.parse(saved));
+    if(saved) {
+        restoreState(JSON.parse(saved), true);
+    }
     
 } else {
     loadModel(modelSelect.value);
     const saved = localStorage.getItem('sofaState');
-    if(saved) restoreState(JSON.parse(saved));
+    if(saved) {
+        restoreState(JSON.parse(saved), true);
+    }
 }
