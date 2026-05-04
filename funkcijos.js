@@ -1,6 +1,6 @@
 // Nustatome versijos pavadinimą ir pakeičiame jo dizainą per JS
 const watermarkEl = document.getElementById('version-watermark');
-watermarkEl.innerText = "V1.22";
+watermarkEl.innerText = "V1.23";
 watermarkEl.style.cssText = "position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: #888; font-weight: normal; z-index: 100; pointer-events: none; font-family: sans-serif; opacity: 0.7;";
 
 let isGridOn = true;
@@ -163,15 +163,13 @@ function centerWorkspaceToModules() {
     document.getElementById('workspace').style.backgroundPosition = `${currentPanX}px ${currentPanY}px`;
 }
 
-// --- NAUJA FUNKCIJA: Klaidų ir nesklandumų tikrinimas ---
 function validateWorkspace() {
     const modules = Array.from(document.querySelectorAll('.canvas-module'));
-    if (modules.length <= 1) return true; // Nėra ką lyginti, jei 0 ar 1 modulis
+    if (modules.length <= 1) return true;
 
     let hasOverlap = false;
-    const tol = 2; // Paklaida, kad atsitrenkę (snapped) moduliai nesiskaitiklių kaip persidengiantys
+    const tol = 2;
     
-    // 1. Tikriname ar moduliai neužlipę vienas ant kito
     for (let i = 0; i < modules.length; i++) {
         for (let j = i + 1; j < modules.length; j++) {
             const r1 = modules[i].getBoundingClientRect();
@@ -194,7 +192,6 @@ function validateWorkspace() {
         }
     }
 
-    // 2. Tikriname ar nėra atsiskyrusių (pamestų) modulių
     let groups = [];
     let unvisited = new Set(modules);
     while(unvisited.size > 0) {
@@ -225,9 +222,8 @@ function validateWorkspace() {
         }
     }
 
-    return true; // Viskas gerai arba vartotojas sutiko tęsti
+    return true; 
 }
-// --------------------------------------------------------
 
 let saveStateTimeout = null;
 function saveState() { 
@@ -754,10 +750,122 @@ document.addEventListener('keydown', (e) => {
     else if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
 });
 
-function openAdmin() { document.getElementById('admin-modal').style.display = 'flex'; let container = document.getElementById('admin-prices-container'); container.innerHTML = ''; for(let key in rawModels) { container.innerHTML += `<h4 style="text-transform:uppercase; margin-top:15px; margin-bottom:5px; border-bottom:1px solid #eee;">${key} Kolekcija</h4>`; let grid = `<div class="admin-price-grid">`; rawModels[key].forEach(mod => { let pKey = key + '_' + mod.id; let currentPrice = appSettings.customPrices[pKey] !== undefined ? appSettings.customPrices[pKey] : (mod.price || getPrice(mod.w, mod.h)); grid += `<div class="admin-price-card"><div>${mod.name}</div><input type="number" data-pkey="${pKey}" class="admin-price-input" value="${currentPrice}"></div>`; }); grid += `</div>`; container.innerHTML += grid; } }
-function applyBulkPrice(multiplier) { let percent = parseFloat(document.getElementById('bulk-percent').value); if(isNaN(percent) || percent <= 0) return alert("Įveskite galiojantį procentą (pvz. 10)"); let checkedCols = Array.from(document.querySelectorAll('.bulk-col:checked')).map(cb => cb.value); if(checkedCols.length === 0) return alert("Pažymėkite bent vieną kolekciją!"); let factor = 1 + (multiplier * (percent / 100)); document.querySelectorAll('.admin-price-input').forEach(input => { let col = input.dataset.pkey.split('_')[0]; if (checkedCols.includes(col)) { input.value = Math.round(parseFloat(input.value) * factor); } }); alert(`Kainos ${multiplier > 0 ? 'padidintos' : 'sumažintos'} ${percent}% pažymėtoms kolekcijoms.`); }
+// --- ADMIN IMPORT / EXPORT / HISTORY FUNKCIJOS ---
+function exportPrices() {
+    let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appSettings.customPrices));
+    let dlAnchorElem = document.createElement('a');
+    dlAnchorElem.setAttribute("href", dataStr);
+    dlAnchorElem.setAttribute("download", "houmy_kainos.json");
+    dlAnchorElem.click();
+}
+
+function importPrices(event) {
+    let file = event.target.files[0];
+    if (!file) return;
+    let reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            let imported = JSON.parse(e.target.result);
+            if (confirm("Ar tikrai norite perrašyti visas dabartines kainas iš failo? (Senos pritaikytos kainos bus ištrintos)")) {
+                appSettings.customPrices = imported;
+                localStorage.setItem('houmySettings', JSON.stringify(appSettings));
+                alert("Kainos sėkmingai importuotos!");
+                location.reload();
+            }
+        } catch(err) {
+            alert("Klaida skaitant failą. Įsitikinkite, kad pasirinkote teisingą '.json' atsarginę kopiją.");
+        }
+    };
+    reader.readAsText(file);
+}
+
+function showPriceHistory() {
+    let history = JSON.parse(localStorage.getItem('houmyPriceHistory') || '[]');
+    let histHtml = history.length ? history.map(h => `<div style="border-bottom:1px solid #ddd; padding:8px 0; font-size:13px;"><b>${h.date}</b><br>Modulis: <b>${h.item}</b><br><span style="color:#dc3545; text-decoration:line-through;">${h.old}€</span> ➔ <span style="color:#28a745; font-weight:bold;">${h.new}€</span></div>`).join('') : '<p style="color:#888; text-align:center;">Istorija tuščia</p>';
+    
+    let overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; display:flex; justify-content:center; align-items:center;';
+    overlay.innerHTML = `<div style="background:white; padding:20px; border-radius:8px; width:400px; max-height:80vh; overflow-y:auto; box-shadow:0 5px 15px rgba(0,0,0,0.3); font-family:sans-serif;">
+        <h3 style="margin-top:0; border-bottom:2px solid #eee; padding-bottom:10px;">Kainų keitimo istorija</h3>
+        <div style="margin-bottom:15px; max-height: 60vh; overflow-y: auto;">${histHtml}</div>
+        <button onclick="this.parentNode.parentNode.remove()" style="padding:10px 12px; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer; width:100%; font-weight:bold;">Uždaryti</button>
+    </div>`;
+    document.body.appendChild(overlay);
+}
+
+function openAdmin() { 
+    document.getElementById('admin-modal').style.display = 'flex'; 
+    let container = document.getElementById('admin-prices-container'); 
+    container.innerHTML = ''; 
+
+    // Pridedame įrankių juostą (Eksportas/Importas/Istorija)
+    let toolbar = document.createElement('div');
+    toolbar.style.cssText = "display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: #eef5ff; padding: 12px; border-radius: 8px; border: 1px solid #b8daff;";
+    toolbar.innerHTML = `
+        <button onclick="exportPrices()" style="flex:1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; min-width:120px;">📥 Eksportuoti kopiją</button>
+        <label style="flex:1; padding: 8px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 0; font-size: 12px; text-align: center; min-width:120px;">
+            📤 Importuoti <input type="file" accept=".json" style="display:none" onchange="importPrices(event)">
+        </label>
+        <button onclick="showPriceHistory()" style="flex:1; padding: 8px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; min-width:120px;">🕰 Keitimų istorija</button>
+    `;
+    container.appendChild(toolbar);
+
+    for(let key in rawModels) { 
+        container.innerHTML += `<h4 style="text-transform:uppercase; margin-top:15px; margin-bottom:5px; border-bottom:1px solid #eee;">${key} Kolekcija</h4>`; 
+        let grid = `<div class="admin-price-grid">`; 
+        rawModels[key].forEach(mod => { 
+            let pKey = key + '_' + mod.id; 
+            let currentPrice = appSettings.customPrices[pKey] !== undefined ? appSettings.customPrices[pKey] : (mod.price || getPrice(mod.w, mod.h)); 
+            grid += `<div class="admin-price-card"><div>${mod.name}</div><input type="number" data-pkey="${pKey}" class="admin-price-input" value="${currentPrice}"></div>`; 
+        }); 
+        grid += `</div>`; 
+        container.innerHTML += grid; 
+    } 
+}
+
+function applyBulkPrice(multiplier) { let percent = parseFloat(document.getElementById('bulk-percent').value); if(isNaN(percent) || percent <= 0) return alert("Įveskite galiojantį procentą (pvz. 10)"); let checkedCols = Array.from(document.querySelectorAll('.bulk-col:checked')).map(cb => cb.value); if(checkedCols.length === 0) return alert("Pažymėkite bent vieną kolekciją!"); let factor = 1 + (multiplier * (percent / 100)); document.querySelectorAll('.admin-price-input').forEach(input => { let col = input.dataset.pkey.split('_')[0]; if (checkedCols.includes(col)) { input.value = Math.round(parseFloat(input.value) * factor); } }); alert(`Kainos ${multiplier > 0 ? 'padidintos' : 'sumažintos'} ${percent}% pažymėtoms kolekcijoms (nepamirškite išsaugoti!).`); }
+
 function closeAdmin() { document.getElementById('admin-modal').style.display = 'none'; }
-function saveAdminSettings() { document.querySelectorAll('.admin-price-input').forEach(input => { let val = parseInt(input.value); if (val > 0) appSettings.customPrices[input.dataset.pkey] = val; else delete appSettings.customPrices[input.dataset.pkey]; }); localStorage.setItem('houmySettings', JSON.stringify(appSettings)); alert("Nustatymai sėkmingai išsaugoti!"); location.reload(); }
+
+function saveAdminSettings() { 
+    let history = JSON.parse(localStorage.getItem('houmyPriceHistory') || '[]');
+    let now = new Date().toLocaleString('lt-LT');
+    let changes = [];
+
+    document.querySelectorAll('.admin-price-input').forEach(input => { 
+        let val = parseInt(input.value); 
+        let pKey = input.dataset.pkey;
+
+        let parts = pKey.split('_');
+        let coll = parts[0];
+        let modId = parts.slice(1).join('_');
+        let modBase = rawModels[coll]?.find(m => m.id === modId);
+        let defaultPrice = modBase ? (modBase.price || getPrice(modBase.w, modBase.h)) : 0;
+        let oldVal = appSettings.customPrices[pKey] !== undefined ? appSettings.customPrices[pKey] : defaultPrice;
+
+        if (val > 0) {
+            if (val !== oldVal) {
+                changes.push({ date: now, item: pKey, old: oldVal, new: val });
+            }
+            appSettings.customPrices[pKey] = val; 
+        } else {
+            if (oldVal !== defaultPrice) {
+                 changes.push({ date: now, item: pKey + ' (Atstatyta į standartinę)', old: oldVal, new: defaultPrice });
+            }
+            delete appSettings.customPrices[pKey]; 
+        }
+    }); 
+
+    if (changes.length > 0) {
+        history = [...changes, ...history].slice(0, 100); // Saugome paskutinius 100 pakeitimų
+        localStorage.setItem('houmyPriceHistory', JSON.stringify(history));
+    }
+
+    localStorage.setItem('houmySettings', JSON.stringify(appSettings)); 
+    alert("Nustatymai sėkmingai išsaugoti!"); 
+    location.reload(); 
+}
+// ----------------------------------------------
 
 function openArchive() { document.getElementById('archive-modal').style.display = 'flex'; renderArchiveList(); }
 function renderArchiveList() { let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); let html = ''; for(let name in archive) { html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px solid #ddd; border-radius:4px; background:#f9f9f9;"><strong style="font-size:13px; color:#333;">${name}</strong><div style="display:flex; gap:5px;"><button onclick="loadFromArchive('${name}')" style="padding:4px 8px; background:#007bff; color:white; border:none; border-radius:3px; cursor:pointer;">Užkrauti</button><button onclick="deleteFromArchive('${name}')" style="padding:4px 8px; background:#dc3545; color:white; border:none; border-radius:3px; cursor:pointer;">Ištrinti</button></div></div>`; } document.getElementById('archive-list').innerHTML = html || '<div style="color:#888; font-size:13px; text-align:center; padding:10px 0;">Archyvas tuščias</div>'; }
@@ -805,7 +913,7 @@ function openClientModal() {
     const modules = Array.from(document.querySelectorAll('.canvas-module')); 
     if(modules.length === 0) return alert("Nėra modulių pasiūlymui!"); 
     
-    if (!validateWorkspace()) return; // NAUJA: Patikriname ar nėra klaidų
+    if (!validateWorkspace()) return;
     
     document.getElementById('client-modal').style.display = 'flex'; 
     document.getElementById('client-term').value = appSettings.prodTerm; 
@@ -981,7 +1089,7 @@ function openBlueprintModal() {
     const modules = Array.from(document.querySelectorAll('.canvas-module')); 
     if(modules.length === 0) return alert("Nėra modulių brėžiniui!");
     
-    if (!validateWorkspace()) return; // NAUJA: Patikriname ar nėra klaidų
+    if (!validateWorkspace()) return;
     
     document.getElementById('blueprint-modal').style.display = 'flex';
 }
@@ -1105,7 +1213,7 @@ function shareConfiguration() {
         return;
     }
 
-    if (!validateWorkspace()) return; // NAUJA: Patikriname ar nėra klaidų
+    if (!validateWorkspace()) return;
 
     const cols = {};
     modules.forEach(m => {
@@ -1450,7 +1558,6 @@ function optimizeMobileLayout() {
     const modelSelect = document.getElementById('model-select');
     const fabricSelect = document.getElementById('fabric-group-select');
     
-    // 1. PASLEPIAME UŽRAŠUS (Audinio grupė, Kolekcija ir pan.)
     if (fabricSelect && fabricSelect.previousElementSibling) {
         fabricSelect.previousElementSibling.style.display = 'none';
     }
@@ -1458,7 +1565,6 @@ function optimizeMobileLayout() {
         modelSelect.previousElementSibling.style.display = 'none';
     }
 
-    // 2. TOP SEKCIJA: Pasirinkimai į vieną eilutę
     if (modelSelect && fabricSelect && !document.getElementById('mobile-top-wrap')) {
         const wrap = document.createElement('div');
         wrap.id = 'mobile-top-wrap';
@@ -1466,7 +1572,6 @@ function optimizeMobileLayout() {
         
         modelSelect.parentNode.insertBefore(wrap, modelSelect);
         
-        // Paslepiame perteklinį Kolekcijos etiketės lauką, jei puslapis krautas iš Share nuorodos
         const colLabel = Array.from(wrap.parentNode.children).find(el => el.tagName === 'DIV' && el.innerText.includes('KOLEKCIJA'));
         if (colLabel) colLabel.style.display = 'none';
         
@@ -1479,7 +1584,6 @@ function optimizeMobileLayout() {
         wrap.appendChild(fabricSelect);
     }
 
-    // 3. BOTTOM SEKCIJA: Mygtukai į vieną eilutę po Suma
     const btnPdf = document.querySelector('button[onclick="openClientModal()"]');
     const btnBp = document.querySelector('button[onclick="openBlueprintModal()"]');
     const btnShare = document.getElementById('share-btn');
@@ -1514,5 +1618,4 @@ function optimizeMobileLayout() {
     }
 }
 
-// Iškviečiame šią funkciją praėjus daliai sekundės, kad spėtų susigeneruoti visi UI elementai
 setTimeout(optimizeMobileLayout, 300);
