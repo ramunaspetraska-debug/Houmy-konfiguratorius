@@ -1,6 +1,6 @@
 // Nustatome versijos pavadinimą ir pakeičiame jo dizainą per JS
 const watermarkEl = document.getElementById('version-watermark');
-watermarkEl.innerText = "V1.21";
+watermarkEl.innerText = "V1.22";
 watermarkEl.style.cssText = "position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: #888; font-weight: normal; z-index: 100; pointer-events: none; font-family: sans-serif; opacity: 0.7;";
 
 let isGridOn = true;
@@ -162,6 +162,72 @@ function centerWorkspaceToModules() {
     document.getElementById('canvas-wrapper').style.transform = `translate(${currentPanX}px, ${currentPanY}px)`;
     document.getElementById('workspace').style.backgroundPosition = `${currentPanX}px ${currentPanY}px`;
 }
+
+// --- NAUJA FUNKCIJA: Klaidų ir nesklandumų tikrinimas ---
+function validateWorkspace() {
+    const modules = Array.from(document.querySelectorAll('.canvas-module'));
+    if (modules.length <= 1) return true; // Nėra ką lyginti, jei 0 ar 1 modulis
+
+    let hasOverlap = false;
+    const tol = 2; // Paklaida, kad atsitrenkę (snapped) moduliai nesiskaitiklių kaip persidengiantys
+    
+    // 1. Tikriname ar moduliai neužlipę vienas ant kito
+    for (let i = 0; i < modules.length; i++) {
+        for (let j = i + 1; j < modules.length; j++) {
+            const r1 = modules[i].getBoundingClientRect();
+            const r2 = modules[j].getBoundingClientRect();
+            
+            if (!(r1.right - tol <= r2.left + tol || 
+                  r1.left + tol >= r2.right - tol || 
+                  r1.bottom - tol <= r2.top + tol || 
+                  r1.top + tol >= r2.bottom - tol)) {
+                hasOverlap = true;
+                break;
+            }
+        }
+        if (hasOverlap) break;
+    }
+
+    if (hasOverlap) {
+        if (!confirm("Dėmesio: Jūsų darbo lauke kai kurie moduliai persidengia (yra užlipę vienas ant kito). Ar tikrai norite tęsti?")) {
+            return false;
+        }
+    }
+
+    // 2. Tikriname ar nėra atsiskyrusių (pamestų) modulių
+    let groups = [];
+    let unvisited = new Set(modules);
+    while(unvisited.size > 0) {
+        let startMod = unvisited.values().next().value;
+        let group = new Set([startMod]);
+        let added = true;
+        while(added) {
+            added = false;
+            for(let other of unvisited) {
+                if(!group.has(other)) { 
+                    for(let m of group) { 
+                        let r1 = m.getBoundingClientRect();
+                        let r2 = other.getBoundingClientRect();
+                        if(!(r1.right < r2.left-2 || r1.left > r2.right+2 || r1.bottom < r2.top-2 || r1.top > r2.bottom+2)) { 
+                            group.add(other); added = true; break; 
+                        } 
+                    } 
+                }
+            }
+        }
+        groups.push(Array.from(group)); 
+        group.forEach(m => unvisited.delete(m));
+    }
+
+    if (groups.length > 1) {
+        if (!confirm("Dėmesio: Darbo lauke yra atsiskyrusių modulių (galbūt netyčia paliktų nematomoje vietoje). Ar tikrai norite tęsti?")) {
+            return false;
+        }
+    }
+
+    return true; // Viskas gerai arba vartotojas sutiko tęsti
+}
+// --------------------------------------------------------
 
 let saveStateTimeout = null;
 function saveState() { 
@@ -735,7 +801,17 @@ function loadFromArchive(name) {
 
 function deleteFromArchive(name) { if(confirm(`Ar tikrai norite ištrinti projektą "${name}" iš archyvo?`)) { let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); delete archive[name]; localStorage.setItem('houmyArchive', JSON.stringify(archive)); renderArchiveList(); } }
 
-function openClientModal() { const modules = Array.from(document.querySelectorAll('.canvas-module')); if(modules.length === 0) return alert("Nėra modulių pasiūlymui!"); document.getElementById('client-modal').style.display = 'flex'; document.getElementById('client-term').value = appSettings.prodTerm; document.getElementById('client-delivery').value = appSettings.deliveryNote; document.getElementById('client-additional').value = appSettings.additionalInfo; }
+function openClientModal() { 
+    const modules = Array.from(document.querySelectorAll('.canvas-module')); 
+    if(modules.length === 0) return alert("Nėra modulių pasiūlymui!"); 
+    
+    if (!validateWorkspace()) return; // NAUJA: Patikriname ar nėra klaidų
+    
+    document.getElementById('client-modal').style.display = 'flex'; 
+    document.getElementById('client-term').value = appSettings.prodTerm; 
+    document.getElementById('client-delivery').value = appSettings.deliveryNote; 
+    document.getElementById('client-additional').value = appSettings.additionalInfo; 
+}
 
 async function generatePDFWithDetails() { 
     appSettings.prodTerm = document.getElementById('client-term').value.trim(); 
@@ -904,6 +980,9 @@ async function generatePDFWithDetails() {
 function openBlueprintModal() {
     const modules = Array.from(document.querySelectorAll('.canvas-module')); 
     if(modules.length === 0) return alert("Nėra modulių brėžiniui!");
+    
+    if (!validateWorkspace()) return; // NAUJA: Patikriname ar nėra klaidų
+    
     document.getElementById('blueprint-modal').style.display = 'flex';
 }
 
@@ -1026,6 +1105,8 @@ function shareConfiguration() {
         return;
     }
 
+    if (!validateWorkspace()) return; // NAUJA: Patikriname ar nėra klaidų
+
     const cols = {};
     modules.forEach(m => {
         const c = m.dataset.collection;
@@ -1094,7 +1175,7 @@ colorStyle.innerHTML = `
 
     /* --- MOBILIOSIOS VERSIJOS STILIAI --- */
     #mobile-color-fab {
-        display: none; /* Paslėpta ant desktopo */
+        display: none; 
         position: fixed;
         bottom: 90px; 
         right: 20px;
@@ -1115,7 +1196,7 @@ colorStyle.innerHTML = `
     
     #mobile-color-modal {
         position: fixed;
-        bottom: -100%; /* Paslėpta už ekrano ribų */
+        bottom: -100%; 
         left: 0;
         width: 100%;
         background: white;
