@@ -1,6 +1,6 @@
 // Nustatome versijos pavadinimą ir pakeičiame jo dizainą per JS
 const watermarkEl = document.getElementById('version-watermark');
-watermarkEl.innerText = "V1.16";
+watermarkEl.innerText = "V1.17";
 watermarkEl.style.cssText = "position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: #888; font-weight: normal; z-index: 100; pointer-events: none; font-family: sans-serif; opacity: 0.7;";
 
 let isGridOn = true;
@@ -1029,22 +1029,86 @@ colorStyle.innerHTML = `
     .color-dot { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid #ccc; transition: all 0.2s; }
     .color-dot:hover { transform: scale(1.15); }
     .color-dot.active { border-color: #222; transform: scale(1.15); box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+
+    /* --- MOBILIOSIOS VERSIJOS STILIAI --- */
+    #mobile-color-fab {
+        display: none; /* Paslėpta ant desktopo */
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 50px;
+        height: 50px;
+        background: #007bff;
+        color: white;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 50px;
+        font-size: 24px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        cursor: pointer;
+        z-index: 1000;
+        transition: transform 0.2s;
+    }
+    #mobile-color-fab:active { transform: scale(0.9); }
+    
+    #mobile-color-modal {
+        position: fixed;
+        bottom: -100%; /* Paslėpta už ekrano ribų */
+        left: 0;
+        width: 100%;
+        background: white;
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+        box-shadow: 0 -5px 15px rgba(0,0,0,0.2);
+        transition: bottom 0.3s ease-in-out;
+        z-index: 1001;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+    #mobile-color-modal.active { bottom: 0; }
+
+    #mobile-color-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.4);
+        z-index: 1000;
+        backdrop-filter: blur(2px);
+    }
+    #mobile-color-overlay.active { display: block; }
+
+    /* Media query slepia desktopo paletę ir rodo mobilaus mygtuką, jei ekranas siauresnis nei 768px */
+    @media (max-width: 768px) {
+        .desktop-color-picker { display: none !important; }
+        #mobile-color-fab { display: block; }
+    }
 `;
 document.head.appendChild(colorStyle);
 
-function changeSofaColor(hex, dotEl) {
+function changeSofaColor(hex) {
     appSettings.fabricColor = hex;
     localStorage.setItem('houmySettings', JSON.stringify(appSettings));
     document.documentElement.style.setProperty('--sofa-color', hex);
     
-    document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
-    if(dotEl) dotEl.classList.add('active');
+    // Sinchronizuojame aktyvią spalvą abiejose (desktop ir mobile) paletėse
+    document.querySelectorAll('.color-dot').forEach(d => {
+        if(d.dataset.hex === hex) {
+            d.classList.add('active');
+        } else {
+            d.classList.remove('active');
+        }
+    });
+
+    // Uždaryti mobilųjį langą po pasirinkimo
+    document.getElementById('mobile-color-modal').classList.remove('active');
+    document.getElementById('mobile-color-overlay').classList.remove('active');
 }
 
+// 1. DESKTOP VERSIJOS PALETĖ (Šoniniame meniu)
 const rightSidebarMenu = document.getElementById('sidebar-right');
 if (rightSidebarMenu) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'color-picker-wrapper';
+    const desktopWrapper = document.createElement('div');
+    desktopWrapper.className = 'color-picker-wrapper desktop-color-picker'; // Pridėta desktop klasė
     
     const title = document.createElement('div');
     title.className = 'color-picker-title';
@@ -1058,14 +1122,16 @@ if (rightSidebarMenu) {
         dot.className = 'color-dot' + (appSettings.fabricColor === c.hex ? ' active' : '');
         dot.style.background = c.hex;
         dot.title = c.name;
-        dot.onclick = () => changeSofaColor(c.hex, dot);
+        dot.dataset.hex = c.hex; // Svarbu sinchronizavimui
+        dot.onclick = () => changeSofaColor(c.hex);
         container.appendChild(dot);
     });
 
-    wrapper.appendChild(title);
-    wrapper.appendChild(container);
-    rightSidebarMenu.insertBefore(wrapper, rightSidebarMenu.firstChild);
+    desktopWrapper.appendChild(title);
+    desktopWrapper.appendChild(container);
+    rightSidebarMenu.insertBefore(desktopWrapper, rightSidebarMenu.firstChild);
 
+    // Pridedame "Dalintis" mygtuką, jei jo dar nėra
     if (!document.getElementById('share-btn')) {
         const shareBtn = document.createElement('button');
         shareBtn.id = 'share-btn';
@@ -1079,6 +1145,51 @@ if (rightSidebarMenu) {
         else rightSidebarMenu.appendChild(shareBtn);
     }
 }
+
+// 2. MOBILIOSIOS VERSIJOS ELEMENTAI (Kuriami tiesiai Body elemente)
+const mobileOverlay = document.createElement('div');
+mobileOverlay.id = 'mobile-color-overlay';
+mobileOverlay.onclick = () => { // Paspaudus foną - uždaroma
+    document.getElementById('mobile-color-modal').classList.remove('active');
+    mobileOverlay.classList.remove('active');
+};
+document.body.appendChild(mobileOverlay);
+
+const mobileModal = document.createElement('div');
+mobileModal.id = 'mobile-color-modal';
+
+const mobileTitle = document.createElement('div');
+mobileTitle.className = 'color-picker-title';
+mobileTitle.style.fontSize = "14px";
+mobileTitle.innerText = "Pasirinkite audinio spalvą";
+
+const mobileContainer = document.createElement('div');
+mobileContainer.className = 'color-picker-container';
+
+colors.forEach(c => {
+    const dot = document.createElement('div');
+    dot.className = 'color-dot' + (appSettings.fabricColor === c.hex ? ' active' : '');
+    dot.style.background = c.hex;
+    dot.title = c.name;
+    dot.dataset.hex = c.hex; // Svarbu sinchronizavimui
+    dot.style.width = "32px"; // Šiek tiek didesni taškai mobiliesiems
+    dot.style.height = "32px";
+    dot.onclick = () => changeSofaColor(c.hex);
+    mobileContainer.appendChild(dot);
+});
+
+mobileModal.appendChild(mobileTitle);
+mobileModal.appendChild(mobileContainer);
+document.body.appendChild(mobileModal);
+
+const mobileFab = document.createElement('div');
+mobileFab.id = 'mobile-color-fab';
+mobileFab.innerHTML = '🎨'; 
+mobileFab.onclick = () => {
+    mobileModal.classList.add('active');
+    mobileOverlay.classList.add('active');
+};
+document.body.appendChild(mobileFab);
 
 updateZoomText();
 
