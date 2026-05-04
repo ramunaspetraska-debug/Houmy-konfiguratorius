@@ -1,6 +1,6 @@
 // Nustatome versijos pavadinimą ir pakeičiame jo dizainą per JS
 const watermarkEl = document.getElementById('version-watermark');
-watermarkEl.innerText = "V1.24";
+watermarkEl.innerText = "V1.25";
 watermarkEl.style.cssText = "position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: #888; font-weight: normal; z-index: 100; pointer-events: none; font-family: sans-serif; opacity: 0.7;";
 
 let isGridOn = true;
@@ -759,6 +759,29 @@ function exportPrices() {
     dlAnchorElem.click();
 }
 
+function exportToExcel() {
+    let csvContent = "\uFEFF"; // UTF-8 BOM, kad Excel tvarkingai rodytų lietuviškas raides
+    csvContent += "Kolekcija;Modulis;Matmenys (cm);Kaina (EUR)\n";
+    
+    for(let key in rawModels) {
+        rawModels[key].forEach(mod => {
+            let pKey = key + '_' + mod.id;
+            let currentPrice = appSettings.customPrices[pKey] !== undefined ? appSettings.customPrices[pKey] : (mod.price || getPrice(mod.w, mod.h));
+            csvContent += `${key.toUpperCase()};${mod.name};${mod.w}x${mod.h};${currentPrice}\n`;
+        });
+    }
+    
+    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    let url = URL.createObjectURL(blob);
+    let link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "Houmy_Kainorastis.csv");
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 function importPrices(event) {
     let file = event.target.files[0];
     if (!file) return;
@@ -779,7 +802,6 @@ function importPrices(event) {
     reader.readAsText(file);
 }
 
-// NAUJA ISTORIJOS LOGIKA SU GRUPAVIMU PINES (V1.24)
 function showPriceHistory() {
     let history = JSON.parse(localStorage.getItem('houmyPriceHistory') || '[]');
     let histHtml = '';
@@ -835,11 +857,12 @@ function openAdmin() {
     let toolbar = document.createElement('div');
     toolbar.style.cssText = "display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: #eef5ff; padding: 12px; border-radius: 8px; border: 1px solid #b8daff;";
     toolbar.innerHTML = `
-        <button onclick="exportPrices()" style="flex:1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; min-width:120px;">📥 Eksportuoti kopiją</button>
-        <label style="flex:1; padding: 8px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 0; font-size: 12px; text-align: center; min-width:120px;">
+        <button onclick="exportPrices()" style="flex:1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; min-width:80px;">📥 JSON (Kopija)</button>
+        <button onclick="exportToExcel()" style="flex:1; padding: 8px; background: #20c997; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; min-width:80px;">📊 Excel (Peržiūrai)</button>
+        <label style="flex:1; padding: 8px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 0; font-size: 11px; text-align: center; min-width:80px;">
             📤 Importuoti <input type="file" accept=".json" style="display:none" onchange="importPrices(event)">
         </label>
-        <button onclick="showPriceHistory()" style="flex:1; padding: 8px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; min-width:120px;">🕰 Keitimų istorija</button>
+        <button onclick="showPriceHistory()" style="flex:1; padding: 8px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; min-width:80px;">🕰 Istorija</button>
     `;
     container.appendChild(toolbar);
 
