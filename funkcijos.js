@@ -1,6 +1,6 @@
 // Nustatome versijos pavadinimą ir pakeičiame jo dizainą per JS
 const watermarkEl = document.getElementById('version-watermark');
-watermarkEl.innerText = "V1.23";
+watermarkEl.innerText = "V1.24";
 watermarkEl.style.cssText = "position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: #888; font-weight: normal; z-index: 100; pointer-events: none; font-family: sans-serif; opacity: 0.7;";
 
 let isGridOn = true;
@@ -779,16 +779,50 @@ function importPrices(event) {
     reader.readAsText(file);
 }
 
+// NAUJA ISTORIJOS LOGIKA SU GRUPAVIMU PINES (V1.24)
 function showPriceHistory() {
     let history = JSON.parse(localStorage.getItem('houmyPriceHistory') || '[]');
-    let histHtml = history.length ? history.map(h => `<div style="border-bottom:1px solid #ddd; padding:8px 0; font-size:13px;"><b>${h.date}</b><br>Modulis: <b>${h.item}</b><br><span style="color:#dc3545; text-decoration:line-through;">${h.old}€</span> ➔ <span style="color:#28a745; font-weight:bold;">${h.new}€</span></div>`).join('') : '<p style="color:#888; text-align:center;">Istorija tuščia</p>';
-    
+    let histHtml = '';
+
+    if (history.length === 0) {
+        histHtml = '<p style="color:#888; text-align:center;">Istorija tuščia</p>';
+    } else {
+        let grouped = {};
+        history.forEach(h => {
+            let parts = h.date.split(' ');
+            let day = parts[0]; 
+            let time = parts[1] || '';
+            if (!grouped[day]) grouped[day] = [];
+            grouped[day].push({ ...h, time: time });
+        });
+
+        for (let day in grouped) {
+            histHtml += `<div style="margin-bottom: 12px;">
+                <div style="background: #eef5ff; color: #007bff; padding: 6px 10px; border-radius: 4px; font-weight: bold; font-size: 13px; border: 1px solid #b8daff;">🗓️ ${day}</div>
+                <div style="padding: 6px 10px; border-left: 2px solid #b8daff; margin-left: 10px; background: #fafafa;">`;
+            
+            grouped[day].forEach(change => {
+                let cleanName = change.item.replace('_', ' '); 
+                histHtml += `<div style="font-size: 12px; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px dashed #eee;">
+                    <span style="color:#888; font-size:11px;">[${change.time}]</span> 
+                    <strong style="color:#333;">${cleanName}</strong><br>
+                    Kaina: <span style="color:#dc3545; text-decoration:line-through;">${change.old}€</span> ➔ <span style="color:#28a745; font-weight:bold;">${change.new}€</span>
+                </div>`;
+            });
+            
+            histHtml += `</div></div>`;
+        }
+    }
+
     let overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; display:flex; justify-content:center; align-items:center;';
-    overlay.innerHTML = `<div style="background:white; padding:20px; border-radius:8px; width:400px; max-height:80vh; overflow-y:auto; box-shadow:0 5px 15px rgba(0,0,0,0.3); font-family:sans-serif;">
-        <h3 style="margin-top:0; border-bottom:2px solid #eee; padding-bottom:10px;">Kainų keitimo istorija</h3>
-        <div style="margin-bottom:15px; max-height: 60vh; overflow-y: auto;">${histHtml}</div>
-        <button onclick="this.parentNode.parentNode.remove()" style="padding:10px 12px; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer; width:100%; font-weight:bold;">Uždaryti</button>
+    overlay.innerHTML = `<div style="background:white; padding:20px; border-radius:8px; width:450px; max-height:85vh; overflow-y:auto; box-shadow:0 5px 15px rgba(0,0,0,0.3); font-family:sans-serif;">
+        <h3 style="margin-top:0; border-bottom:2px solid #eee; padding-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+            Kainų keitimo istorija
+            <button onclick="if(confirm('Ar tikrai norite išvalyti istoriją?')) { localStorage.removeItem('houmyPriceHistory'); this.parentNode.parentNode.parentNode.remove(); showPriceHistory(); }" style="font-size:11px; padding:4px 8px; background:#dc3545; color:white; border:none; border-radius:3px; cursor:pointer;">Išvalyti</button>
+        </h3>
+        <div style="margin-bottom:15px; max-height: 60vh; overflow-y: auto; padding-right: 5px;">${histHtml}</div>
+        <button onclick="this.parentNode.parentNode.remove()" style="padding:10px 12px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer; width:100%; font-weight:bold;">Uždaryti</button>
     </div>`;
     document.body.appendChild(overlay);
 }
@@ -798,7 +832,6 @@ function openAdmin() {
     let container = document.getElementById('admin-prices-container'); 
     container.innerHTML = ''; 
 
-    // Pridedame įrankių juostą (Eksportas/Importas/Istorija)
     let toolbar = document.createElement('div');
     toolbar.style.cssText = "display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: #eef5ff; padding: 12px; border-radius: 8px; border: 1px solid #b8daff;";
     toolbar.innerHTML = `
@@ -829,7 +862,11 @@ function closeAdmin() { document.getElementById('admin-modal').style.display = '
 
 function saveAdminSettings() { 
     let history = JSON.parse(localStorage.getItem('houmyPriceHistory') || '[]');
-    let now = new Date().toLocaleString('lt-LT');
+    let d = new Date();
+    let dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    let timeStr = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    let now = dateStr + ' ' + timeStr;
+    
     let changes = [];
 
     document.querySelectorAll('.admin-price-input').forEach(input => { 
@@ -850,14 +887,14 @@ function saveAdminSettings() {
             appSettings.customPrices[pKey] = val; 
         } else {
             if (oldVal !== defaultPrice) {
-                 changes.push({ date: now, item: pKey + ' (Atstatyta į standartinę)', old: oldVal, new: defaultPrice });
+                 changes.push({ date: now, item: pKey + ' (Atstatyta)', old: oldVal, new: defaultPrice });
             }
             delete appSettings.customPrices[pKey]; 
         }
     }); 
 
     if (changes.length > 0) {
-        history = [...changes, ...history].slice(0, 100); // Saugome paskutinius 100 pakeitimų
+        history = [...changes, ...history].slice(0, 100);
         localStorage.setItem('houmyPriceHistory', JSON.stringify(history));
     }
 
