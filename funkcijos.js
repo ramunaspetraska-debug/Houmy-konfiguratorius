@@ -1,6 +1,6 @@
 // Nustatome versijos pavadinimą ir pakeičiame jo dizainą per JS
 const watermarkEl = document.getElementById('version-watermark');
-watermarkEl.innerText = "V1.17";
+watermarkEl.innerText = "V1.18";
 watermarkEl.style.cssText = "position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: #888; font-weight: normal; z-index: 100; pointer-events: none; font-family: sans-serif; opacity: 0.7;";
 
 let isGridOn = true;
@@ -314,7 +314,7 @@ function updateDimensions() {
         displayTexts.push(textPart);
 
         if (dimState > 0) {
-            let offset = 35;
+            let offset = 28; // SUMAŽINTA nuo 35
             let topY = minY - offset, bottomY = maxY + offset;
             let leftX = minX - offset, rightX = maxX + offset;
 
@@ -330,15 +330,15 @@ function updateDimensions() {
             svgContent += `<line x1="${Math.round(cx)>=Math.round(GCX)||groups.length===1 ? maxX : minX}" y1="${maxY}" x2="${lineX}" y2="${maxY}" ${extStyle} />`;
 
             svgContent += `<path d="M ${minX} ${lineY} L ${maxX} ${lineY}" stroke="#555" stroke-width="0.8" fill="none" marker-start="url(#tick)" marker-end="url(#tick)" />`;
-            svgContent += `<text x="${cx}" y="${textY}" fill="#333" font-size="12" font-weight="500" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="3">${totalW} cm</text>`;
+            svgContent += `<text x="${cx}" y="${textY}" fill="#333" font-size="10" font-weight="500" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="3">${totalW} cm</text>`; // ŠRIFTAS 10
             
             svgContent += `<path d="M ${lineX} ${minY} L ${lineX} ${maxY}" stroke="#555" stroke-width="0.8" fill="none" marker-start="url(#tick)" marker-end="url(#tick)" />`;
-            svgContent += `<text x="${textX}" y="${cy + 4}" transform="rotate(-90 ${textX} ${cy + 4})" fill="#333" font-size="12" font-weight="500" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="3">${totalH} cm</text>`;
+            svgContent += `<text x="${textX}" y="${cy + 4}" transform="rotate(-90 ${textX} ${cy + 4})" fill="#333" font-size="10" font-weight="500" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="3">${totalH} cm</text>`; // ŠRIFTAS 10
         }
     });
 
     if (dimState === 2 && groups.length > 1) {
-        let offset = 85; 
+        let offset = 65; // SUMAŽINTA nuo 85
         let totalW = Math.round((GMaxX - GMinX) / scale), totalH = Math.round((GMaxY - GMinY) / scale);
         
         let extStyle = "stroke='#007bff' stroke-width='0.5' stroke-dasharray='4,4' fill='none' opacity='0.5'";
@@ -348,10 +348,10 @@ function updateDimensions() {
         svgContent += `<line x1="${GMaxX}" y1="${GMaxY}" x2="${GMaxX + offset}" y2="${GMaxY}" ${extStyle} />`;
 
         svgContent += `<path d="M ${GMinX} ${GMinY - offset} L ${GMaxX} ${GMinY - offset}" stroke="#007bff" stroke-width="1.2" fill="none" marker-start="url(#tick)" marker-end="url(#tick)" />`;
-        svgContent += `<text x="${GCX}" y="${GMinY - offset - 6}" fill="#007bff" font-size="14" font-weight="bold" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="4">${totalW} cm (Viso)</text>`;
+        svgContent += `<text x="${GCX}" y="${GMinY - offset - 6}" fill="#007bff" font-size="11" font-weight="bold" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="4">${totalW} cm (Viso)</text>`; // ŠRIFTAS 11
         
         svgContent += `<path d="M ${GMaxX + offset} ${GMinY} L ${GMaxX + offset} ${GMaxY}" stroke="#007bff" stroke-width="1.2" fill="none" marker-start="url(#tick)" marker-end="url(#tick)" />`;
-        svgContent += `<text x="${GMaxX + offset + 18}" y="${GCY + 5}" transform="rotate(-90 ${GMaxX + offset + 18} ${GCY + 5})" fill="#007bff" font-size="14" font-weight="bold" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="4">${totalH} cm (Viso)</text>`;
+        svgContent += `<text x="${GMaxX + offset + 18}" y="${GCY + 5}" transform="rotate(-90 ${GMaxX + offset + 18} ${GCY + 5})" fill="#007bff" font-size="11" font-weight="bold" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="4">${totalH} cm (Viso)</text>`; // ŠRIFTAS 11
         
         displayTexts.unshift(`<b>Bendri išmatavimai:</b> <b style="color:#007bff">${totalW} x ${totalH} cm</b>`); 
     }
@@ -722,9 +722,10 @@ async function generatePDFWithDetails() {
         }); 
     }); 
     
-    let padding = 40;
-    if (dimState === 1) padding = 90;
-    if (dimState === 2) padding = 160;
+    // SUMAŽINTOS PDF PARAŠTĖS (Padding)
+    let padding = 30;
+    if (dimState === 1) padding = 60;
+    if (dimState === 2) padding = 100;
     
     let shiftX = padding - minX;
     let shiftY = padding - minY;
@@ -870,9 +871,10 @@ async function executeExportBlueprint() {
         }); 
     }); 
     
-    let padding = 40;
-    if (dimState === 1) padding = 90;
-    if (dimState === 2) padding = 160;
+    // SUMAŽINTOS BRĖŽINIO PARAŠTĖS (Padding)
+    let padding = 30;
+    if (dimState === 1) padding = 60;
+    if (dimState === 2) padding = 100;
     
     let shiftX = padding - minX;
     let shiftY = padding - minY;
