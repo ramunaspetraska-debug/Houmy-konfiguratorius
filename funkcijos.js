@@ -1338,3 +1338,84 @@ if (sharedStateNew || sharedStateOld) {
         restoreState(JSON.parse(saved), true);
     }
 }
+// --- MOBILIOSIOS VERSIJOS UI OPTIMIZAVIMAS ---
+function optimizeMobileLayout() {
+    // Tikriname, ar ekranas yra mobiliojo įrenginio dydžio (siauresnis nei 768px)
+    if (window.innerWidth > 768) return;
+
+    // 1. TOP SEKCIJA: Kolekcija ir Audinio grupė į vieną eilutę
+    const modelSelect = document.getElementById('model-select');
+    const fabricSelect = document.getElementById('fabric-group-select');
+    
+    if (modelSelect && fabricSelect && !document.getElementById('mobile-top-wrap')) {
+        const wrap = document.createElement('div');
+        wrap.id = 'mobile-top-wrap';
+        wrap.style.cssText = 'display: flex; gap: 8px; width: 100%; margin-bottom: 10px; align-items: stretch;';
+        
+        // Įterpiame naują konteinerį į puslapį
+        modelSelect.parentNode.insertBefore(wrap, modelSelect);
+        
+        // Tikriname, ar puslapis užkrautas per Share nuorodą (kai sukurtas DIV vietoj pasirinkimo)
+        const colLabel = Array.from(wrap.parentNode.children).find(el => el.tagName === 'DIV' && el.innerText.includes('KOLEKCIJA'));
+        
+        if (colLabel) {
+            colLabel.style.flex = '1';
+            colLabel.style.marginBottom = '0';
+            colLabel.style.padding = '8px 4px';
+            colLabel.style.fontSize = '12px';
+            colLabel.style.display = 'flex';
+            colLabel.style.alignItems = 'center';
+            colLabel.style.justifyContent = 'center';
+            wrap.appendChild(colLabel);
+        } else {
+            modelSelect.style.flex = '1';
+            modelSelect.style.width = 'auto'; // Panaikiname fiksuotą plotį
+            wrap.appendChild(modelSelect);
+        }
+        
+        fabricSelect.style.flex = '1';
+        fabricSelect.style.width = 'auto';
+        wrap.appendChild(fabricSelect);
+    }
+
+    // 2. BOTTOM SEKCIJA: Mygtukai į vieną eilutę po Suma
+    const btnPdf = document.querySelector('button[onclick="openClientModal()"]');
+    const btnBp = document.querySelector('button[onclick="openBlueprintModal()"]');
+    const btnShare = document.getElementById('share-btn');
+    
+    if (btnPdf && btnBp && btnShare && !document.getElementById('mobile-btn-wrap')) {
+        const btnWrap = document.createElement('div');
+        btnWrap.id = 'mobile-btn-wrap';
+        // Flexbox eilutė su tarpais
+        btnWrap.style.cssText = 'display: flex; gap: 6px; width: 100%; justify-content: space-between; margin-top: 15px;';
+        
+        // Sutrumpiname tekstus, kad idealiai tilptų siauruose ekranuose
+        if(btnPdf.innerHTML.includes('Komercinis')) btnPdf.innerHTML = '📄 Pasiūlymas';
+        if(btnBp.innerHTML.includes('Gamybos')) btnBp.innerHTML = '📐 Brėžinys';
+        if(btnShare.innerHTML.includes('nuoroda')) btnShare.innerHTML = '🔗 Dalintis';
+
+        // Pritaikiame vienodą prisitaikantį stilių visiems trims mygtukams
+        [btnShare, btnPdf, btnBp].forEach(btn => {
+            btn.style.flex = '1';
+            btn.style.fontSize = '11px';
+            btn.style.padding = '10px 4px';
+            btn.style.margin = '0'; // Panaikiname senus tarpus
+            btn.style.whiteSpace = 'normal';
+            btn.style.lineHeight = '1.2';
+            btn.style.display = 'flex';
+            btn.style.alignItems = 'center';
+            btn.style.justifyContent = 'center';
+            btn.style.textAlign = 'center';
+            btnWrap.appendChild(btn);
+        });
+        
+        // Įkeliame mygtukų eilutę atgal į dešinį šoninį meniu (jie automatiškai atsidurs po Suma)
+        const sidebar = document.getElementById('sidebar-right');
+        if (sidebar) {
+            sidebar.appendChild(btnWrap);
+        }
+    }
+}
+
+// Iškviečiame šią funkciją praėjus daliai sekundės, kad spėtų susigeneruoti visi UI elementai
+setTimeout(optimizeMobileLayout, 300);
