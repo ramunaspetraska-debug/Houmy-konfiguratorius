@@ -696,15 +696,33 @@ function saveAdminSettings() { document.querySelectorAll('.admin-price-input').f
 
 function openArchive() { document.getElementById('archive-modal').style.display = 'flex'; renderArchiveList(); }
 function renderArchiveList() { let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); let html = ''; for(let name in archive) { html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px solid #ddd; border-radius:4px; background:#f9f9f9;"><strong style="font-size:13px; color:#333;">${name}</strong><div style="display:flex; gap:5px;"><button onclick="loadFromArchive('${name}')" style="padding:4px 8px; background:#007bff; color:white; border:none; border-radius:3px; cursor:pointer;">Užkrauti</button><button onclick="deleteFromArchive('${name}')" style="padding:4px 8px; background:#dc3545; color:white; border:none; border-radius:3px; cursor:pointer;">Ištrinti</button></div></div>`; } document.getElementById('archive-list').innerHTML = html || '<div style="color:#888; font-size:13px; text-align:center; padding:10px 0;">Archyvas tuščias</div>'; }
-function saveToArchive() { let name = document.getElementById('archive-name').value.trim(); if(!name) return alert('Prašome įvesti projekto pavadinimą!'); 
+function saveToArchive() { 
+    let name = document.getElementById('archive-name').value.trim(); 
+    if(!name) return alert('Prašome įvesti projekto pavadinimą!'); 
+    
     let state = Array.from(document.querySelectorAll('.canvas-module')).map(m=>({
         id:m.dataset.id, n:m.dataset.name, p:m.dataset.price, c:m.dataset.collection, w:m.dataset.w, h:m.dataset.h, 
         l: (parseFloat(m.style.left) || 0) / scale,
         t: (parseFloat(m.style.top) || 0) / scale,
         a:m.dataset.angle, z:m.style.zIndex, exp: m.dataset.isExpanded
     })); 
-    if(state.length === 0) return alert('Nėra ką išsaugoti, sofa tuščia!'); let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); archive[name] = state; localStorage.setItem('houmyArchive', JSON.stringify(archive)); document.getElementById('archive-name').value = ''; renderArchiveList(); }
-
+    
+    if(state.length === 0) return alert('Nėra ką išsaugoti, sofa tuščia!'); 
+    
+    let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); 
+    
+    // NAUJA LOGIKA: Patikriname, ar toks pavadinimas jau yra
+    if (archive[name]) {
+        if (!confirm(`Projektas pavadinimu "${name}" jau egzistuoja. Ar norite jį perrašyti?`)) {
+            return; // Vartotojas paspaudė "Atšaukti", todėl nutraukiame išsaugojimą
+        }
+    }
+    
+    archive[name] = state; 
+    localStorage.setItem('houmyArchive', JSON.stringify(archive)); 
+    document.getElementById('archive-name').value = ''; 
+    renderArchiveList(); 
+}
 function loadFromArchive(name) { 
     let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); 
     if(archive[name] && archive[name].length > 0) { 
