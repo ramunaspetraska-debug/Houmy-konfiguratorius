@@ -1,6 +1,6 @@
 // Nustatome versijos pavadinimą ir pakeičiame jo dizainą per JS
 const watermarkEl = document.getElementById('version-watermark');
-watermarkEl.innerText = "V1.26";
+watermarkEl.innerText = "V1.25";
 watermarkEl.style.cssText = "position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: #888; font-weight: normal; z-index: 100; pointer-events: none; font-family: sans-serif; opacity: 0.7;";
 
 let isGridOn = true;
@@ -759,52 +759,23 @@ function exportPrices() {
     dlAnchorElem.click();
 }
 
-// NAUJA FUNKCIJA: Sugeneruoja tikrą formatuotą Excel failą (.xls)
 function exportToExcel() {
-    let html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel">
-    <head><meta charset="utf-8"></head>
-    <body>
-        <table border="1" style="font-family: Arial, sans-serif; border-collapse: collapse;">
-            <tr>
-                <th style="background-color: #f8f9fa; padding: 10px;">Kolekcija</th>
-                <th style="background-color: #f8f9fa; padding: 10px;">Modulis</th>
-                <th style="background-color: #f8f9fa; padding: 10px;">Matmenys (cm)</th>
-                <th style="background-color: #fff9e6; padding: 10px; font-weight: bold; border: 2px solid #333;">I Grupė (Bazinė)</th>
-                <th style="background-color: #f8f9fa; padding: 10px;">II Grupė</th>
-                <th style="background-color: #f8f9fa; padding: 10px;">III Grupė</th>
-                <th style="background-color: #f8f9fa; padding: 10px;">IV Grupė</th>
-            </tr>`;
+    let csvContent = "\uFEFF"; // UTF-8 BOM, kad Excel tvarkingai rodytų lietuviškas raides
+    csvContent += "Kolekcija;Modulis;Matmenys (cm);Kaina (EUR)\n";
     
     for(let key in rawModels) {
         rawModels[key].forEach(mod => {
             let pKey = key + '_' + mod.id;
-            // Apskaičiuojame bazinę kainą
-            let basePrice = appSettings.customPrices[pKey] !== undefined ? appSettings.customPrices[pKey] : (mod.price || getPrice(mod.w, mod.h));
-            
-            // Apskaičiuojame kitų grupių kainas (jei nustatyta, pridedame antkainį)
-            let gr2 = basePrice + (mod.prices && mod.prices['gr2'] ? mod.prices['gr2'] : 0);
-            let gr3 = basePrice + (mod.prices && mod.prices['gr3'] ? mod.prices['gr3'] : 0);
-            let gr4 = basePrice + (mod.prices && mod.prices['gr4'] ? mod.prices['gr4'] : 0);
-            
-            html += `<tr>
-                <td style="padding: 5px;">${key.toUpperCase()}</td>
-                <td style="padding: 5px;">${mod.name}</td>
-                <td style="padding: 5px; text-align: center;">${mod.w}x${mod.h}</td>
-                <td style="padding: 5px; font-weight: bold; border-left: 2px solid #333; border-right: 2px solid #333; text-align: center;">${basePrice} €</td>
-                <td style="padding: 5px; text-align: center;">${gr2 > basePrice ? gr2 + ' €' : '-'}</td>
-                <td style="padding: 5px; text-align: center;">${gr3 > basePrice ? gr3 + ' €' : '-'}</td>
-                <td style="padding: 5px; text-align: center;">${gr4 > basePrice ? gr4 + ' €' : '-'}</td>
-            </tr>`;
+            let currentPrice = appSettings.customPrices[pKey] !== undefined ? appSettings.customPrices[pKey] : (mod.price || getPrice(mod.w, mod.h));
+            csvContent += `${key.toUpperCase()};${mod.name};${mod.w}x${mod.h};${currentPrice}\n`;
         });
     }
     
-    html += `</table></body></html>`;
-    
-    let blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     let url = URL.createObjectURL(blob);
     let link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", "Houmy_Kainorastis.xls");
+    link.setAttribute("download", "Houmy_Kainorastis.csv");
     link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
