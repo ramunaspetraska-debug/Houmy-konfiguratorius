@@ -75,16 +75,24 @@ const rawModels = {
         {id: 'ch1kl', name: 'CH1 K L', price: 724, prices: { gr2: 57, gr3: 114, gr4: 171, gr5: 229 }, w: 105, h: 156, isChaise: true, sleepW: 105, sleepH: 140, svg: `<rect x="1" y="1" width="103" height="24" rx="10" fill="#fff" /><rect x="1" y="24" width="103" height="131" rx="10" fill="#f8f9fa" /><rect x="6" y="20" width="93" height="26" rx="13" fill="#fff" />`},
         {id: 'ch1kp', name: 'CH1 K P', price: 724, prices: { gr2: 57, gr3: 114, gr4: 171, gr5: 229 }, w: 105, h: 156, isChaise: true, sleepW: 105, sleepH: 140, svg: `<rect x="1" y="1" width="103" height="24" rx="10" fill="#fff" /><rect x="1" y="24" width="103" height="131" rx="10" fill="#f8f9fa" /><rect x="6" y="20" width="93" height="26" rx="13" fill="#fff" />`}
     ],
-   cushy: [
-                { id: 'es15l', name: 'ES1,5 L', price: 758, w: 116, h: 102, svg: `<rect x="1" y="1" width="114" height="100" rx="8" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="21" y="27" width="94" height="74" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="21" y1="27" x2="5" y2="5" stroke="#111" stroke-width="1.5" />`},
-                { id: 'es15p', name: 'ES1,5 P', price: 758, w: 116, h: 102, svg: `<rect x="1" y="1" width="114" height="100" rx="8" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="27" width="94" height="74" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="95" y1="27" x2="111" y2="5" stroke="#111" stroke-width="1.5" />`},
-                { id: 'es15', name: 'ES1,5', price: 568, w: 96, h: 102, svg: `<rect x="1" y="1" width="94" height="100" rx="8" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="27" width="94" height="74" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
-                { id: 'ch15l', name: 'CH1,5 L', price: 1071, w: 116, h: 155, svg: `<rect x="1" y="1" width="114" height="153" rx="8" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="21" y="27" width="94" height="127" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="21" y1="27" x2="5" y2="5" stroke="#111" stroke-width="1.5" /><line x1="21" y1="101" x2="115" y2="101" stroke-dasharray="5,5" stroke="#777" stroke-width="1.5" />`},
-                { id: 'ch15p', name: 'CH1,5 P', price: 1071, w: 116, h: 155, svg: `<rect x="1" y="1" width="114" height="153" rx="8" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="27" width="94" height="127" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="95" y1="27" x2="111" y2="5" stroke="#111" stroke-width="1.5" /><line x1="1" y1="101" x2="95" y2="101" stroke-dasharray="5,5" stroke="#777" stroke-width="1.5" />`},
-                { id: 'en', name: 'EN', price: 758, w: 102, h: 102, svg: `<rect x="1" y="1" width="100" height="100" rx="8" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="27" y="27" width="74" height="74" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="27" y1="27" x2="5" y2="5" stroke="#111" stroke-width="1.5" />`},
-                { id: 'pf1', name: 'PF1', price: 315, w: 96, h: 72, svg: `<rect x="1" y="1" width="94" height="70" rx="8" fill="#fff" stroke="#111" stroke-width="1.5" />`},
-                { id: 'pf2', name: 'PF2', price: 347, w: 69, h: 91, svg: `<rect x="1" y="1" width="67" height="89" rx="8" fill="#fff" stroke="#111" stroke-width="1.5" />`},
-                { id: 'pf3', name: 'PF3', price: 379, w: 96, h: 91, svg: `<rect x="1" y="1" width="94" height="89" rx="8" fill="#fff" stroke="#111" stroke-width="1.5" />`},
+  cushy: [
+                { id: 'es15l', name: 'ES1,5 L', price: 758, w: 116, h: 102, svg: `<rect x="1" y="1" width="114" height="100" rx="10" fill="#fff" stroke="#111" stroke-width="1.5" /><path d="M 21,27 L 7,7" stroke="#111" stroke-width="1.5" /><rect x="21" y="27" width="94" height="74" rx="8" fill="#fff" stroke="#111" stroke-width="1.5" />`},
+                
+                { id: 'es15p', name: 'ES1,5 P', price: 758, w: 116, h: 102, svg: `<rect x="1" y="1" width="114" height="100" rx="10" fill="#fff" stroke="#111" stroke-width="1.5" /><path d="M 95,27 L 109,7" stroke="#111" stroke-width="1.5" /><rect x="1" y="27" width="94" height="74" rx="8" fill="#fff" stroke="#111" stroke-width="1.5" />`},
+                
+                { id: 'es15', name: 'ES1,5', price: 568, w: 96, h: 102, svg: `<rect x="1" y="1" width="94" height="100" rx="10" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="27" width="94" height="74" rx="8" fill="#fff" stroke="#111" stroke-width="1.5" />`},
+                
+                { id: 'ch15l', name: 'CH1,5 L', price: 1071, w: 116, h: 155, svg: `<rect x="1" y="1" width="114" height="153" rx="10" fill="#fff" stroke="#111" stroke-width="1.5" /><path d="M 21,27 L 7,7" stroke="#111" stroke-width="1.5" /><rect x="21" y="27" width="94" height="127" rx="8" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="21" y1="101" x2="115" y2="101" stroke-dasharray="5,4" stroke="#888" stroke-width="1.5" />`},
+                
+                { id: 'ch15p', name: 'CH1,5 P', price: 1071, w: 116, h: 155, svg: `<rect x="1" y="1" width="114" height="153" rx="10" fill="#fff" stroke="#111" stroke-width="1.5" /><path d="M 95,27 L 109,7" stroke="#111" stroke-width="1.5" /><rect x="1" y="27" width="94" height="127" rx="8" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="1" y1="101" x2="95" y2="101" stroke-dasharray="5,4" stroke="#888" stroke-width="1.5" />`},
+                
+                { id: 'en', name: 'EN', price: 758, w: 102, h: 102, svg: `<rect x="1" y="1" width="100" height="100" rx="10" fill="#fff" stroke="#111" stroke-width="1.5" /><path d="M 27,27 L 7,7" stroke="#111" stroke-width="1.5" /><rect x="27" y="27" width="74" height="74" rx="8" fill="#fff" stroke="#111" stroke-width="1.5" />`},
+                
+                { id: 'pf1', name: 'PF1', price: 315, w: 96, h: 72, svg: `<rect x="1" y="1" width="94" height="70" rx="10" fill="#fff" stroke="#111" stroke-width="1.5" />`},
+                
+                { id: 'pf2', name: 'PF2', price: 347, w: 69, h: 91, svg: `<rect x="1" y="1" width="67" height="89" rx="10" fill="#fff" stroke="#111" stroke-width="1.5" />`},
+                
+                { id: 'pf3', name: 'PF3', price: 379, w: 96, h: 91, svg: `<rect x="1" y="1" width="94" height="89" rx="10" fill="#fff" stroke="#111" stroke-width="1.5" />`}
             ],
     deso: [
                 { id: '1bb', name: '1BB', price: 550, w: 80, h: 102, svg: `<rect x="1" y="1" width="78" height="100" rx="12" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="78" height="28" rx="12" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="2" y="27" width="76" height="73" rx="10" fill="#fff" stroke="#111" stroke-width="1.5" />`},
