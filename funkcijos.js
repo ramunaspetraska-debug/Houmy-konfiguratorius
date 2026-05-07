@@ -1743,10 +1743,28 @@ if (sharedStateNew || sharedStateOld) {
     }
     
 } else {
-    loadModel(modelSelect.value);
     const saved = localStorage.getItem('sofaState');
     if(saved) {
-        restoreState(JSON.parse(saved), true);
+        try {
+            let parsedState = JSON.parse(saved);
+            // Jei yra išsaugotų modulių, paimame pirmo modulio kolekciją
+            if (parsedState && parsedState.length > 0) {
+                let firstModCollection = parsedState[0].c;
+                // Patikriname, ar tokia kolekcija egzistuoja
+                if (rawModels[firstModCollection]) {
+                    modelSelect.value = firstModCollection;
+                }
+            }
+            // Užkrauname šoninį meniu pagal atnaujintą pasirinkimą
+            loadModel(modelSelect.value);
+            // Atkuriame darbo lauką
+            restoreState(parsedState, true);
+        } catch(e) {
+            console.error("Klaida atkuriant sesiją:", e);
+            loadModel(modelSelect.value);
+        }
+    } else {
+        loadModel(modelSelect.value);
     }
 }
 
