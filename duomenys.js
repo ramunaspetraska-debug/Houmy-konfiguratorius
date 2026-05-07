@@ -194,10 +194,14 @@ const rawModels = {
         { id: 'ch15', name: 'CH1,5', price: 692, prices: { gr2: 108, gr3: 167, gr4: 225, gr5: 287 }, w: 93, h: 151, svg: `<rect x="1" y="1" width="91" height="24" rx="11" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="24" width="91" height="126" rx="4" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="1" y1="100" x2="92" y2="100" stroke-dasharray="6,4" stroke="#888" stroke-width="1.5" />`},
         { id: 'pf1', name: 'PF1', price: 348, prices: { gr2: 56, gr3: 84, gr4: 114, gr5: 143 }, w: 73, h: 93, svg: `<rect x="1" y="1" width="71" height="91" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
         { id: 'pf2', name: 'PF2', price: 348, prices: { gr2: 56, gr3: 84, gr4: 114, gr5: 143 }, w: 93, h: 73, svg: `<rect x="1" y="1" width="91" height="71" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
-        { id: 'stk45', name: 'STK 45', price: 450, w: 45, h: 101, svg: `<rect x="1" y="1" width="43" height="99" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="11" y1="1" x2="11" y2="100" stroke="#111" stroke-width="1" /><line x1="22" y1="1" x2="22" y2="100" stroke="#111" stroke-width="1" /><line x1="33" y1="1" x2="33" y2="100" stroke="#111" stroke-width="1" />`},
-                { id: 'stk60', name: 'STK 60', price: 550, w: 60, h: 101, svg: `<rect x="1" y="1" width="58" height="99" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="15" y1="1" x2="15" y2="100" stroke="#111" stroke-width="1" /><line x1="30" y1="1" x2="30" y2="100" stroke="#111" stroke-width="1" /><line x1="45" y1="1" x2="45" y2="100" stroke="#111" stroke-width="1" />`},
-                { id: 'stk80', name: 'STK 80', price: 650, w: 80, h: 101, svg: `<rect x="1" y="1" width="78" height="99" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="20" y1="1" x2="20" y2="100" stroke="#111" stroke-width="1" /><line x1="40" y1="1" x2="40" y2="100" stroke="#111" stroke-width="1" /><line x1="60" y1="1" x2="60" y2="100" stroke="#111" stroke-width="1" />`},
-                { id: 'stk100', name: 'STK 100', price: 750, w: 100, h: 101, svg: `<rect x="1" y="1" width="98" height="99" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="25" y1="1" x2="25" y2="100" stroke="#111" stroke-width="1" /><line x1="50" y1="1" x2="50" y2="100" stroke="#111" stroke-width="1" /><line x1="75" y1="1" x2="75" y2="100" stroke="#111" stroke-width="1" />`},
-                { id: 'stkkamp', name: 'STK KAMP', price: 800, w: 71, h: 101, svg: `<polyline points="1,1 70,1 55,99 15,99 1,1" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="20" y1="1" x2="28" y2="99" stroke="#111" stroke-width="1" /><line x1="35" y1="1" x2="35" y2="99" stroke="#111" stroke-width="1" /><line x1="50" y1="1" x2="42" y2="99" stroke="#111" stroke-width="1" />`}
+        { id: 'stk45', name: 'STK 45', price: 450, w: 45, h: 101, svg: `<rect x="1" y="1" width="43" height="99" rx="0" fill="#f4f5f7" stroke="#111" stroke-width="1.5" />`},
+                
+                { id: 'stk60', name: 'STK 60', price: 550, w: 60, h: 101, svg: `<rect x="1" y="1" width="58" height="99" rx="0" fill="#f4f5f7" stroke="#111" stroke-width="1.5" />`},
+                
+                { id: 'stk80', name: 'STK 80', price: 650, w: 80, h: 101, svg: `<rect x="1" y="1" width="78" height="99" rx="0" fill="#f4f5f7" stroke="#111" stroke-width="1.5" />`},
+                
+                { id: 'stk100', name: 'STK 100', price: 750, w: 100, h: 101, svg: `<rect x="1" y="1" width="98" height="99" rx="0" fill="#f4f5f7" stroke="#111" stroke-width="1.5" />`},
+                
+                { id: 'stkkamp', name: 'STK KAMP', price: 800, w: 71, h: 101, svg: `<polyline points="1,1 70,1 55,99 15,99 1,1" fill="#f4f5f7" stroke="#111" stroke-width="1.5" />`}
     ]
 };
