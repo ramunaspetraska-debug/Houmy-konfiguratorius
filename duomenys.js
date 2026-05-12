@@ -193,36 +193,36 @@ const rawModels = {
             ],
 mint: [
                 { 
-                    id: 'es15l', name: 'ES1,5 L', price: 865, w: 136, h: 108, 
-                    expandable: true, expW: 136, expH: 175, sleepW: 112, sleepH: 144, 
-                    svg: `<rect x="1" y="1" width="134" height="106" rx="4" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="134" height="31" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="32" width="134" height="75" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="24" height="80" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="1" y1="107" x2="135" y2="107" stroke-dasharray="5,4" stroke="#888" stroke-width="1.5" />`, 
-                    svgExpanded: `<rect x="1" y="1" width="134" height="173" rx="4" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="134" height="31" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="32" width="134" height="142" rx="3" fill="#eaf0f6" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="24" height="80" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" />` 
+                    id: 'es15l', name: 'ES1,5 L', price: 865, w: 122, h: 108, 
+                    expandable: true, expW: 122, expH: 175, sleepW: 98, sleepH: 144, 
+                    svg: `<rect x="1" y="1" width="120" height="106" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="24" height="80" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="25" y="1" width="96" height="30" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="25" y="31" width="96" height="76" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="25" y1="107" x2="121" y2="107" stroke-dasharray="5,4" stroke="#888" stroke-width="1.5" />`, 
+                    svgExpanded: `<rect x="1" y="1" width="120" height="173" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="24" height="80" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="25" y="1" width="96" height="30" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="25" y="31" width="96" height="143" rx="0" fill="#eaf0f6" stroke="#111" stroke-width="1.5" />` 
                 },
                 
                 { 
-                    id: 'es15p', name: 'ES1,5 P', price: 865, w: 136, h: 108, 
-                    expandable: true, expW: 136, expH: 175, sleepW: 112, sleepH: 144, 
-                    svg: `<rect x="1" y="1" width="134" height="106" rx="4" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="134" height="31" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="32" width="134" height="75" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="111" y="1" width="24" height="80" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="1" y1="107" x2="135" y2="107" stroke-dasharray="5,4" stroke="#888" stroke-width="1.5" />`, 
-                    svgExpanded: `<rect x="1" y="1" width="134" height="173" rx="4" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="134" height="31" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="32" width="134" height="142" rx="3" fill="#eaf0f6" stroke="#111" stroke-width="1.5" /><rect x="111" y="1" width="24" height="80" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" />` 
+                    id: 'es15p', name: 'ES1,5 P', price: 865, w: 122, h: 108, 
+                    expandable: true, expW: 122, expH: 175, sleepW: 98, sleepH: 144, 
+                    svg: `<rect x="1" y="1" width="120" height="106" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="97" y="1" width="24" height="80" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="96" height="30" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="31" width="96" height="76" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="1" y1="107" x2="97" y2="107" stroke-dasharray="5,4" stroke="#888" stroke-width="1.5" />`, 
+                    svgExpanded: `<rect x="1" y="1" width="120" height="173" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="97" y="1" width="24" height="80" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="96" height="30" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="31" width="96" height="143" rx="0" fill="#eaf0f6" stroke="#111" stroke-width="1.5" />` 
                 },
                 
                 { 
-                    id: 'chl', name: 'CH L', price: 1060, w: 108, h: 175, 
-                    isChaise: true, sleepW: 84, sleepH: 144, 
-                    svg: `<rect x="1" y="1" width="106" height="173" rx="4" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="106" height="31" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="32" width="106" height="142" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="24" height="80" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" />` 
+                    id: 'chl', name: 'CH L', price: 1060, w: 122, h: 175, 
+                    isChaise: true, sleepW: 98, sleepH: 144, 
+                    svg: `<rect x="1" y="1" width="120" height="173" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="24" height="80" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="25" y="1" width="96" height="30" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="25" y="31" width="96" height="143" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" />` 
                 },
                 
                 { 
-                    id: 'chp', name: 'CH P', price: 1060, w: 108, h: 175, 
-                    isChaise: true, sleepW: 84, sleepH: 144, 
-                    svg: `<rect x="1" y="1" width="106" height="173" rx="4" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="106" height="31" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="32" width="106" height="142" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="83" y="1" width="24" height="80" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" />` 
+                    id: 'chp', name: 'CH P', price: 1060, w: 122, h: 175, 
+                    isChaise: true, sleepW: 98, sleepH: 144, 
+                    svg: `<rect x="1" y="1" width="120" height="173" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="97" y="1" width="24" height="80" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="96" height="30" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="31" width="96" height="143" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" />` 
                 },
                 
                 { 
                     id: 's4', name: 'S4', price: 1595, w: 244, h: 108, 
                     expandable: true, expW: 244, expH: 175, sleepW: 196, sleepH: 144, 
-                    svg: `<rect x="1" y="1" width="242" height="106" rx="4" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="242" height="31" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="32" width="242" height="75" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="122" y1="32" x2="122" y2="107" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="24" height="80" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="219" y="1" width="24" height="80" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="1" y1="107" x2="243" y2="107" stroke-dasharray="5,4" stroke="#888" stroke-width="1.5" />`, 
-                    svgExpanded: `<rect x="1" y="1" width="242" height="173" rx="4" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="242" height="31" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="32" width="242" height="142" rx="3" fill="#eaf0f6" stroke="#111" stroke-width="1.5" /><line x1="122" y1="32" x2="122" y2="174" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="24" height="80" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="219" y="1" width="24" height="80" rx="3" fill="#fff" stroke="#111" stroke-width="1.5" />` 
+                    svg: `<rect x="1" y="1" width="242" height="106" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="24" height="80" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="219" y="1" width="24" height="80" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="25" y="1" width="194" height="30" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="25" y="31" width="194" height="76" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="122" y1="32" x2="122" y2="107" stroke="#111" stroke-width="1.5" /><line x1="25" y1="107" x2="219" y2="107" stroke-dasharray="5,4" stroke="#888" stroke-width="1.5" />`, 
+                    svgExpanded: `<rect x="1" y="1" width="242" height="173" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="24" height="80" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="219" y="1" width="24" height="80" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="25" y="1" width="194" height="30" rx="0" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="25" y="31" width="194" height="143" rx="0" fill="#eaf0f6" stroke="#111" stroke-width="1.5" /><line x1="122" y1="32" x2="122" y2="174" stroke="#111" stroke-width="1.5" />` 
                 }
             ],
  muto: [
