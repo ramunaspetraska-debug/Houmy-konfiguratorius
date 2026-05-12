@@ -974,11 +974,19 @@ function applyDynamicBulk(multiplier) {
 }
 
 function openAdmin() { 
+    // 1. PIN kodo patikra
+    let pin = prompt("Įveskite administratoriaus PIN kodą:");
+    if (pin !== "7030") {
+        alert("Neteisingas PIN kodas!");
+        return;
+    }
+
+    // 2. Esama nustatymų krovimo logika
     tempAdminPrices = JSON.parse(JSON.stringify(appSettings.customPrices));
 
-    document.getElementById('admin-modal').style.display = 'flex'; 
-    let container = document.getElementById('admin-prices-container'); 
-    container.innerHTML = ''; 
+    document.getElementById('admin-modal').style.display = 'flex';
+    let container = document.getElementById('admin-prices-container');
+    container.innerHTML = '';
 
     // Viršutinis įrankių baras
     let toolbar = document.createElement('div');
@@ -1025,7 +1033,7 @@ function openAdmin() {
     // Lentelės konteineris
     let gridContainer = document.createElement('div');
     gridContainer.id = 'admin-grid-container';
-    gridContainer.style.overflowX = 'auto'; 
+    gridContainer.style.overflowX = 'auto';
     container.appendChild(gridContainer);
 
     renderAdminGrid(Object.keys(rawModels)[0]);
