@@ -974,6 +974,16 @@ function applyDynamicBulk(multiplier) {
 }
 
 function openAdmin() { 
+    // PIN kodo patikrinimas
+    let pin = prompt("Įveskite administratoriaus PIN kodą:");
+    if (pin !== "7030") {
+        if (pin !== null) { // Jei vartotojas nepaspaudė "Atšaukti" (Cancel)
+            alert("Neteisingas PIN kodas!");
+        }
+        return; // Nutraukiame funkcijos vykdymą, admin langas neatsidarys
+    }
+
+    // Jei PIN teisingas, vykdome kodą toliau:
     tempAdminPrices = JSON.parse(JSON.stringify(appSettings.customPrices));
 
     document.getElementById('admin-modal').style.display = 'flex'; 
@@ -1030,7 +1040,6 @@ function openAdmin() {
 
     renderAdminGrid(Object.keys(rawModels)[0]);
 }
-
 function closeAdmin() { document.getElementById('admin-modal').style.display = 'none'; }
 
 function saveAdminSettings() { 
