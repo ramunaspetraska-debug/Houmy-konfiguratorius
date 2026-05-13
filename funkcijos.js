@@ -1137,6 +1137,7 @@ async function generatePDFWithDetails() {
         cFabric = document.getElementById('client-fabric').value.trim(), 
         cDesigner = document.getElementById('client-designer').value.trim(), 
         discountVal = parseInt(document.getElementById('client-discount').value) || 0, 
+        manualPriceVal = parseInt(document.getElementById('client-manual-price').value) || 0,
         groupText = document.getElementById('fabric-group-select').options[document.getElementById('fabric-group-select').selectedIndex].text; 
     
     let cInfoHtml = ""; 
