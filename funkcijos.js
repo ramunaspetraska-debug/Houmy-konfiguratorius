@@ -1247,10 +1247,19 @@ async function generatePDFWithDetails() {
     }
     
     let finalTotal = total; 
-    if(discountVal > 0) { 
+    let discountInfoText = '';
+
+    if (manualPriceVal > 0 && manualPriceVal < total) {
+        finalTotal = manualPriceVal;
+        let diff = total - manualPriceVal;
+        document.getElementById('pdf-discount-text').style.display = 'block'; 
+        document.getElementById('pdf-discount-text').innerText = `Bazinė kaina: ${total} €`; 
+        discountInfoText = `• <b style="color:#d9534f;">Pritaikyta speciali kaina (sutaupote ${diff} €)</b>`;
+    } else if (discountVal > 0) { 
         finalTotal = total - Math.round(total * (discountVal / 100)); 
         document.getElementById('pdf-discount-text').style.display = 'block'; 
         document.getElementById('pdf-discount-text').innerText = `Bazinė kaina: ${total} €`; 
+        discountInfoText = `• <b style="color:#d9534f;">Pritaikyta ${discountVal}% nuolaida</b>`;
     } else { 
         document.getElementById('pdf-discount-text').style.display = 'none'; 
     } 
@@ -1265,7 +1274,7 @@ async function generatePDFWithDetails() {
     `;
     
     let addInfoHtml = appSettings.additionalInfo ? `• ${appSettings.additionalInfo}<br>` : ''; 
-    document.getElementById('pdf-terms').innerHTML = `<b style="color:#111;">Pasiūlymo sąlygos:</b><br>• Preliminarus gamybos terminas: <b>${appSettings.prodTerm}</b><br>• Pristatymas: <b>${appSettings.deliveryNote}</b><br>${addInfoHtml}${discountVal > 0 ? `• <b style="color:#d9534f;">Pritaikyta ${discountVal}% nuolaida</b>` : ''}`; 
+    document.getElementById('pdf-terms').innerHTML = `<b style="color:#111;">Pasiūlymo sąlygos:</b><br>• Preliminarus gamybos terminas: <b>${appSettings.prodTerm}</b><br>• Pristatymas: <b>${appSettings.deliveryNote}</b><br>${addInfoHtml}${discountInfoText}`; 
     
     const today = new Date(); 
     document.getElementById('pdf-date').innerText = `Data: ${today.getFullYear()}-${String(today.getMonth()+1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`; 
