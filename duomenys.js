@@ -46,8 +46,8 @@ const rawModels = {
                 { id: 'pf1', name: 'PF1', price: 443, prices: { gr2: 72, gr3: 108, gr4: 146, gr5: 185 }, w: 91, h: 110, svg: `<rect x="1" y="1" width="89" height="108" rx="3" fill="#fff" />`},
                 { id: 'pf2', name: 'PF2', price: 410, prices: { gr2: 66, gr3: 102, gr4: 138, gr5: 171 }, w: 91, h: 91, svg: `<rect x="1" y="1" width="89" height="89" rx="3" fill="#fff" />`},
                 // Pufai PF3 ir PF4 (81x81 ir 110x81)
-                { id: 'pf3', name: 'PF3', price: 390, prices: { gr2: 60, gr3: 95, gr4: 130, gr5: 160 }, w: 81, h: 81, svg: `<rect x="1" y="1" width="79" height="79" rx="3" fill="#fff" />`},
-                { id: 'pf4', name: 'PF4', price: 360, prices: { gr2: 55, gr3: 90, gr4: 120, gr5: 150 }, w: 110, h: 81, svg: `<rect x="1" y="1" width="108" height="79" rx="3" fill="#fff" />`}
+                { id: 'pf3', name: 'PF3', price: 360, prices: { gr2: 55, gr3: 90, gr4: 120, gr5: 150 }, w: 81, h: 81, svg: `<rect x="1" y="1" width="79" height="79" rx="3" fill="#fff" />`},
+                { id: 'pf4', name: 'PF4', price: 390, prices: { gr2: 60, gr3: 95, gr4: 130, gr5: 160 }, w: 110, h: 81, svg: `<rect x="1" y="1" width="108" height="79" rx="3" fill="#fff" />`}
             ],
     cloud: [
                 { id: 'e1', name: 'E1', price: 630, w: 80, h: 100, svg: `<rect x="1" y="1" width="78" height="98" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="1" width="78" height="28" rx="5" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="4" y="20" width="72" height="18" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
