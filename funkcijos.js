@@ -1234,7 +1234,7 @@ async function generatePDFWithDetails() {
     // --- Proporcingas brėžinio dydis ---
     // Vaizdas nustatomas pagal realų dydį (cm), o ne ištempiamas per visą dėžutę.
     // Mažiau (pvz. 1.1) = moduliai atrodo iš toliau / mažesni; daugiau (pvz. 1.7) = arčiau / didesni.
-    const PDF_PX_PER_CM = 1.35;
+    const PDF_PX_PER_CM = 1.65;
     let imgCmW = (maxX - minX + padding * 2) / scale; // viso vaizdo plotis cm (su tarpais)
     let imgCmH = (maxY - minY + padding * 2) / scale; // viso vaizdo aukštis cm (su tarpais)
     pdfSofaImg.style.width = (imgCmW * PDF_PX_PER_CM) + 'px';
@@ -1307,6 +1307,11 @@ async function generatePDFWithDetails() {
     
     const pdfTemplate = document.getElementById('pdf-template'); 
     pdfTemplate.style.display = 'flex'; 
+    
+    // Palaukiame, kol naujasis brėžinio paveikslėlis tikrai užsikraus,
+    // kitaip html2canvas gali nufotografuoti dar seną (ankstesnės konfigūracijos) vaizdą.
+    try { await pdfSofaImg.decode(); } catch (e) {}
+    await new Promise(r => setTimeout(r, 60));
     
     await html2canvas(pdfTemplate, { scale: 2, useCORS: true }).then(finalCanvas => { 
         const pdf = new jspdf.jsPDF('p', 'mm', 'a4'); 
@@ -1408,7 +1413,7 @@ async function executeExportBlueprint() {
     let bpDispW = bpImgCmW * BLUEPRINT_PX_PER_CM;
     let bpDispH = bpImgCmH * BLUEPRINT_PX_PER_CM;
     document.getElementById('bp-img-container').innerHTML =
-        `<img src="${imgData}" style="width:${bpDispW}px; height:${bpDispH}px; max-width:100%; object-fit:contain;">`; 
+        `<img id="bp-sofa-img" src="${imgData}" style="width:${bpDispW}px; height:${bpDispH}px; max-width:100%; object-fit:contain;">`; 
     
     const isMixed = new Set(modules.map(m => m.dataset.collection)).size > 1; 
     const uniqueCollections = Array.from(new Set(modules.map(m => m.dataset.collection.toUpperCase())));
@@ -1436,6 +1441,11 @@ async function executeExportBlueprint() {
 
     const bpTemplate = document.getElementById('blueprint-template'); 
     bpTemplate.style.display = 'flex'; 
+    
+    // Palaukiame, kol naujasis paveikslėlis užsikraus (kad nenufotografuotų seno).
+    const bpSofaImg = document.getElementById('bp-sofa-img');
+    try { if (bpSofaImg) await bpSofaImg.decode(); } catch (e) {}
+    await new Promise(r => setTimeout(r, 60));
     
     await html2canvas(bpTemplate, { scale: 2, useCORS: true }).then(finalCanvas => { 
         let link = document.createElement('a'); 
