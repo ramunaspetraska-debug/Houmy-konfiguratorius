@@ -1228,7 +1228,18 @@ async function generatePDFWithDetails() {
     document.getElementById('dimension-display').style.display = 'block'; 
     
     const imgData = canvas.toDataURL('image/jpeg', 0.95); 
-    document.getElementById('pdf-sofa-img').src = imgData; 
+    const pdfSofaImg = document.getElementById('pdf-sofa-img');
+    pdfSofaImg.src = imgData; 
+
+    // --- Proporcingas brėžinio dydis ---
+    // Vaizdas nustatomas pagal realų dydį (cm), o ne ištempiamas per visą dėžutę.
+    // Mažiau (pvz. 1.1) = moduliai atrodo iš toliau / mažesni; daugiau (pvz. 1.7) = arčiau / didesni.
+    const PDF_PX_PER_CM = 1.35;
+    let imgCmW = (maxX - minX + padding * 2) / scale; // viso vaizdo plotis cm (su tarpais)
+    let imgCmH = (maxY - minY + padding * 2) / scale; // viso vaizdo aukštis cm (su tarpais)
+    pdfSofaImg.style.width = (imgCmW * PDF_PX_PER_CM) + 'px';
+    pdfSofaImg.style.height = (imgCmH * PDF_PX_PER_CM) + 'px';
+    // CSS max-width/max-height:100% + object-fit:contain apsaugo nuo per didelio dydžio
     
     const tbody = document.getElementById('pdf-table-body'); 
     tbody.innerHTML = ''; 
@@ -1388,7 +1399,16 @@ async function executeExportBlueprint() {
     document.getElementById('dimension-display').style.display = 'block'; 
     
     const imgData = canvas.toDataURL('image/jpeg', 0.95); 
-    document.getElementById('bp-img-container').innerHTML = `<img src="${imgData}" style="max-width:100%">`; 
+
+    // --- Proporcingas gamybos brėžinio dydis ---
+    // Mažiau = moduliai iš toliau / mažesni; daugiau = arčiau / didesni.
+    const BLUEPRINT_PX_PER_CM = 1.6;
+    let bpImgCmW = (maxX - minX + padding * 2) / scale;
+    let bpImgCmH = (maxY - minY + padding * 2) / scale;
+    let bpDispW = bpImgCmW * BLUEPRINT_PX_PER_CM;
+    let bpDispH = bpImgCmH * BLUEPRINT_PX_PER_CM;
+    document.getElementById('bp-img-container').innerHTML =
+        `<img src="${imgData}" style="width:${bpDispW}px; height:${bpDispH}px; max-width:100%; object-fit:contain;">`; 
     
     const isMixed = new Set(modules.map(m => m.dataset.collection)).size > 1; 
     const uniqueCollections = Array.from(new Set(modules.map(m => m.dataset.collection.toUpperCase())));
