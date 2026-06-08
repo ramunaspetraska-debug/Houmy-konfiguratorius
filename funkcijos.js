@@ -1230,16 +1230,6 @@ async function generatePDFWithDetails() {
     const imgData = canvas.toDataURL('image/jpeg', 0.95); 
     const pdfSofaImg = document.getElementById('pdf-sofa-img');
     pdfSofaImg.src = imgData; 
-
-    // --- Proporcingas brėžinio dydis ---
-    // Vaizdas nustatomas pagal realų dydį (cm), o ne ištempiamas per visą dėžutę.
-    // Mažiau (pvz. 1.1) = moduliai atrodo iš toliau / mažesni; daugiau (pvz. 1.7) = arčiau / didesni.
-    const PDF_PX_PER_CM = 1.65;
-    let imgCmW = (maxX - minX + padding * 2) / scale; // viso vaizdo plotis cm (su tarpais)
-    let imgCmH = (maxY - minY + padding * 2) / scale; // viso vaizdo aukštis cm (su tarpais)
-    pdfSofaImg.style.width = (imgCmW * PDF_PX_PER_CM) + 'px';
-    pdfSofaImg.style.height = (imgCmH * PDF_PX_PER_CM) + 'px';
-    // CSS max-width/max-height:100% + object-fit:contain apsaugo nuo per didelio dydžio
     
     const tbody = document.getElementById('pdf-table-body'); 
     tbody.innerHTML = ''; 
@@ -1307,6 +1297,25 @@ async function generatePDFWithDetails() {
     
     const pdfTemplate = document.getElementById('pdf-template'); 
     pdfTemplate.style.display = 'flex'; 
+    
+    // --- Proporcingas, neiškraipytas brėžinio dydis ---
+    // html2canvas nepalaiko object-fit, todėl mastelį skaičiuojame patys:
+    // vaizdas turi tilpti į turimą plotą IŠLAIKANT tikslų kraštinių santykį.
+    // PDF_PX_PER_CM: didesnis = moduliai arčiau/didesni; mažesnis = toliau/mažesni.
+    const PDF_PX_PER_CM = 1.65;
+    const imgCmW = (maxX - minX + padding * 2) / scale; // viso vaizdo plotis cm (su tarpais)
+    const imgCmH = (maxY - minY + padding * 2) / scale; // viso vaizdo aukštis cm (su tarpais)
+    const pdfImgBox = document.querySelector('.pdf-image-box');
+    pdfSofaImg.style.width = '';
+    pdfSofaImg.style.height = '';
+    const availW = pdfImgBox.clientWidth;   // turimas plotis lape
+    const availH = pdfImgBox.clientHeight;  // turimas aukštis (priklauso nuo lentelės eilučių)
+    const targetW = imgCmW * PDF_PX_PER_CM;
+    const targetH = imgCmH * PDF_PX_PER_CM;
+    // Vientisas mastelis abiem kryptim → santykis nepakinta, jokio iškraipymo.
+    const fitScale = Math.min(1, availW / targetW, availH / targetH);
+    pdfSofaImg.style.width = (targetW * fitScale) + 'px';
+    pdfSofaImg.style.height = (targetH * fitScale) + 'px';
     
     // Palaukiame, kol naujasis brėžinio paveikslėlis tikrai užsikraus,
     // kitaip html2canvas gali nufotografuoti dar seną (ankstesnės konfigūracijos) vaizdą.
@@ -1405,15 +1414,10 @@ async function executeExportBlueprint() {
     
     const imgData = canvas.toDataURL('image/jpeg', 0.95); 
 
-    // --- Proporcingas gamybos brėžinio dydis ---
-    // Mažiau = moduliai iš toliau / mažesni; daugiau = arčiau / didesni.
-    const BLUEPRINT_PX_PER_CM = 1.6;
-    let bpImgCmW = (maxX - minX + padding * 2) / scale;
-    let bpImgCmH = (maxY - minY + padding * 2) / scale;
-    let bpDispW = bpImgCmW * BLUEPRINT_PX_PER_CM;
-    let bpDispH = bpImgCmH * BLUEPRINT_PX_PER_CM;
+    // Paveikslėlis įdedamas be fiksuoto dydžio — tikslus dydis nustatomas žemiau,
+    // kai šablonas matomas ir žinomas turimas plotis (kad nebūtų iškraipymo).
     document.getElementById('bp-img-container').innerHTML =
-        `<img id="bp-sofa-img" src="${imgData}" style="width:${bpDispW}px; height:${bpDispH}px; max-width:100%; object-fit:contain;">`; 
+        `<img id="bp-sofa-img" src="${imgData}" style="max-width:100%;">`; 
     
     const isMixed = new Set(modules.map(m => m.dataset.collection)).size > 1; 
     const uniqueCollections = Array.from(new Set(modules.map(m => m.dataset.collection.toUpperCase())));
@@ -1442,8 +1446,24 @@ async function executeExportBlueprint() {
     const bpTemplate = document.getElementById('blueprint-template'); 
     bpTemplate.style.display = 'flex'; 
     
-    // Palaukiame, kol naujasis paveikslėlis užsikraus (kad nenufotografuotų seno).
+    // --- Proporcingas, neiškraipytas dydis ---
+    // BLUEPRINT_PX_PER_CM: didesnis = arčiau/didesni; mažesnis = toliau/mažesni.
+    const BLUEPRINT_PX_PER_CM = 1.6;
+    const bpImgCmW = (maxX - minX + padding * 2) / scale;
+    const bpImgCmH = (maxY - minY + padding * 2) / scale;
     const bpSofaImg = document.getElementById('bp-sofa-img');
+    const bpContainer = document.getElementById('bp-img-container');
+    const bpTargetW = bpImgCmW * BLUEPRINT_PX_PER_CM;
+    const bpTargetH = bpImgCmH * BLUEPRINT_PX_PER_CM;
+    // Šablono aukštis nefiksuotas, todėl riboja tik plotis; mastelis vientisas → be iškraipymo.
+    const bpAvailW = Math.max(0, bpContainer.clientWidth - 40); // 40 = konteinerio paddingas
+    const bpFit = Math.min(1, bpAvailW / bpTargetW);
+    if (bpSofaImg) {
+        bpSofaImg.style.width = (bpTargetW * bpFit) + 'px';
+        bpSofaImg.style.height = (bpTargetH * bpFit) + 'px';
+    }
+    
+    // Palaukiame, kol naujasis paveikslėlis užsikraus (kad nenufotografuotų seno).
     try { if (bpSofaImg) await bpSofaImg.decode(); } catch (e) {}
     await new Promise(r => setTimeout(r, 60));
     
