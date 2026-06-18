@@ -37,6 +37,26 @@ let scale = window.innerWidth < 768 ? 0.8 : 1.5;
 const createSVG = (w, h, c) => `<svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" style="position:absolute;overflow:visible;"><g stroke="#222" stroke-width="1.5" fill="#fff">${c}</g></svg>`;
 const getPrice = (w, h) => Math.floor((w + h) * 1.8 / 5) * 5;
 
+// Saugiai pašalina HTML iš vartotojo įvesto teksto (apsauga nuo XSS innerHTML laukuose)
+function escapeHtml(str) {
+    return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// Saugus archyvo nuskaitymas iš localStorage (apsauga nuo sugadintų duomenų)
+function getArchive() {
+    try {
+        return JSON.parse(localStorage.getItem('houmyArchive') || '{}') || {};
+    } catch (e) {
+        console.error('Sugadinti archyvo duomenys localStorage, naudojamas tuščias archyvas.', e);
+        return {};
+    }
+}
+
 const furnitureModels = {};
 for(let k in rawModels) {
     furnitureModels[k] = rawModels[k].map(m => {
@@ -1078,7 +1098,43 @@ function saveAdminSettings() {
 // ----------------------------------------------
 
 function openArchive() { document.getElementById('archive-modal').style.display = 'flex'; renderArchiveList(); }
-function renderArchiveList() { let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); let html = ''; for(let name in archive) { html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px solid #ddd; border-radius:4px; background:#f9f9f9;"><strong style="font-size:13px; color:#333;">${name}</strong><div style="display:flex; gap:5px;"><button onclick="loadFromArchive('${name}')" style="padding:4px 8px; background:#007bff; color:white; border:none; border-radius:3px; cursor:pointer;">Užkrauti</button><button onclick="deleteFromArchive('${name}')" style="padding:4px 8px; background:#dc3545; color:white; border:none; border-radius:3px; cursor:pointer;">Ištrinti</button></div></div>`; } document.getElementById('archive-list').innerHTML = html || '<div style="color:#888; font-size:13px; text-align:center; padding:10px 0;">Archyvas tuščias</div>'; }
+function renderArchiveList() {
+    let archive = getArchive();
+    let listEl = document.getElementById('archive-list');
+    listEl.innerHTML = '';
+    let names = Object.keys(archive);
+    if (names.length === 0) {
+        listEl.innerHTML = '<div style="color:#888; font-size:13px; text-align:center; padding:10px 0;">Archyvas tuščias</div>';
+        return;
+    }
+    names.forEach(name => {
+        let row = document.createElement('div');
+        row.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px solid #ddd; border-radius:4px; background:#f9f9f9;";
+
+        let title = document.createElement('strong');
+        title.style.cssText = "font-size:13px; color:#333; word-break:break-word; margin-right:8px;";
+        title.textContent = name; // saugu: jokios HTML injekcijos
+
+        let btnWrap = document.createElement('div');
+        btnWrap.style.cssText = "display:flex; gap:5px; flex-shrink:0;";
+
+        let loadBtn = document.createElement('button');
+        loadBtn.textContent = 'Užkrauti';
+        loadBtn.style.cssText = "padding:4px 8px; background:#007bff; color:white; border:none; border-radius:3px; cursor:pointer;";
+        loadBtn.onclick = () => loadFromArchive(name); // uždarymas, jokios string injekcijos
+
+        let delBtn = document.createElement('button');
+        delBtn.textContent = 'Ištrinti';
+        delBtn.style.cssText = "padding:4px 8px; background:#dc3545; color:white; border:none; border-radius:3px; cursor:pointer;";
+        delBtn.onclick = () => deleteFromArchive(name);
+
+        btnWrap.appendChild(loadBtn);
+        btnWrap.appendChild(delBtn);
+        row.appendChild(title);
+        row.appendChild(btnWrap);
+        listEl.appendChild(row);
+    });
+}
 
 function saveToArchive() { 
     let name = document.getElementById('archive-name').value.trim(); 
@@ -1093,7 +1149,7 @@ function saveToArchive() {
     
     if(state.length === 0) return alert('Nėra ką išsaugoti, sofa tuščia!'); 
     
-    let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); 
+    let archive = getArchive(); 
     
     if (archive[name]) {
         if (!confirm(`Projektas pavadinimu "${name}" jau egzistuoja. Ar norite jį perrašyti?`)) {
@@ -1108,7 +1164,7 @@ function saveToArchive() {
 }
 
 function loadFromArchive(name) { 
-    let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); 
+    let archive = getArchive(); 
     if(archive[name] && archive[name].length > 0) { 
         document.getElementById('model-select').value = archive[name][0].c; 
         loadModel(archive[name][0].c); 
@@ -1117,7 +1173,7 @@ function loadFromArchive(name) {
     } 
 }
 
-function deleteFromArchive(name) { if(confirm(`Ar tikrai norite ištrinti projektą "${name}" iš archyvo?`)) { let archive = JSON.parse(localStorage.getItem('houmyArchive') || '{}'); delete archive[name]; localStorage.setItem('houmyArchive', JSON.stringify(archive)); renderArchiveList(); } }
+function deleteFromArchive(name) { if(confirm(`Ar tikrai norite ištrinti projektą "${name}" iš archyvo?`)) { let archive = getArchive(); delete archive[name]; localStorage.setItem('houmyArchive', JSON.stringify(archive)); renderArchiveList(); } }
 
 function openClientModal() { 
     const modules = Array.from(document.querySelectorAll('.canvas-module')); 
@@ -1151,11 +1207,11 @@ async function generatePDFWithDetails() {
     
     let cInfoHtml = ""; 
     if(cName || cAddr || cFabric || cDesigner || groupText !== "I Grupė (Bazinė)") { 
-        if(cName) cInfoHtml += `<b>Klientas:</b> ${cName}<br>`; 
-        if(cAddr) cInfoHtml += `<b>Adresas:</b> ${cAddr}<br>`; 
-        if(cDesigner) cInfoHtml += `<b>Dizaineris:</b> ${cDesigner}<br>`; 
-        if(cFabric) cInfoHtml += `<b>Audinys:</b> ${cFabric}<br>`; 
-        if(groupText !== "I Grupė (Bazinė)") cInfoHtml += `<b>Audinio grupė:</b> ${groupText}<br>`; 
+        if(cName) cInfoHtml += `<b>Klientas:</b> ${escapeHtml(cName)}<br>`; 
+        if(cAddr) cInfoHtml += `<b>Adresas:</b> ${escapeHtml(cAddr)}<br>`; 
+        if(cDesigner) cInfoHtml += `<b>Dizaineris:</b> ${escapeHtml(cDesigner)}<br>`; 
+        if(cFabric) cInfoHtml += `<b>Audinys:</b> ${escapeHtml(cFabric)}<br>`; 
+        if(groupText !== "I Grupė (Bazinė)") cInfoHtml += `<b>Audinio grupė:</b> ${escapeHtml(groupText)}<br>`; 
     } 
     document.getElementById('pdf-client-info').innerHTML = cInfoHtml; 
     document.getElementById('pdf-main-title').innerText = pName ? pName : "Komercinis Pasiūlymas"; 
@@ -1204,10 +1260,16 @@ async function generatePDFWithDetails() {
     tmpWrapper.style.width = ((maxX - minX) + padding * 2) + 'px'; 
     tmpWrapper.style.height = ((maxY - minY) + padding * 2) + 'px'; 
     
-    await new Promise(r => setTimeout(r, 250));
+    // Saugiklis nuo „Maximum canvas size exceeded": labai dideliems brėžiniams
+    // sumažiname html2canvas mastelį, kad neviršytume naršyklės canvas ribų.
+    let _wrapW = parseFloat(tmpWrapper.style.width) || 0;
+    let _wrapH = parseFloat(tmpWrapper.style.height) || 0;
+    let _h2cScale = (_wrapW * 2 > 12000 || _wrapH * 2 > 12000) ? 1 : 2;
+    
+    await new Promise(r => setTimeout(r, 500));
     
     const canvas = await html2canvas(tmpWrapper, { 
-        scale: 2, 
+        scale: _h2cScale, 
         backgroundColor: "#ffffff", 
         useCORS: true
     });
@@ -1389,10 +1451,14 @@ async function executeExportBlueprint() {
     tmpWrapper.style.width = ((maxX - minX) + padding * 2) + 'px'; 
     tmpWrapper.style.height = ((maxY - minY) + padding * 2) + 'px'; 
     
-    await new Promise(r => setTimeout(r, 250)); 
+    let _wrapW = parseFloat(tmpWrapper.style.width) || 0;
+    let _wrapH = parseFloat(tmpWrapper.style.height) || 0;
+    let _h2cScale = (_wrapW * 2 > 12000 || _wrapH * 2 > 12000) ? 1 : 2;
+
+    await new Promise(r => setTimeout(r, 500)); 
     
     const canvas = await html2canvas(tmpWrapper, { 
-        scale: 2, 
+        scale: _h2cScale, 
         backgroundColor: "#ffffff", 
         useCORS: true
     }); 
@@ -1751,7 +1817,17 @@ if (sharedStateNew || sharedStateOld) {
                 }
             });
         } else {
-            parsedState = JSON.parse(decodeURIComponent(atob(sharedStateOld)));
+            let rawParsed = JSON.parse(decodeURIComponent(atob(sharedStateOld)));
+            // Apsauga nuo injekcijos: priverstinai konvertuojame skaitines reikšmes,
+            // kad piktavališka nuoroda negalėtų įterpti CSS per kampo (a) lauką.
+            parsedState = (Array.isArray(rawParsed) ? rawParsed : []).map(d => ({
+                c: String(d.c || ''),
+                i: String(d.i || ''),
+                x: parseInt(d.x) || 0,
+                y: parseInt(d.y) || 0,
+                a: parseInt(d.a) || 0,
+                e: parseInt(d.e) || 0
+            }));
         }
         
         let uniqueCollections = [...new Set(parsedState.map(m => m.c))];
