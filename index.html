@@ -106,26 +106,7 @@
                     <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="let el=document.getElementById('price-config'); el.style.display=el.style.display==='none'?'block':'none';">
                         <h3 style="margin:0; color:#007bff; border-bottom:none;">Bazinės Modulių Kainos (I gr.)</h3>
                     </div>
-                    <div id="price-config" style="display:none; margin-top:15px; border-top:1px solid #ddd; padding-top:15px;">
-                        <div style="background:#fff; padding:15px; border:1px solid #ddd; border-radius:6px; margin-bottom:20px;">
-                            <h4 style="margin:0 0 10px 0; color:#d9534f;">Masinis kainų keitimas (%)</h4>
-                            <div style="margin-bottom: 10px; display:flex; flex-wrap:wrap; gap:10px;">
-                                <label><input type="checkbox" class="bulk-col" value="dizy"> DIZY</label>
-                                <label><input type="checkbox" class="bulk-col" value="cloud"> CLOUD</label>
-                                <label><input type="checkbox" class="bulk-col" value="core"> CORE</label>
-                                <label><input type="checkbox" class="bulk-col" value="cushy"> CUSHY</label>
-                                <label><input type="checkbox" class="bulk-col" value="deso"> DESO</label>
-                                <label><input type="checkbox" class="bulk-col" value="dream"> DREAM</label>
-                                <label><input type="checkbox" class="bulk-col" value="hola"> HOLA</label>
-                                <label><input type="checkbox" class="bulk-col" value="lazy"> LAZY</label>
-                                <label><input type="checkbox" class="bulk-col" value="muto"> MUTO</label>
-                            </div>
-                            <div style="display:flex; gap:10px; align-items:center;">
-                                <input type="number" id="bulk-percent" placeholder="Procentai (pvz. 10)" style="width:140px; padding:6px;">
-                                <button type="button" onclick="applyBulkPrice(1)" style="padding:6px 12px; background:#28a745; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">+ Padidinti</button>
-                                <button type="button" onclick="applyBulkPrice(-1)" style="padding:6px 12px; background:#dc3545; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">- Sumažinti</button>
-                            </div>
-                        </div>
+                    <div id="price-config" style="display:block; margin-top:15px; border-top:1px solid #ddd; padding-top:15px;">
                         <p style="font-size:12px; color:#666; margin-top:0;">Pakeiskite pavienio modulio bazinę (I gr.) kainą. Priedai už aukštesnes grupes skaičiuojami automatiškai iš duomenų bazės.</p>
                         <div id="admin-prices-container"></div>
                     </div>
