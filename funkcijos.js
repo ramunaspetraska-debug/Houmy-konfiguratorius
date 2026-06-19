@@ -57,6 +57,22 @@ function getArchive() {
     }
 }
 
+// Normalizuoja archyvo įrašą: palaiko ir seną formatą (masyvas), ir naują ({modules, group})
+function getArchiveEntry(archive, name) {
+    let raw = archive[name];
+    if (Array.isArray(raw)) return { modules: raw, group: null };          // senas formatas
+    if (raw && Array.isArray(raw.modules)) return { modules: raw.modules, group: raw.group || null };
+    return { modules: [], group: null };
+}
+
+// Randa laisvą pavadinimą su priesaga, pvz. „26/77" → „26/77 (2)" → „26/77 (3)"
+function nextAvailableName(archive, base) {
+    if (!archive[base]) return base;
+    let n = 2;
+    while (archive[`${base} (${n})`]) n++;
+    return `${base} (${n})`;
+}
+
 const furnitureModels = {};
 for(let k in rawModels) {
     furnitureModels[k] = rawModels[k].map(m => {
@@ -1150,25 +1166,38 @@ function saveToArchive() {
     if(state.length === 0) return alert('Nėra ką išsaugoti, sofa tuščia!'); 
     
     let archive = getArchive(); 
+    let curGroup = document.getElementById('fabric-group-select').value || '1';
     
     if (archive[name]) {
-        if (!confirm(`Projektas pavadinimu "${name}" jau egzistuoja. Ar norite jį perrašyti?`)) {
-            return;
+        // Numatytasis veiksmas – išsaugoti kaip NAUJĄ variantą (nieko neperrašant).
+        // Tai leidžia tam pačiam klientui turėti kelis pasiūlymus tuo pačiu pavadinimu.
+        let newName = nextAvailableName(archive, name);
+        if (confirm(`Projektas „${name}" jau egzistuoja.\n\n„Gerai" – išsaugoti kaip NAUJĄ variantą „${newName}" (esamas NEPERRAŠOMAS).\n„Atšaukti" – noriu perrašyti esamą „${name}".`)) {
+            name = newName;
+        } else {
+            if (!confirm(`Ar tikrai PERRAŠYTI esamą „${name}"? Ankstesnis variantas bus negrįžtamai prarastas.`)) {
+                return;
+            }
+            // lieka tas pats name → perrašoma
         }
     }
     
-    archive[name] = state; 
+    archive[name] = { modules: state, group: curGroup, savedAt: Date.now() }; 
     localStorage.setItem('houmyArchive', JSON.stringify(archive)); 
     document.getElementById('archive-name').value = ''; 
     renderArchiveList(); 
+    alert(`Išsaugota: „${name}"`);
 }
 
 function loadFromArchive(name) { 
     let archive = getArchive(); 
-    if(archive[name] && archive[name].length > 0) { 
-        document.getElementById('model-select').value = archive[name][0].c; 
-        loadModel(archive[name][0].c); 
-        restoreState(archive[name], true); 
+    let entry = getArchiveEntry(archive, name);
+    if(entry.modules.length > 0) { 
+        // Pirma atstatom audinio grupę (jei išsaugota), kad kainos būtų teisingos
+        if (entry.group) document.getElementById('fabric-group-select').value = entry.group;
+        document.getElementById('model-select').value = entry.modules[0].c; 
+        loadModel(entry.modules[0].c); 
+        restoreState(entry.modules, true); 
         document.getElementById('archive-modal').style.display = 'none'; 
     } 
 }
@@ -2116,8 +2145,9 @@ async function generateMultiVariantPDF() {
         let disc = parseInt(discInput && discInput.value) || 0;
         if (disc < 0) disc = 0;
         if (disc > 100) disc = 100;
-        if (name && archive[name] && archive[name].length > 0) {
-            selected.push({ name: name, modules: archive[name], discount: disc });
+        let entry = getArchiveEntry(archive, name);
+        if (name && entry.modules.length > 0) {
+            selected.push({ name: name, modules: entry.modules, group: entry.group, discount: disc });
         }
     });
 
@@ -2127,8 +2157,7 @@ async function generateMultiVariantPDF() {
         name: document.getElementById('multi-client-name').value.trim(),
         addr: document.getElementById('multi-client-address').value.trim(),
         designer: document.getElementById('multi-client-designer').value.trim(),
-        fabric: document.getElementById('multi-client-fabric').value.trim(),
-        groupText: document.getElementById('fabric-group-select').options[document.getElementById('fabric-group-select').selectedIndex].text
+        fabric: document.getElementById('multi-client-fabric').value.trim()
     };
     let term = document.getElementById('multi-client-term').value.trim();
     let delivery = document.getElementById('multi-client-delivery').value.trim();
@@ -2166,6 +2195,14 @@ async function generateMultiVariantPDF() {
 
             const modules = Array.from(document.querySelectorAll('.canvas-module'));
             const isMixed = new Set(modules.map(m => m.dataset.collection)).size > 1;
+
+            // Naudojam šio varianto SAVO audinio grupę (jei išsaugota), kad kainos
+            // sutaptų su tuo, kas buvo kuriant variantą. Po skaičiavimo grupę grąžinam.
+            const groupSelect = document.getElementById('fabric-group-select');
+            let _prevGroup = groupSelect.value;
+            if (v.group) groupSelect.value = v.group;
+            let vGroupText = groupSelect.options[groupSelect.selectedIndex].text;
+
             let counts = {}, total = 0;
             modules.forEach(m => {
                 let dName = getDisplayName({collection:m.dataset.collection, name:m.dataset.name}, isMixed);
@@ -2173,6 +2210,9 @@ async function generateMultiVariantPDF() {
                 if (!counts[dName]) counts[dName] = { qty:0, price:price };
                 counts[dName].qty++; total += price;
             });
+
+            groupSelect.value = _prevGroup; // grąžinam pagrindinio lango pasirinkimą
+
             const uniqueCollections = Array.from(new Set(modules.map(m => m.dataset.collection.toUpperCase())));
             const chainText = generateModuleChainText(modules, isMixed);
 
@@ -2181,7 +2221,7 @@ async function generateMultiVariantPDF() {
             if (sharedClient.addr) cInfoHtml += `<b>Adresas:</b> ${escapeHtml(sharedClient.addr)}<br>`;
             if (sharedClient.designer) cInfoHtml += `<b>Dizaineris:</b> ${escapeHtml(sharedClient.designer)}<br>`;
             if (sharedClient.fabric) cInfoHtml += `<b>Audinys:</b> ${escapeHtml(sharedClient.fabric)}<br>`;
-            if (sharedClient.groupText && sharedClient.groupText !== "I Grupė (Bazinė)") cInfoHtml += `<b>Audinio grupė:</b> ${escapeHtml(sharedClient.groupText)}<br>`;
+            if (vGroupText && vGroupText !== "I Grupė (Bazinė)") cInfoHtml += `<b>Audinio grupė:</b> ${escapeHtml(vGroupText)}<br>`;
             document.getElementById('pdf-client-info').innerHTML = cInfoHtml;
 
             document.getElementById('pdf-main-title').innerText = v.name;
