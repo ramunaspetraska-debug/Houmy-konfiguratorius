@@ -126,8 +126,31 @@
                 <button onclick="saveToArchive()" style="padding:8px 15px; background:#28a745; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">Išsaugoti</button>
             </div>
             <div id="archive-list" style="margin-top:10px; max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:5px;"></div>
-            <div style="text-align:right; margin-top:15px; border-top:1px solid #eee; padding-top:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px; border-top:1px solid #eee; padding-top:10px; gap:10px;">
+                <button onclick="openMultiModal()" style="padding:8px 15px; background:#28a745; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">📑 Kelių variantų pasiūlymas</button>
                 <button onclick="document.getElementById('archive-modal').style.display='none'" style="padding:8px 15px; cursor:pointer; border:1px solid #ccc; border-radius:4px; background:#f4f4f4;">Uždaryti</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="multi-modal" class="custom-modal">
+        <div style="background:#fff; padding:20px; border-radius:8px; width:100%; max-width:560px; display:flex; flex-direction:column; gap:12px; max-height:90vh; overflow-y:auto;">
+            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;">Kelių variantų pasiūlymas (vienas PDF)</h3>
+            <p style="font-size:12px; color:#666; margin:0;">Pažymėkite variantus iš archyvo. Kiekvienam galite nurodyti atskirą nuolaidą (%). Audinio grupė imama iš pagrindinio lango pasirinkimo.</p>
+            <div id="multi-variant-list" style="display:flex; flex-direction:column; gap:6px; max-height:240px; overflow-y:auto;"></div>
+            <div style="border-top:1px solid #eee; padding-top:10px; font-size:12px; font-weight:bold; color:#333;">Bendra kliento informacija (visiems variantams):</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <input type="text" id="multi-client-name" placeholder="Vardas Pavardė / Įmonė" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="text" id="multi-client-address" placeholder="Pristatymo adresas" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="text" id="multi-client-designer" placeholder="Dizaineris" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="text" id="multi-client-fabric" placeholder="Audinio pavadinimas / kodas" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="text" id="multi-client-term" placeholder="Gamybos terminas" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="text" id="multi-client-delivery" placeholder="Pristatymo sąlygos" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+            </div>
+            <textarea id="multi-client-additional" placeholder="Papildoma informacija" rows="2" style="padding:10px; border:1px solid #ccc; border-radius:4px; font-family: inherit; resize: vertical;"></textarea>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:6px;">
+                <button onclick="document.getElementById('multi-modal').style.display='none'" style="padding:10px; cursor:pointer; border:1px solid #ccc; border-radius:4px; background:#f4f4f4;">Atšaukti</button>
+                <button onclick="generateMultiVariantPDF()" style="padding:10px 15px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">📄 Generuoti PDF</button>
             </div>
         </div>
     </div>
