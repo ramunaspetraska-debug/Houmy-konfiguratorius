@@ -1981,3 +1981,283 @@ function optimizeMobileLayout() {
 }
 
 setTimeout(optimizeMobileLayout, 300);
+
+// ============================================================
+// KELIŲ VARIANTŲ PASIŪLYMAS — vienas PDF, kiekvienas variantas savo puslapyje
+// ============================================================
+
+let _multiVariantNames = [];
+
+// Nufotografuoja šiuo metu drobėje esančius modulius ir grąžina brėžinio paveikslėlį.
+// Po iškvietimo drobė lieka tokia, kokia buvo (modulių pozicijos atstatomos).
+async function _captureCanvasSofaImage() {
+    const modules = Array.from(document.querySelectorAll('.canvas-module'));
+    if (modules.length === 0) return null;
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    modules.forEach(m => {
+        let angle = (parseInt(m.dataset.angle) || 0) * Math.PI / 180,
+            baseW = parseFloat(m.dataset.w) * scale, baseH = parseFloat(m.dataset.h) * scale,
+            curW = parseFloat(m.style.width), curH = parseFloat(m.style.height),
+            cx = parseFloat(m.style.left) + curW / 2, cy = parseFloat(m.style.top) + curH / 2,
+            dx = baseW / 2, dy = baseH / 2;
+        [ {x:-dx,y:-dy}, {x:dx,y:-dy}, {x:dx,y:dy}, {x:-dx,y:dy} ].forEach(c => {
+            let rx = cx + c.x*Math.cos(angle) - c.y*Math.sin(angle),
+                ry = cy + c.x*Math.sin(angle) + c.y*Math.cos(angle);
+            if (rx < minX) minX = rx; if (rx > maxX) maxX = rx;
+            if (ry < minY) minY = ry; if (ry > maxY) maxY = ry;
+        });
+    });
+
+    let padding = 30;
+    if (dimState === 1) padding = 60;
+    if (dimState === 2) padding = 100;
+
+    let shiftX = padding - minX, shiftY = padding - minY;
+    let originalPositions = new Map();
+    modules.forEach(m => {
+        originalPositions.set(m, { left: m.style.left, top: m.style.top });
+        m.style.left = (parseFloat(m.style.left) + shiftX) + 'px';
+        m.style.top = (parseFloat(m.style.top) + shiftY) + 'px';
+    });
+    updateDimensions();
+
+    const tmpWrapper = document.getElementById('canvas-wrapper');
+    let oTransform = tmpWrapper.style.transform, oW = tmpWrapper.style.width, oH = tmpWrapper.style.height;
+    tmpWrapper.style.transform = 'translate(0px, 0px)';
+    document.getElementById('workspace').style.backgroundPosition = '0px 0px';
+    tmpWrapper.style.width = ((maxX - minX) + padding * 2) + 'px';
+    tmpWrapper.style.height = ((maxY - minY) + padding * 2) + 'px';
+
+    let _wrapW = parseFloat(tmpWrapper.style.width) || 0;
+    let _wrapH = parseFloat(tmpWrapper.style.height) || 0;
+    let _h2cScale = (_wrapW * 2 > 12000 || _wrapH * 2 > 12000) ? 1 : 2;
+    await new Promise(r => setTimeout(r, 500));
+    const canvas = await html2canvas(tmpWrapper, { scale: _h2cScale, backgroundColor: "#ffffff", useCORS: true });
+
+    tmpWrapper.style.transform = oTransform;
+    tmpWrapper.style.width = oW;
+    tmpWrapper.style.height = oH;
+    document.getElementById('workspace').style.backgroundPosition = `${currentPanX}px ${currentPanY}px`;
+    modules.forEach(m => { let o = originalPositions.get(m); m.style.left = o.left; m.style.top = o.top; });
+    updateDimensions();
+
+    let dimsHtml = '';
+    if (dimState > 0) dimsHtml = document.getElementById('dimension-display').innerHTML.replace(/<br><span[^>]*id="ui-plotas"[^>]*>.*?<\/span>/g, "");
+
+    return {
+        imgData: canvas.toDataURL('image/jpeg', 0.95),
+        imgCmW: (maxX - minX + padding * 2) / scale,
+        imgCmH: (maxY - minY + padding * 2) / scale,
+        dimsHtml: dimsHtml
+    };
+}
+
+function openMultiModal() {
+    let archive = getArchive();
+    let names = Object.keys(archive);
+    let listEl = document.getElementById('multi-variant-list');
+    listEl.innerHTML = '';
+    _multiVariantNames = names;
+
+    if (names.length === 0) {
+        listEl.innerHTML = '<div style="color:#888; font-size:13px; text-align:center; padding:14px 0;">Archyve nėra išsaugotų projektų. Pirma išsaugokite bent vieną variantą.</div>';
+    } else {
+        names.forEach((name, i) => {
+            let row = document.createElement('div');
+            row.style.cssText = "display:flex; align-items:center; gap:8px; padding:8px; border:1px solid #ddd; border-radius:4px; background:#f9f9f9;";
+
+            let cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.className = 'multi-check';
+            cb.dataset.idx = i;
+            cb.style.cssText = "width:18px; height:18px; flex-shrink:0; cursor:pointer;";
+
+            let label = document.createElement('strong');
+            label.textContent = name;
+            label.style.cssText = "flex-grow:1; font-size:13px; color:#333; word-break:break-word;";
+
+            let discWrap = document.createElement('div');
+            discWrap.style.cssText = "display:flex; align-items:center; gap:4px; flex-shrink:0;";
+            let disc = document.createElement('input');
+            disc.type = 'number';
+            disc.className = 'multi-disc';
+            disc.dataset.idx = i;
+            disc.min = '0'; disc.max = '100';
+            disc.placeholder = '0';
+            disc.style.cssText = "width:54px; padding:5px; border:1px solid #ccc; border-radius:4px; text-align:center; font-size:13px;";
+            let pct = document.createElement('span');
+            pct.textContent = '% nuol.';
+            pct.style.cssText = "font-size:11px; color:#666;";
+            discWrap.appendChild(disc); discWrap.appendChild(pct);
+
+            row.appendChild(cb); row.appendChild(label); row.appendChild(discWrap);
+            listEl.appendChild(row);
+        });
+    }
+
+    document.getElementById('multi-client-term').value = appSettings.prodTerm || '';
+    document.getElementById('multi-client-delivery').value = appSettings.deliveryNote || '';
+    document.getElementById('multi-client-additional').value = appSettings.additionalInfo || '';
+
+    document.getElementById('archive-modal').style.display = 'none';
+    document.getElementById('multi-modal').style.display = 'flex';
+}
+
+async function generateMultiVariantPDF() {
+    let archive = getArchive();
+
+    let selected = [];
+    document.querySelectorAll('.multi-check').forEach(cb => {
+        if (!cb.checked) return;
+        let idx = parseInt(cb.dataset.idx);
+        let name = _multiVariantNames[idx];
+        let discInput = document.querySelector(`.multi-disc[data-idx="${idx}"]`);
+        let disc = parseInt(discInput && discInput.value) || 0;
+        if (disc < 0) disc = 0;
+        if (disc > 100) disc = 100;
+        if (name && archive[name] && archive[name].length > 0) {
+            selected.push({ name: name, modules: archive[name], discount: disc });
+        }
+    });
+
+    if (selected.length === 0) { alert('Pažymėkite bent vieną variantą.'); return; }
+
+    let sharedClient = {
+        name: document.getElementById('multi-client-name').value.trim(),
+        addr: document.getElementById('multi-client-address').value.trim(),
+        designer: document.getElementById('multi-client-designer').value.trim(),
+        fabric: document.getElementById('multi-client-fabric').value.trim(),
+        groupText: document.getElementById('fabric-group-select').options[document.getElementById('fabric-group-select').selectedIndex].text
+    };
+    let term = document.getElementById('multi-client-term').value.trim();
+    let delivery = document.getElementById('multi-client-delivery').value.trim();
+    let additional = document.getElementById('multi-client-additional').value.trim();
+
+    // Įsimenam dabartinį darbą, kad po generavimo viską atstatytume
+    let savedCurrent = Array.from(document.querySelectorAll('.canvas-module')).map(m => ({
+        id:m.dataset.id, n:m.dataset.name, p:m.dataset.price, c:m.dataset.collection, w:m.dataset.w, h:m.dataset.h,
+        l:(parseFloat(m.style.left)||0)/scale, t:(parseFloat(m.style.top)||0)/scale,
+        a:m.dataset.angle, z:m.style.zIndex, exp:m.dataset.isExpanded
+    }));
+    let savedPanX = currentPanX, savedPanY = currentPanY;
+
+    document.getElementById('multi-modal').style.display = 'none';
+    selectModule(null);
+    document.querySelectorAll('.dynamic-bb').forEach(e => e.style.display = 'none');
+    document.getElementById('zoom-controls').style.display = 'none';
+    document.getElementById('dimension-display').style.display = 'none';
+
+    const pdfTemplate = document.getElementById('pdf-template');
+    const pdfSofaImg = document.getElementById('pdf-sofa-img');
+    const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+    try {
+        for (let i = 0; i < selected.length; i++) {
+            let v = selected[i];
+
+            restoreState(v.modules, false);
+            await new Promise(r => setTimeout(r, 120));
+
+            let cap = await _captureCanvasSofaImage();
+            if (!cap) continue;
+
+            const modules = Array.from(document.querySelectorAll('.canvas-module'));
+            const isMixed = new Set(modules.map(m => m.dataset.collection)).size > 1;
+            let counts = {}, total = 0;
+            modules.forEach(m => {
+                let dName = getDisplayName({collection:m.dataset.collection, name:m.dataset.name}, isMixed);
+                let price = getModulePrice(m.dataset.collection, m.dataset.id);
+                if (!counts[dName]) counts[dName] = { qty:0, price:price };
+                counts[dName].qty++; total += price;
+            });
+            const uniqueCollections = Array.from(new Set(modules.map(m => m.dataset.collection.toUpperCase())));
+            const chainText = generateModuleChainText(modules, isMixed);
+
+            let cInfoHtml = "";
+            if (sharedClient.name) cInfoHtml += `<b>Klientas:</b> ${escapeHtml(sharedClient.name)}<br>`;
+            if (sharedClient.addr) cInfoHtml += `<b>Adresas:</b> ${escapeHtml(sharedClient.addr)}<br>`;
+            if (sharedClient.designer) cInfoHtml += `<b>Dizaineris:</b> ${escapeHtml(sharedClient.designer)}<br>`;
+            if (sharedClient.fabric) cInfoHtml += `<b>Audinys:</b> ${escapeHtml(sharedClient.fabric)}<br>`;
+            if (sharedClient.groupText && sharedClient.groupText !== "I Grupė (Bazinė)") cInfoHtml += `<b>Audinio grupė:</b> ${escapeHtml(sharedClient.groupText)}<br>`;
+            document.getElementById('pdf-client-info').innerHTML = cInfoHtml;
+
+            document.getElementById('pdf-main-title').innerText = v.name;
+            document.getElementById('pdf-date').innerText = `Data: ${dateStr}  |  Variantas ${i+1} iš ${selected.length}`;
+
+            const tbody = document.getElementById('pdf-table-body');
+            tbody.innerHTML = '';
+            for (let n in counts) {
+                let it = counts[n];
+                tbody.innerHTML += `<tr><td style="padding:6px 8px; border-bottom:1px solid #eee;">${escapeHtml(n)}</td><td style="text-align:center; padding:6px 8px; border-bottom:1px solid #eee;">${it.qty} vnt.</td><td style="text-align:right; padding:6px 8px; border-bottom:1px solid #eee;"><b>${it.price * it.qty} €</b></td></tr>`;
+            }
+
+            if (cap.dimsHtml) {
+                document.getElementById('pdf-dimensions').innerHTML = cap.dimsHtml;
+                document.getElementById('pdf-dimensions').style.display = 'block';
+            } else {
+                document.getElementById('pdf-dimensions').innerHTML = "";
+                document.getElementById('pdf-dimensions').style.display = 'none';
+            }
+
+            let finalTotal = total;
+            let discountInfoText = '';
+            if (v.discount > 0) {
+                finalTotal = total - Math.round(total * (v.discount / 100));
+                document.getElementById('pdf-discount-text').style.display = 'block';
+                document.getElementById('pdf-discount-text').innerText = `Bazinė kaina: ${total} €`;
+                discountInfoText = `• <b style="color:#d9534f;">Pritaikyta ${v.discount}% nuolaida</b>`;
+            } else {
+                document.getElementById('pdf-discount-text').style.display = 'none';
+            }
+            let bePVM = (finalTotal / 1.21).toFixed(2);
+            let pvmSuma = (finalTotal - bePVM).toFixed(2);
+            document.getElementById('pdf-price-breakdown').innerHTML = `
+                <div style="font-size:10px; color:#555; margin-bottom:2px;">Suma be PVM: <b>${bePVM.replace('.', ',')} €</b></div>
+                <div style="font-size:10px; color:#555; margin-bottom:4px;">PVM (21%): <b>${pvmSuma.replace('.', ',')} €</b></div>
+                <div style="font-size:16px; font-weight:bold; color:#111; border-top: 2px solid #333; padding-top: 4px;">Viso su PVM: ${finalTotal} €</div>`;
+
+            let addInfoHtml = additional ? `• ${escapeHtml(additional)}<br>` : '';
+            document.getElementById('pdf-terms').innerHTML = `<b style="color:#111;">Pasiūlymo sąlygos:</b><br>• Preliminarus gamybos terminas: <b>${escapeHtml(term)}</b><br>• Pristatymas: <b>${escapeHtml(delivery)}</b><br>${addInfoHtml}${discountInfoText}`;
+
+            document.getElementById('pdf-module-chain').innerText = "Kolekcija: " + uniqueCollections.join(' + ') + " | Specifikacija: " + chainText;
+
+            pdfTemplate.style.display = 'flex';
+            pdfSofaImg.src = cap.imgData;
+            const PDF_PX_PER_CM = 1.65;
+            pdfSofaImg.style.width = '';
+            pdfSofaImg.style.height = '';
+            const pdfImgBox = document.querySelector('.pdf-image-box');
+            const availW = pdfImgBox.clientWidth, availH = pdfImgBox.clientHeight;
+            const targetW = cap.imgCmW * PDF_PX_PER_CM, targetH = cap.imgCmH * PDF_PX_PER_CM;
+            const fitScale = Math.min(1, availW / targetW, availH / targetH);
+            pdfSofaImg.style.width = (targetW * fitScale) + 'px';
+            pdfSofaImg.style.height = (targetH * fitScale) + 'px';
+
+            try { await pdfSofaImg.decode(); } catch (e) {}
+            await new Promise(r => setTimeout(r, 60));
+
+            const finalCanvas = await html2canvas(pdfTemplate, { scale: 2, useCORS: true });
+            if (i > 0) pdf.addPage();
+            pdf.addImage(finalCanvas.toDataURL('image/jpeg', 0.98), 'JPEG', 0, 0, 210, 297);
+        }
+
+        let safeName = sharedClient.name ? sharedClient.name.replace(/[^\w\-]+/g, '_') : '';
+        pdf.save(safeName ? `Houmy_Pasiulymas_${safeName}.pdf` : 'Houmy_Pasiulymas_Variantai.pdf');
+
+    } catch (e) {
+        console.error('Klaida generuojant kelių variantų PDF', e);
+        alert('Įvyko klaida generuojant PDF. Bandykite dar kartą.');
+    } finally {
+        pdfTemplate.style.display = 'none';
+        restoreState(savedCurrent, false);
+        currentPanX = savedPanX; currentPanY = savedPanY;
+        document.getElementById('canvas-wrapper').style.transform = `translate(${currentPanX}px, ${currentPanY}px)`;
+        document.getElementById('workspace').style.backgroundPosition = `${currentPanX}px ${currentPanY}px`;
+        document.getElementById('zoom-controls').style.display = 'flex';
+        document.getElementById('dimension-display').style.display = 'block';
+        setTimeout(() => { updateDimensions(); }, 60);
+    }
+}
