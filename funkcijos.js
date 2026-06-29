@@ -1413,12 +1413,37 @@ async function generatePDFWithDetails() {
     try { await pdfSofaImg.decode(); } catch (e) {}
     await new Promise(r => setTimeout(r, 60));
     
-    await html2canvas(pdfTemplate, { scale: 2, useCORS: true }).then(finalCanvas => { 
-        const pdf = new jspdf.jsPDF('p', 'mm', 'a4'); 
-        pdf.addImage(finalCanvas.toDataURL('image/jpeg', 0.98), 'JPEG', 0, 0, 210, 297); 
-        pdf.save(pName ? `Houmy_Pasiulymas_${pName.replace(/\s+/g, '_')}.pdf` : 'Houmy_Pasiulymas.pdf'); 
-    }); 
-    pdfTemplate.style.display = 'none'; 
+    // Vietoj „fotografavimo" (html2canvas → paveikslėlis) atidarome naršyklės spausdinimą.
+    // Vartotojas pasirenka „Išsaugoti kaip PDF" ir gauna PDF su tikru, kopijuojamu tekstu
+    // bei teisingomis lietuviškomis raidėmis. Atrodo lygiai kaip dabartinis šablonas.
+    ensurePrintStyles();
+    let origTitle = document.title;
+    document.title = pName ? `Houmy_Pasiulymas_${pName.replace(/\s+/g, '_')}` : 'Houmy_Pasiulymas';
+    let cleanup = () => {
+        pdfTemplate.style.display = 'none';
+        document.title = origTitle;
+        window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    window.print();
+}
+
+// Vienkartinis spausdinimo stilius: spausdinant rodomas TIK pasiūlymo šablonas, A4 formatu.
+function ensurePrintStyles() {
+    if (document.getElementById('houmy-print-style')) return;
+    let s = document.createElement('style');
+    s.id = 'houmy-print-style';
+    s.textContent =
+'@media print {' +
+'  body * { visibility: hidden !important; }' +
+'  #pdf-template, #pdf-template * { visibility: visible !important; }' +
+'  #pdf-template { position: absolute !important; top: 0 !important; left: 0 !important;' +
+'    width: 794px !important; height: 1123px !important; margin: 0 !important; padding: 25px !important;' +
+'    box-shadow: none !important; z-index: 0 !important; overflow: hidden !important; display: flex !important; }' +
+'  html, body { height: auto !important; overflow: visible !important; background: #fff !important; }' +
+'}' +
+'@page { size: A4; margin: 0; }';
+    document.head.appendChild(s);
 }
 
 function openBlueprintModal() {
