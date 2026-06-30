@@ -1418,7 +1418,18 @@ async function generatePDFWithDetails() {
     // bei teisingomis lietuviškomis raidėmis. Atrodo lygiai kaip dabartinis šablonas.
     ensurePrintStyles();
     let origTitle = document.title;
-    document.title = pName ? `Houmy_Pasiulymas_${pName.replace(/\s+/g, '_')}` : 'Houmy_Pasiulymas';
+    // Failo vardas: 1) „Vardas pavardė / įmonė", 2) „Projekto pavadinimas", 3) numatytasis.
+    // Visada pridedama esamos dienos data. Neleidžiami simboliai išvalomi, tarpai -> _.
+    let _cleanName = (s) => (s || '')
+        .replace(/[\/\\:*?"<>|]/g, '')
+        .replace(/\s+/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 60);
+    let _d = new Date();
+    let _dateStr = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;
+    let _baseName = _cleanName(cName) || _cleanName(pName) || 'Houmy_Pasiulymas';
+    document.title = `${_baseName}_${_dateStr}`;
     let cleanup = () => {
         pdfTemplate.style.display = 'none';
         document.title = origTitle;
