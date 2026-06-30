@@ -1421,10 +1421,12 @@ async function generatePDFWithDetails() {
     // Failo vardas: 1) „Vardas pavardė / įmonė", 2) „Projekto pavadinimas", 3) numatytasis.
     // Visada pridedama esamos dienos data. Neleidžiami simboliai išvalomi, tarpai -> _.
     let _cleanName = (s) => (s || '')
-        .replace(/[\/\\:*?"<>|]/g, '')
+        .replace(/[\/\\]/g, '-')
+        .replace(/[:*?"<>|]/g, '')
         .replace(/\s+/g, '_')
         .replace(/_+/g, '_')
-        .replace(/^_+|_+$/g, '')
+        .replace(/-+/g, '-')
+        .replace(/^[_-]+|[_-]+$/g, '')
         .slice(0, 60);
     let _d = new Date();
     let _dateStr = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;
