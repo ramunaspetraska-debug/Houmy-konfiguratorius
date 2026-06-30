@@ -1435,12 +1435,12 @@ function ensurePrintStyles() {
     s.id = 'houmy-print-style';
     s.textContent =
 '@media print {' +
-'  body * { visibility: hidden !important; }' +
-'  #pdf-template, #pdf-template * { visibility: visible !important; }' +
-'  #pdf-template { position: absolute !important; top: 0 !important; left: 0 !important;' +
-'    width: 794px !important; height: 1123px !important; margin: 0 !important; padding: 25px !important;' +
-'    box-shadow: none !important; z-index: 0 !important; overflow: hidden !important; display: flex !important; }' +
-'  html, body { height: auto !important; overflow: visible !important; background: #fff !important; }' +
+'  html, body { margin: 0 !important; padding: 0 !important; height: auto !important; min-height: 0 !important; overflow: visible !important; background: #fff !important; }' +
+'  body > *:not(#pdf-template) { display: none !important; }' +
+'  #pdf-template { position: static !important; top: auto !important; left: auto !important;' +
+'    width: 210mm !important; height: 296mm !important; margin: 0 auto !important; padding: 25px !important;' +
+'    box-sizing: border-box !important; box-shadow: none !important; z-index: auto !important;' +
+'    overflow: hidden !important; display: flex !important; }' +
 '}' +
 '@page { size: A4; margin: 0; }';
     document.head.appendChild(s);
