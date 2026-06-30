@@ -1418,22 +1418,13 @@ async function generatePDFWithDetails() {
     // bei teisingomis lietuviškomis raidėmis. Atrodo lygiai kaip dabartinis šablonas.
     ensurePrintStyles();
     let origTitle = document.title;
-    // Failo vardas: 1) „Vardas pavardė / įmonė", 2) „Projekto pavadinimas", 3) numatytasis.
-    // Visada pridedama esamos dienos data. Neleidžiami simboliai išvalomi, tarpai -> _.
-    let _cleanName = (s) => (s || '')
-        .replace(/[\/\\]/g, '-')
-        .replace(/[:*?"<>|]/g, '')
-        .replace(/\s+/g, '_')
-        .replace(/_+/g, '_')
-        .replace(/-+/g, '-')
-        .replace(/^[_-]+|[_-]+$/g, '')
-        .slice(0, 60);
-    let _d = new Date();
-    let _dateStr = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;
-    let _baseName = _cleanName(cName) || _cleanName(pName) || 'Houmy_Pasiulymas';
-    document.title = `${_baseName}_${_dateStr}`;
+    // Failo vardas: 1) „Vardas pavardė / įmonė", 2) „Projekto pavadinimas", 3) numatytasis; visada su data.
+    let _baseName = houmyCleanFileName(cName) || houmyCleanFileName(pName) || 'Houmy_Pasiulymas';
+    document.title = `${_baseName}_${houmyDateStr()}`;
+    document.body.classList.add('print-single');
     let cleanup = () => {
         pdfTemplate.style.display = 'none';
+        document.body.classList.remove('print-single');
         document.title = origTitle;
         window.removeEventListener('afterprint', cleanup);
     };
@@ -1441,7 +1432,26 @@ async function generatePDFWithDetails() {
     window.print();
 }
 
-// Vienkartinis spausdinimo stilius: spausdinant rodomas TIK pasiūlymo šablonas, A4 formatu.
+// Bendras failo vardo valymas (sutarties nr. „26/70" -> „26-70", neleidžiami simboliai šalinami)
+function houmyCleanFileName(s) {
+    return (s || '')
+        .replace(/[\/\\]/g, '-')
+        .replace(/[:*?"<>|]/g, '')
+        .replace(/\s+/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/-+/g, '-')
+        .replace(/^[_-]+|[_-]+$/g, '')
+        .slice(0, 60);
+}
+function houmyDateStr() {
+    let d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Vienkartinis spausdinimo stilius. Trys režimai per <body> klasę:
+//   .print-single    – vienas komercinis pasiūlymas (A4)
+//   .print-multi     – keli variantai (po vieną A4 lapą kiekvienam)
+//   .print-blueprint – gamybos brėžinys
 function ensurePrintStyles() {
     if (document.getElementById('houmy-print-style')) return;
     let s = document.createElement('style');
@@ -1449,11 +1459,23 @@ function ensurePrintStyles() {
     s.textContent =
 '@media print {' +
 '  html, body { margin: 0 !important; padding: 0 !important; height: auto !important; min-height: 0 !important; overflow: visible !important; background: #fff !important; }' +
-'  body > *:not(#pdf-template) { display: none !important; }' +
-'  #pdf-template { position: static !important; top: auto !important; left: auto !important;' +
+/* --- vienas pasiūlymas --- */
+'  body.print-single > *:not(#pdf-template) { display: none !important; }' +
+'  body.print-single #pdf-template { position: static !important; top: auto !important; left: auto !important;' +
 '    width: 210mm !important; height: 296mm !important; margin: 0 auto !important; padding: 25px !important;' +
-'    box-sizing: border-box !important; box-shadow: none !important; z-index: auto !important;' +
-'    overflow: hidden !important; display: flex !important; }' +
+'    box-sizing: border-box !important; box-shadow: none !important; z-index: auto !important; overflow: hidden !important; display: flex !important; }' +
+/* --- keli variantai: po vieną A4 lapą --- */
+'  body.print-multi > *:not(#multi-print-container) { display: none !important; }' +
+'  body.print-multi #multi-print-container { display: block !important; }' +
+'  body.print-multi .pdf-print-page { width: 210mm !important; height: 296mm !important; margin: 0 auto !important; padding: 25px !important;' +
+'    box-sizing: border-box !important; display: flex !important; flex-direction: column !important; overflow: hidden !important;' +
+'    box-shadow: none !important; background: #fff !important; color: #333 !important; font-family: Arial, sans-serif !important; page-break-after: always; }' +
+'  body.print-multi .pdf-print-page:last-child { page-break-after: auto; }' +
+/* --- gamybos brėžinys --- */
+'  body.print-blueprint > *:not(#blueprint-template) { display: none !important; }' +
+'  body.print-blueprint #blueprint-template { position: static !important; top: auto !important; left: auto !important;' +
+'    width: 100% !important; max-width: 190mm !important; margin: 0 auto !important; padding: 8mm !important;' +
+'    box-sizing: border-box !important; box-shadow: none !important; z-index: auto !important; display: flex !important; }' +
 '}' +
 '@page { size: A4; margin: 0; }';
     document.head.appendChild(s);
@@ -1600,13 +1622,22 @@ async function executeExportBlueprint() {
     try { if (bpSofaImg) await bpSofaImg.decode(); } catch (e) {}
     await new Promise(r => setTimeout(r, 60));
     
-    await html2canvas(bpTemplate, { scale: 2, useCORS: true }).then(finalCanvas => { 
-        let link = document.createElement('a'); 
-        link.download = 'Houmy_Production_Blueprint.jpg'; 
-        link.href = finalCanvas.toDataURL('image/jpeg', 0.9); 
-        link.click(); 
-    }); 
-    bpTemplate.style.display = 'none'; 
+    // Vietoj JPG paveikslėlio – naršyklės spausdinimas: galima išsaugoti kaip PDF su kopijuojamu tekstu.
+    ensurePrintStyles();
+    let _bpOrigTitle = document.title;
+    let _bpBase = houmyCleanFileName(document.getElementById('project-name').value)
+        || houmyCleanFileName(document.getElementById('client-name').value)
+        || 'Houmy';
+    document.title = `${_bpBase}_Brezinys_${houmyDateStr()}`;
+    document.body.classList.add('print-blueprint');
+    let _bpCleanup = () => {
+        bpTemplate.style.display = 'none';
+        document.body.classList.remove('print-blueprint');
+        document.title = _bpOrigTitle;
+        window.removeEventListener('afterprint', _bpCleanup);
+    };
+    window.addEventListener('afterprint', _bpCleanup);
+    window.print();
 }
 
 function shareConfiguration() {
@@ -2217,7 +2248,14 @@ async function generateMultiVariantPDF() {
 
     const pdfTemplate = document.getElementById('pdf-template');
     const pdfSofaImg = document.getElementById('pdf-sofa-img');
-    const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+    ensurePrintStyles();
+    // Konteineris, į kurį dėsime po vieną A4 lapą kiekvienam variantui (spausdinimui).
+    let printContainer = document.getElementById('multi-print-container');
+    if (printContainer) printContainer.remove();
+    printContainer = document.createElement('div');
+    printContainer.id = 'multi-print-container';
+    printContainer.style.display = 'none';
+    document.body.appendChild(printContainer);
     const today = new Date();
     const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
 
@@ -2317,17 +2355,40 @@ async function generateMultiVariantPDF() {
             try { await pdfSofaImg.decode(); } catch (e) {}
             await new Promise(r => setTimeout(r, 60));
 
-            const finalCanvas = await html2canvas(pdfTemplate, { scale: 2, useCORS: true });
-            if (i > 0) pdf.addPage();
-            pdf.addImage(finalCanvas.toDataURL('image/jpeg', 0.98), 'JPEG', 0, 0, 210, 297);
+            // Vietoj „fotografavimo" – nukopijuojam užpildytą šabloną kaip atskirą A4 lapą.
+            let page = pdfTemplate.cloneNode(true);
+            page.removeAttribute('id');            // kad neliktų #pdf-template (paslėpto) stilių
+            page.classList.add('pdf-print-page');  // A4 lapo stilius spausdinant
+            page.style.display = 'flex';
+            page.style.position = 'static';
+            page.style.top = 'auto';
+            page.style.left = 'auto';
+            printContainer.appendChild(page);
         }
 
-        let safeName = sharedClient.name ? sharedClient.name.replace(/[^\w\-]+/g, '_') : '';
-        pdf.save(safeName ? `Houmy_Pasiulymas_${safeName}.pdf` : 'Houmy_Pasiulymas_Variantai.pdf');
+        pdfTemplate.style.display = 'none';
+
+        // Failo vardas: kliento vardas (iš kelių variantų lango) arba numatytasis; visada su data.
+        let _mvBase = houmyCleanFileName(sharedClient.name) || 'Houmy_Pasiulymas_Variantai';
+        let _mvOrigTitle = document.title;
+        document.title = `${_mvBase}_${dateStr}`;
+        let _mvCleanup = () => {
+            let c = document.getElementById('multi-print-container');
+            if (c) c.remove();
+            document.body.classList.remove('print-multi');
+            document.title = _mvOrigTitle;
+            window.removeEventListener('afterprint', _mvCleanup);
+        };
+        window.addEventListener('afterprint', _mvCleanup);
+        document.body.classList.add('print-multi');
+        window.print();
 
     } catch (e) {
-        console.error('Klaida generuojant kelių variantų PDF', e);
-        alert('Įvyko klaida generuojant PDF. Bandykite dar kartą.');
+        console.error('Klaida ruošiant kelių variantų pasiūlymą', e);
+        alert('Įvyko klaida. Bandykite dar kartą.');
+        let c = document.getElementById('multi-print-container');
+        if (c) c.remove();
+        document.body.classList.remove('print-multi');
     } finally {
         pdfTemplate.style.display = 'none';
         restoreState(savedCurrent, false);
