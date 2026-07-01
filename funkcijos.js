@@ -97,10 +97,36 @@ function getDisplayName(modData, isMixed) {
     return isMixed ? `${modData.collection.toUpperCase()} ${modData.name}` : modData.name;
 }
 
+// Sudėlioja modulius „skaitymo tvarka": iš viršaus į apačią eilutėmis,
+// o kiekvienoje eilutėje iš kairės į dešinę. Taip L/U formų vertikalios dalys
+// eina teisinga tvarka (viršus -> apačia), o ne pagal įdėjimo eiliškumą.
+function orderModulesReadingOrder(mods) {
+    let arr = mods.map(m => {
+        let w = parseFloat(m.style.width) || 0;
+        let h = parseFloat(m.style.height) || 0;
+        let left = parseFloat(m.style.left) || 0;
+        let top = parseFloat(m.style.top) || 0;
+        return { m: m, cx: left + w / 2, cy: top + h / 2, h: h };
+    });
+    if (arr.length <= 1) return arr.map(o => o.m);
+    let avgH = arr.reduce((s, o) => s + o.h, 0) / arr.length;
+    let tol = Math.max(20, avgH * 0.5); // eilučių atskyrimo slenkstis
+    arr.sort((a, b) => a.cy - b.cy);
+    let rows = [], cur = [arr[0]];
+    for (let i = 1; i < arr.length; i++) {
+        if (arr[i].cy - arr[i - 1].cy <= tol) cur.push(arr[i]);
+        else { rows.push(cur); cur = [arr[i]]; }
+    }
+    rows.push(cur);
+    let ordered = [];
+    rows.forEach(r => { r.sort((a, b) => a.cx - b.cx); r.forEach(o => ordered.push(o.m)); });
+    return ordered;
+}
+
 function generateModuleChainText(modules, isMixed) {
     if (!modules || modules.length === 0) return "";
     if (!isMixed) {
-        let sorted = [...modules].sort((a,b) => parseFloat(a.style.left) - parseFloat(b.style.left));
+        let sorted = orderModulesReadingOrder(modules);
         return sorted.map(m => m.dataset.name).join(' + ');
     } else {
         let collections = {};
@@ -111,7 +137,7 @@ function generateModuleChainText(modules, isMixed) {
         });
         let chainParts = [];
         for (let col in collections) {
-            let sorted = collections[col].sort((a,b) => parseFloat(a.style.left) - parseFloat(b.style.left));
+            let sorted = orderModulesReadingOrder(collections[col]);
             chainParts.push(sorted.map(m => `${col.toUpperCase()} ${m.dataset.name}`).join(' + '));
         }
         return chainParts.join('  |  ');
