@@ -1851,7 +1851,7 @@ colorStyle.innerHTML = `
 
     @media (max-width: 768px) {
         .desktop-color-picker { display: none !important; }
-        #mobile-color-fab { display: block; }
+        #mobile-color-fab { display: none; }
     }
 `;
 document.head.appendChild(colorStyle);
@@ -2021,4 +2021,4 @@ if (sharedStateNew || sharedStateOld) {
             modelSelect.style.display = 'none';
             const collectionLabel = document.createElement('div');
             collectionLabel.style.cssText = "font-weight: bold; padding: 8px; background: #eef5ff; border: 1px solid #b8daff; border-radius: 4px; margin-bottom: 12px; text-transform: uppercase; text-align: center; color: #007bff; font-size: 13px;";
-     
+      
