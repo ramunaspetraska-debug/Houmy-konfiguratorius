@@ -100,24 +100,78 @@ function getDisplayName(modData, isMixed) {
 // Sudėlioja modulius „skaitymo tvarka": iš viršaus į apačią eilutėmis,
 // o kiekvienoje eilutėje iš kairės į dešinę. Taip L/U formų vertikalios dalys
 // eina teisinga tvarka (viršus -> apačia), o ne pagal įdėjimo eiliškumą.
+// Sudėlioja modulius sekant sofos grandinę: nuo kairiojo (o jei lygu – viršutinio)
+// laisvo galo iki kito galo. Taip L/U/tiesios sofos skaitomos taip, kaip fiziškai eina
+// moduliai. Jei išdėstymas ne paprasta grandinė (šakojasi, atsijungęs, žiedas) –
+// grįžtama prie „eilučių" skaitymo (iš viršaus į apačią, kairė -> dešinė).
 function orderModulesReadingOrder(mods) {
-    let arr = mods.map(m => {
-        let w = parseFloat(m.style.width) || 0;
-        let h = parseFloat(m.style.height) || 0;
-        let left = parseFloat(m.style.left) || 0;
-        let top = parseFloat(m.style.top) || 0;
-        return { m: m, cx: left + w / 2, cy: top + h / 2, h: h };
+    let n = mods.length;
+    if (n <= 1) return mods.slice();
+
+    // Kiekvieno modulio ribos (įvertinant pasukimą) ir centras.
+    let B = mods.map(m => {
+        let w = parseFloat(m.style.width) || 0, h = parseFloat(m.style.height) || 0;
+        let left = parseFloat(m.style.left) || 0, top = parseFloat(m.style.top) || 0;
+        let ang = ((parseFloat(m.dataset.angle) || 0)) * Math.PI / 180;
+        let cx = left + w / 2, cy = top + h / 2;
+        let hw = Math.abs((w / 2) * Math.cos(ang)) + Math.abs((h / 2) * Math.sin(ang));
+        let hh = Math.abs((w / 2) * Math.sin(ang)) + Math.abs((h / 2) * Math.cos(ang));
+        return { m: m, cx: cx, cy: cy, left: cx - hw, right: cx + hw, top: cy - hh, bottom: cy + hh, w: hw * 2, h: hh * 2 };
     });
-    if (arr.length <= 1) return arr.map(o => o.m);
-    let avgH = arr.reduce((s, o) => s + o.h, 0) / arr.length;
-    let tol = Math.max(20, avgH * 0.5); // eilučių atskyrimo slenkstis
-    arr.sort((a, b) => a.cy - b.cy);
-    let rows = [], cur = [arr[0]];
-    for (let i = 1; i < arr.length; i++) {
-        if (arr[i].cy - arr[i - 1].cy <= tol) cur.push(arr[i]);
-        else { rows.push(cur); cur = [arr[i]]; }
+
+    // Du moduliai – kaimynai, jei jų kraštinės susiliečia (mažas tarpas) IR jie pakankamai
+    // persidengia statmena ašimi (kad kampu besiliečiantys nebūtų laikomi kaimynais).
+    function adjacent(a, b) {
+        let ovX = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        let ovY = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        let hGap = Math.min(Math.abs(a.right - b.left), Math.abs(b.right - a.left));
+        if (ovY > 0.25 * Math.min(a.h, b.h) && hGap <= 0.5 * Math.min(a.w, b.w)) return true;
+        let vGap = Math.min(Math.abs(a.bottom - b.top), Math.abs(b.bottom - a.top));
+        if (ovX > 0.25 * Math.min(a.w, b.w) && vGap <= 0.5 * Math.min(a.h, b.h)) return true;
+        return false;
     }
-    rows.push(cur);
+
+    // Gretimumo grafas
+    let adj = B.map(() => []);
+    for (let i = 0; i < n; i++)
+        for (let j = i + 1; j < n; j++)
+            if (adjacent(B[i], B[j])) { adj[i].push(j); adj[j].push(i); }
+
+    // Ar tai paprasta grandinė? (visi laipsniai <= 2, tiksliai 2 galai, viskas sujungta)
+    let deg = adj.map(a => a.length);
+    let endpoints = [], branched = false;
+    for (let i = 0; i < n; i++) {
+        if (deg[i] > 2) branched = true;
+        if (deg[i] === 1) endpoints.push(i);
+    }
+    // Jungumo patikra (BFS)
+    let seen = new Array(n).fill(false), stack = [0], cnt = 0;
+    seen[0] = true;
+    while (stack.length) { let x = stack.pop(); cnt++; adj[x].forEach(y => { if (!seen[y]) { seen[y] = true; stack.push(y); } }); }
+    let connected = (cnt === n);
+
+    if (!branched && endpoints.length === 2 && connected) {
+        // Pradžia – kairiausias galas (jei lygu – viršutinis).
+        let start = endpoints.sort((a, b) => (B[a].cx - B[b].cx) || (B[a].cy - B[b].cy))[0];
+        let order = [], visited = new Set(), cur = start;
+        while (cur !== undefined && !visited.has(cur)) {
+            visited.add(cur);
+            order.push(cur);
+            cur = adj[cur].find(x => !visited.has(x));
+        }
+        if (order.length === n) return order.map(i => B[i].m);
+    }
+
+    // ATSARGINIS variantas: skaitymas eilutėmis (iš viršaus į apačią, kairė -> dešinė).
+    let avgH = B.reduce((s, o) => s + o.h, 0) / n;
+    let tol = Math.max(20, avgH * 0.5);
+    let arr = B.slice().sort((a, b) => a.cy - b.cy);
+    let rows = [], row = [arr[0]];
+    for (let i = 1; i < arr.length; i++) {
+        if (arr[i].cy - arr[i - 1].cy <= tol) row.push(arr[i]);
+        else { rows.push(row); row = [arr[i]]; }
+    }
+    rows.push(row);
     let ordered = [];
     rows.forEach(r => { r.sort((a, b) => a.cx - b.cx); r.forEach(o => ordered.push(o.m)); });
     return ordered;
