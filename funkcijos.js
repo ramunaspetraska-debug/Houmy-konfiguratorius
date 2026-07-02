@@ -423,12 +423,49 @@ function updateOrderSummary() {
     totalPriceEl.innerText = total;
 }
 
-// Nustato, kurios pusės yra sofos „nugara" (kur atlošai), pagal sėdimųjų modulių atsukimą.
-// Sėdimojo/šezlongo atlošas bazinėje padėtyje yra viršuje: kryptis (0,-1), pasukama modulio kampu.
-// Porankiai (isArmrest) ir pufai (PF...) atlošo neturi – į balsavimą neįtraukiami.
-// Grąžina, ar pločio matmuo rodomas viršuje ir ar gylio – kairėje. Jei balsų nėra – numatytoji
-// padėtis (viršus + dešinė), kad niekada nesugriūtų.
+// Nustato, kurios pusės yra sofos „nugara" (kur baldas statomas prie sienos).
+// PAGRINDINIS būdas – geometrinis: L formos „įpjova" (tuščias gabaritinio stačiakampio
+// kampas) rodo priekį/kambario pusę, o nugaros yra dvi priešingos pusės. Veikia
+// nepriklausomai nuo to, ar moduliai pasukti. ATSARGINIS – pagal atlošų atsukimą (tiesioms
+// sofoms be įpjovos). Jei nieko – numatytoji padėtis (viršus + dešinė), kad nesugriūtų.
 function detectBackSides(groupModules) {
+    if (!groupModules || groupModules.length === 0) return { widthOnTop: true, depthOnLeft: false };
+
+    // Modulių ašims lygiagretūs stačiakampiai (90° pasukimai duoda tikslų stačiakampį).
+    let sc = (typeof scale !== 'undefined' && scale) ? scale : 1;
+    let rects = groupModules.map(m => {
+        let angle = (parseInt(m.dataset.angle) || 0) * Math.PI / 180;
+        let dx = parseFloat(m.dataset.w) * sc / 2, dy = parseFloat(m.dataset.h) * sc / 2;
+        let cx = parseFloat(m.style.left) + parseFloat(m.style.width) / 2;
+        let cy = parseFloat(m.style.top) + parseFloat(m.style.height) / 2;
+        let xs = [], ys = [];
+        [{ x: -dx, y: -dy }, { x: dx, y: -dy }, { x: dx, y: dy }, { x: -dx, y: dy }].forEach(c => {
+            xs.push(cx + c.x * Math.cos(angle) - c.y * Math.sin(angle));
+            ys.push(cy + c.x * Math.sin(angle) + c.y * Math.cos(angle));
+        });
+        return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+    });
+    let bMinX = Math.min(...rects.map(r => r.minX)), bMaxX = Math.max(...rects.map(r => r.maxX));
+    let bMinY = Math.min(...rects.map(r => r.minY)), bMaxY = Math.max(...rects.map(r => r.maxY));
+    let w = bMaxX - bMinX, h = bMaxY - bMinY;
+    let inset = Math.max(6, Math.min(w, h) * 0.15);
+    let covered = (px, py) => rects.some(r => px >= r.minX - 1 && px <= r.maxX + 1 && py >= r.minY - 1 && py <= r.maxY + 1);
+    let empty = {
+        TL: !covered(bMinX + inset, bMinY + inset),
+        TR: !covered(bMaxX - inset, bMinY + inset),
+        BL: !covered(bMinX + inset, bMaxY - inset),
+        BR: !covered(bMaxX - inset, bMaxY - inset)
+    };
+    let empties = Object.keys(empty).filter(k => empty[k]);
+    if (empties.length === 1) {
+        let e = empties[0];
+        return {
+            widthOnTop: (e === 'BL' || e === 'BR'),   // tuščias apačioje -> plotis viršuje (nugara)
+            depthOnLeft: (e === 'TR' || e === 'BR')     // tuščias dešinėje -> gylis kairėje (nugara)
+        };
+    }
+
+    // ATSARGINIS: pagal atlošus (tiesioms sofoms). Atlošas bazėje (0,-1), pasukamas kampu.
     let up = 0, down = 0, left = 0, right = 0;
     groupModules.forEach(m => {
         let base = (typeof rawModels !== 'undefined' && rawModels[m.dataset.collection])
@@ -436,8 +473,7 @@ function detectBackSides(groupModules) {
         let isPuff = /^pf/i.test(m.dataset.id || '') || /^pf/i.test(m.dataset.name || '');
         if ((base && base.isArmrest) || isPuff) return;
         let ang = (parseInt(m.dataset.angle) || 0) * Math.PI / 180;
-        let bx = Math.sin(ang);   // (0,-1) pasukta kampu
-        let by = -Math.cos(ang);
+        let bx = Math.sin(ang), by = -Math.cos(ang);
         if (Math.abs(bx) > Math.abs(by)) { if (bx > 0) right++; else left++; }
         else { if (by > 0) down++; else up++; }
     });
