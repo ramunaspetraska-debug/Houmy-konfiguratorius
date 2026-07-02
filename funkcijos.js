@@ -429,7 +429,7 @@ function updateOrderSummary() {
 // nepriklausomai nuo to, ar moduliai pasukti. ATSARGINIS – pagal atlošų atsukimą (tiesioms
 // sofoms be įpjovos). Jei nieko – numatytoji padėtis (viršus + dešinė), kad nesugriūtų.
 function detectBackSides(groupModules) {
-    if (!groupModules || groupModules.length === 0) return { widthOnTop: true, depthOnLeft: false };
+    if (!groupModules || groupModules.length === 0) return { widthOnTop: true, depthOnLeft: false, isLShape: false };
 
     // Modulių ašims lygiagretūs stačiakampiai (90° pasukimai duoda tikslų stačiakampį).
     let sc = (typeof scale !== 'undefined' && scale) ? scale : 1;
@@ -461,8 +461,27 @@ function detectBackSides(groupModules) {
         let e = empties[0];
         return {
             widthOnTop: (e === 'BL' || e === 'BR'),   // tuščias apačioje -> plotis viršuje (nugara)
-            depthOnLeft: (e === 'TR' || e === 'BR')     // tuščias dešinėje -> gylis kairėje (nugara)
+            depthOnLeft: (e === 'TR' || e === 'BR'),    // tuščias dešinėje -> gylis kairėje (nugara)
+            isLShape: true
         };
+    }
+
+    // U forma: kampai užimti, bet viena kraštinės vidurio anga („burna") tuščia.
+    if (empties.length === 0) {
+        let midX = (bMinX + bMaxX) / 2, midY = (bMinY + bMaxY) / 2;
+        let openings = [];
+        if (!covered(midX, bMinY + inset)) openings.push('top');
+        if (!covered(midX, bMaxY - inset)) openings.push('bottom');
+        if (!covered(bMinX + inset, midY)) openings.push('left');
+        if (!covered(bMaxX - inset, midY)) openings.push('right');
+        if (openings.length === 1) {
+            let o = openings[0];
+            return {
+                widthOnTop: o !== 'top',      // anga viršuje -> plotis apačioje (nugara)
+                depthOnLeft: o === 'right',    // anga dešinėje -> gylis kairėje
+                isLShape: false
+            };
+        }
     }
 
     // ATSARGINIS: pagal atlošus (tiesioms sofoms). Atlošas bazėje (0,-1), pasukamas kampu.
@@ -477,7 +496,7 @@ function detectBackSides(groupModules) {
         if (Math.abs(bx) > Math.abs(by)) { if (bx > 0) right++; else left++; }
         else { if (by > 0) down++; else up++; }
     });
-    return { widthOnTop: up >= down, depthOnLeft: left > right };
+    return { widthOnTop: up >= down, depthOnLeft: left > right, isLShape: false };
 }
 
 function updateDimensions() {
@@ -614,6 +633,35 @@ function updateDimensions() {
             
             svgContent += `<path d="M ${lineX} ${minY} L ${lineX} ${maxY}" stroke="#555" stroke-width="0.8" fill="none" marker-start="url(#tick)" marker-end="url(#tick)" />`;
             svgContent += `<text x="${textX}" y="${cy + 4}" transform="rotate(-90 ${textX} ${cy + 4})" fill="#333" font-size="10" font-weight="500" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="3">${totalH} cm</text>`;
+
+            // --- Papildomas GYLIO matmuo (modulio gylis) L formoms, trumpojoje pusėje ---
+            // Dedamas priešingoje pusėje nei aukščio linija, tolimajame gale, ir apima tik
+            // ten esančio modulio storį (nugaros gylį), pvz. ~110 cm.
+            if (back.isLShape) {
+                let depthOnRight = back.depthOnLeft; // aukštis kairėje -> gylis dešinėje (ir atvirkščiai)
+                let dRects = g.map(m => {
+                    let a = (parseInt(m.dataset.angle) || 0) * Math.PI / 180;
+                    let ddx = parseFloat(m.dataset.w) * scale / 2, ddy = parseFloat(m.dataset.h) * scale / 2;
+                    let mcx = parseFloat(m.style.left) + parseFloat(m.style.width) / 2, mcy = parseFloat(m.style.top) + parseFloat(m.style.height) / 2;
+                    let xs = [], ys = [];
+                    [{ x: -ddx, y: -ddy }, { x: ddx, y: -ddy }, { x: ddx, y: ddy }, { x: -ddx, y: ddy }].forEach(c => { xs.push(mcx + c.x * Math.cos(a) - c.y * Math.sin(a)); ys.push(mcy + c.x * Math.sin(a) + c.y * Math.cos(a)); });
+                    return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+                });
+                let far = depthOnRight ? dRects.filter(r => r.maxX >= maxX - 2) : dRects.filter(r => r.minX <= minX + 2);
+                if (far.length) {
+                    let dMinY = Math.min(...far.map(r => r.minY)), dMaxY = Math.max(...far.map(r => r.maxY));
+                    let depthCm = Math.round((dMaxY - dMinY) / scale);
+                    let dOff = 20;
+                    let dLineX = depthOnRight ? (maxX + dOff) : (minX - dOff);
+                    let dEdgeX = depthOnRight ? maxX : minX;
+                    let dTextX = depthOnRight ? (dLineX + 14) : (dLineX - 14);
+                    let dExt = "stroke='#aaa' stroke-width='0.5' stroke-dasharray='4,4' fill='none'";
+                    svgContent += `<line x1="${dEdgeX}" y1="${dMinY}" x2="${dLineX}" y2="${dMinY}" ${dExt} />`;
+                    svgContent += `<line x1="${dEdgeX}" y1="${dMaxY}" x2="${dLineX}" y2="${dMaxY}" ${dExt} />`;
+                    svgContent += `<path d="M ${dLineX} ${dMinY} L ${dLineX} ${dMaxY}" stroke="#555" stroke-width="0.8" fill="none" marker-start="url(#tick)" marker-end="url(#tick)" />`;
+                    svgContent += `<text x="${dTextX}" y="${(dMinY + dMaxY) / 2 + 4}" transform="rotate(-90 ${dTextX} ${(dMinY + dMaxY) / 2 + 4})" fill="#333" font-size="10" font-weight="500" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="3">${depthCm} cm</text>`;
+                }
+            }
         }
     });
 
@@ -1912,628 +1960,4 @@ function changeSofaColor(hex) {
     document.documentElement.style.setProperty('--sofa-color', hex);
     
     document.querySelectorAll('.color-dot').forEach(d => {
-        if(d.dataset.hex === hex) {
-            d.classList.add('active');
-        } else {
-            d.classList.remove('active');
-        }
-    });
-
-    document.getElementById('mobile-color-modal').classList.remove('active');
-    document.getElementById('mobile-color-overlay').classList.remove('active');
-}
-
-// 1. DESKTOP VERSIJOS PALETĖ (Šoniniame meniu)
-const rightSidebarMenu = document.getElementById('sidebar-right');
-if (rightSidebarMenu) {
-    const desktopWrapper = document.createElement('div');
-    desktopWrapper.className = 'color-picker-wrapper desktop-color-picker';
-    
-    const title = document.createElement('div');
-    title.className = 'color-picker-title';
-    title.innerText = "Sofa / Audinio Spalva";
-    
-    const container = document.createElement('div');
-    container.className = 'color-picker-container';
-    
-    colors.forEach(c => {
-        const dot = document.createElement('div');
-        dot.className = 'color-dot' + (appSettings.fabricColor === c.hex ? ' active' : '');
-        dot.style.background = c.hex;
-        dot.title = c.name;
-        dot.dataset.hex = c.hex;
-        dot.onclick = () => changeSofaColor(c.hex);
-        container.appendChild(dot);
-    });
-
-    const customWrapper = document.createElement('div');
-    customWrapper.className = 'color-dot';
-    customWrapper.style.background = 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)';
-    customWrapper.title = 'Pasirinkti bet kokią spalvą (sava spalva)';
-    customWrapper.style.position = 'relative';
-    customWrapper.style.overflow = 'hidden';
-
-    const nativeInput = document.createElement('input');
-    nativeInput.type = 'color';
-    nativeInput.value = appSettings.fabricColor;
-    nativeInput.style.cssText = 'position: absolute; opacity: 0; width: 200%; height: 200%; top: -50%; left: -50%; cursor: pointer;';
-    
-    nativeInput.addEventListener('input', (e) => {
-        changeSofaColor(e.target.value);
-    });
-
-    customWrapper.appendChild(nativeInput);
-    container.appendChild(customWrapper);
-
-    desktopWrapper.appendChild(title);
-    desktopWrapper.appendChild(container);
-    rightSidebarMenu.insertBefore(desktopWrapper, rightSidebarMenu.firstChild);
-
-    if (!document.getElementById('share-btn')) {
-        const shareBtn = document.createElement('button');
-        shareBtn.id = 'share-btn';
-        shareBtn.className = 'action-btn';
-        shareBtn.style.cssText = "background:#6c757d; margin-bottom: 6px;";
-        shareBtn.innerHTML = "🔗 Dalintis nuoroda";
-        shareBtn.onclick = shareConfiguration;
-        
-        const pdfBtn = rightSidebarMenu.querySelector('button[onclick="openClientModal()"]');
-        if (pdfBtn) rightSidebarMenu.insertBefore(shareBtn, pdfBtn);
-        else rightSidebarMenu.appendChild(shareBtn);
-    }
-}
-
-// 2. MOBILIOSIOS VERSIJOS ELEMENTAI (Kuriami tiesiai Body elemente)
-const mobileOverlay = document.createElement('div');
-mobileOverlay.id = 'mobile-color-overlay';
-mobileOverlay.onclick = () => { 
-    document.getElementById('mobile-color-modal').classList.remove('active');
-    mobileOverlay.classList.remove('active');
-};
-document.body.appendChild(mobileOverlay);
-
-const mobileModal = document.createElement('div');
-mobileModal.id = 'mobile-color-modal';
-
-const mobileTitle = document.createElement('div');
-mobileTitle.className = 'color-picker-title';
-mobileTitle.style.fontSize = "14px";
-mobileTitle.innerText = "Pasirinkite audinio spalvą";
-
-const mobileContainer = document.createElement('div');
-mobileContainer.className = 'color-picker-container';
-
-colors.forEach(c => {
-    const dot = document.createElement('div');
-    dot.className = 'color-dot' + (appSettings.fabricColor === c.hex ? ' active' : '');
-    dot.style.background = c.hex;
-    dot.title = c.name;
-    dot.dataset.hex = c.hex;
-    dot.style.width = "32px";
-    dot.style.height = "32px";
-    dot.onclick = () => changeSofaColor(c.hex);
-    mobileContainer.appendChild(dot);
-});
-
-mobileModal.appendChild(mobileTitle);
-mobileModal.appendChild(mobileContainer);
-document.body.appendChild(mobileModal);
-
-const mobileFab = document.createElement('div');
-mobileFab.id = 'mobile-color-fab';
-mobileFab.innerHTML = '🎨'; 
-mobileFab.onclick = () => {
-    mobileModal.classList.add('active');
-    mobileOverlay.classList.add('active');
-};
-document.body.appendChild(mobileFab);
-
-updateZoomText();
-
-const urlParams = new URLSearchParams(window.location.search);
-const requestedModel = urlParams.get('kolekcija');
-const sharedStateOld = urlParams.get('share'); 
-const sharedStateNew = urlParams.get('s');
-
-if (sharedStateNew || sharedStateOld) {
-    try {
-        let parsedState = [];
-        
-        if (sharedStateNew) {
-            const decodedStr = atob(sharedStateNew);
-            decodedStr.split('~').forEach(colGroup => {
-                const parts = colGroup.split(':');
-                const c = parts[0];
-                if (parts[1]) {
-                    parts[1].split('!').forEach(mod => {
-                        const [i, x, y, a, e] = mod.split(',');
-                        parsedState.push({ c: c, i: i, x: parseInt(x), y: parseInt(y), a: parseInt(a), e: parseInt(e) });
-                    });
-                }
-            });
-        } else {
-            let rawParsed = JSON.parse(decodeURIComponent(atob(sharedStateOld)));
-            // Apsauga nuo injekcijos: priverstinai konvertuojame skaitines reikšmes,
-            // kad piktavališka nuoroda negalėtų įterpti CSS per kampo (a) lauką.
-            parsedState = (Array.isArray(rawParsed) ? rawParsed : []).map(d => ({
-                c: String(d.c || ''),
-                i: String(d.i || ''),
-                x: parseInt(d.x) || 0,
-                y: parseInt(d.y) || 0,
-                a: parseInt(d.a) || 0,
-                e: parseInt(d.e) || 0
-            }));
-        }
-        
-        let uniqueCollections = [...new Set(parsedState.map(m => m.c))];
-        if (uniqueCollections.length === 1 && rawModels[uniqueCollections[0]]) {
-            modelSelect.value = uniqueCollections[0];
-            modelSelect.style.display = 'none';
-            const collectionLabel = document.createElement('div');
-            collectionLabel.style.cssText = "font-weight: bold; padding: 8px; background: #eef5ff; border: 1px solid #b8daff; border-radius: 4px; margin-bottom: 12px; text-transform: uppercase; text-align: center; color: #007bff; font-size: 13px;";
-            collectionLabel.innerText = uniqueCollections[0] + " KOLEKCIJA";
-            modelSelect.parentNode.insertBefore(collectionLabel, modelSelect);
-        }
-
-        loadModel(modelSelect.value);
-        canvasArea.innerHTML = ''; 
-
-        parsedState.forEach(d => {
-            let modBase = furnitureModels[d.c]?.find(x => x.id === d.i);
-            if (!modBase) return;
-            
-            const el = document.createElement('div'); el.className = 'canvas-module'; 
-            Object.assign(el.dataset, {
-                id: d.i, name: modBase.name, price: modBase.price, collection: d.c, 
-                w: modBase.w, h: modBase.h, angle: d.a, isExpanded: d.e === 1 ? 'true' : 'false'
-            }); 
-            
-            if(modBase.expandable) { el.dataset.sleepw = modBase.sleepW; el.dataset.sleeph = modBase.sleepH; }
-            if(modBase.isChaise) { el.dataset.isChaise = 'true'; el.dataset.sleepw = modBase.sleepW; el.dataset.sleeph = modBase.sleepH; }
-
-            el.style.cssText = `width:${modBase.w*scale}px; height:${modBase.h*scale}px; left:${d.x*scale}px; top:${d.y*scale}px; z-index:${zIndexCounter++}; transform:rotate(${d.a}deg)`; 
-            el.innerHTML = (d.e === 1 && modBase.expandable ? modBase.svgExpanded : modBase.svg) + `<span class="label" style="transform:rotate(${-d.a}deg)"></span>`; 
-            
-            attachEvents(el); 
-            canvasArea.appendChild(el);
-        });
-        
-        updateOrderSummary(); updateLabels(); 
-        setTimeout(() => { updateDimensions(); centerWorkspaceToModules(); }, 50);
-        saveState();
-
-    } catch (e) {
-        console.error("Failed to load shared state", e);
-        alert("Nepavyko užkrauti pasidalintos konfigūracijos (nuoroda gali būti sugadinta).");
-    }
-} else if (requestedModel && rawModels[requestedModel]) {
-    modelSelect.value = requestedModel; 
-    modelSelect.style.display = 'none'; 
-    
-    const collectionLabel = document.createElement('div');
-    collectionLabel.style.cssText = "font-weight: bold; padding: 8px; background: #eef5ff; border: 1px solid #b8daff; border-radius: 4px; margin-bottom: 12px; text-transform: uppercase; text-align: center; color: #007bff; font-size: 13px;";
-    collectionLabel.innerText = requestedModel + " KOLEKCIJA";
-    modelSelect.parentNode.insertBefore(collectionLabel, modelSelect);
-    
-    loadModel(requestedModel);
-    
-    const saved = localStorage.getItem('sofaState');
-    if(saved) {
-        restoreState(JSON.parse(saved), true);
-    }
-    
-} else {
-    const saved = localStorage.getItem('sofaState');
-    if(saved) {
-        try {
-            let parsedState = JSON.parse(saved);
-            // Jei yra išsaugotų modulių, paimame pirmo modulio kolekciją
-            if (parsedState && parsedState.length > 0) {
-                let firstModCollection = parsedState[0].c;
-                // Patikriname, ar tokia kolekcija egzistuoja
-                if (rawModels[firstModCollection]) {
-                    modelSelect.value = firstModCollection;
-                }
-            }
-            // Užkrauname šoninį meniu pagal atnaujintą pasirinkimą
-            loadModel(modelSelect.value);
-            // Atkuriame darbo lauką
-            restoreState(parsedState, true);
-        } catch(e) {
-            console.error("Klaida atkuriant sesiją:", e);
-            loadModel(modelSelect.value);
-        }
-    } else {
-        loadModel(modelSelect.value);
-    }
-}
-
-// --- MOBILIOSIOS VERSIJOS UI OPTIMIZAVIMAS ---
-function optimizeMobileLayout() {
-    if (window.innerWidth > 768) return;
-
-    const modelSelect = document.getElementById('model-select');
-    const fabricSelect = document.getElementById('fabric-group-select');
-    
-    if (fabricSelect && fabricSelect.previousElementSibling) {
-        fabricSelect.previousElementSibling.style.display = 'none';
-    }
-    if (modelSelect && modelSelect.previousElementSibling && modelSelect.previousElementSibling.id !== 'mobile-top-wrap') {
-        modelSelect.previousElementSibling.style.display = 'none';
-    }
-
-    if (modelSelect && fabricSelect && !document.getElementById('mobile-top-wrap')) {
-        const wrap = document.createElement('div');
-        wrap.id = 'mobile-top-wrap';
-        wrap.style.cssText = 'display: flex; gap: 8px; width: 100%; margin-bottom: 10px; align-items: stretch;';
-        
-        modelSelect.parentNode.insertBefore(wrap, modelSelect);
-        
-        const colLabel = Array.from(wrap.parentNode.children).find(el => el.tagName === 'DIV' && el.innerText.includes('KOLEKCIJA'));
-        if (colLabel) colLabel.style.display = 'none';
-        
-        modelSelect.style.flex = '1';
-        modelSelect.style.width = 'auto'; 
-        wrap.appendChild(modelSelect);
-        
-        fabricSelect.style.flex = '1';
-        fabricSelect.style.width = 'auto';
-        wrap.appendChild(fabricSelect);
-    }
-
-    const btnPdf = document.querySelector('button[onclick="openClientModal()"]');
-    const btnBp = document.querySelector('button[onclick="openBlueprintModal()"]');
-    const btnShare = document.getElementById('share-btn');
-    
-    if (btnPdf && btnBp && btnShare && !document.getElementById('mobile-btn-wrap')) {
-        const btnWrap = document.createElement('div');
-        btnWrap.id = 'mobile-btn-wrap';
-        btnWrap.style.cssText = 'display: flex; gap: 6px; width: 100%; justify-content: space-between; margin-top: 15px;';
-        
-        if(btnPdf.innerHTML.includes('Komercinis')) btnPdf.innerHTML = '📄 Pasiūlymas';
-        if(btnBp.innerHTML.includes('Gamybos')) btnBp.innerHTML = '📐 Brėžinys';
-        if(btnShare.innerHTML.includes('nuoroda')) btnShare.innerHTML = '🔗 Dalintis';
-
-        [btnShare, btnPdf, btnBp].forEach(btn => {
-            btn.style.flex = '1';
-            btn.style.fontSize = '11px';
-            btn.style.padding = '10px 4px';
-            btn.style.margin = '0'; 
-            btn.style.whiteSpace = 'normal';
-            btn.style.lineHeight = '1.2';
-            btn.style.display = 'flex';
-            btn.style.alignItems = 'center';
-            btn.style.justifyContent = 'center';
-            btn.style.textAlign = 'center';
-            btnWrap.appendChild(btn);
-        });
-        
-        const sidebar = document.getElementById('sidebar-right');
-        if (sidebar) {
-            sidebar.appendChild(btnWrap);
-        }
-    }
-}
-
-setTimeout(optimizeMobileLayout, 300);
-
-// ============================================================
-// KELIŲ VARIANTŲ PASIŪLYMAS — vienas PDF, kiekvienas variantas savo puslapyje
-// ============================================================
-
-let _multiVariantNames = [];
-
-// Nufotografuoja šiuo metu drobėje esančius modulius ir grąžina brėžinio paveikslėlį.
-// Po iškvietimo drobė lieka tokia, kokia buvo (modulių pozicijos atstatomos).
-async function _captureCanvasSofaImage() {
-    const modules = Array.from(document.querySelectorAll('.canvas-module'));
-    if (modules.length === 0) return null;
-
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    modules.forEach(m => {
-        let angle = (parseInt(m.dataset.angle) || 0) * Math.PI / 180,
-            baseW = parseFloat(m.dataset.w) * scale, baseH = parseFloat(m.dataset.h) * scale,
-            curW = parseFloat(m.style.width), curH = parseFloat(m.style.height),
-            cx = parseFloat(m.style.left) + curW / 2, cy = parseFloat(m.style.top) + curH / 2,
-            dx = baseW / 2, dy = baseH / 2;
-        [ {x:-dx,y:-dy}, {x:dx,y:-dy}, {x:dx,y:dy}, {x:-dx,y:dy} ].forEach(c => {
-            let rx = cx + c.x*Math.cos(angle) - c.y*Math.sin(angle),
-                ry = cy + c.x*Math.sin(angle) + c.y*Math.cos(angle);
-            if (rx < minX) minX = rx; if (rx > maxX) maxX = rx;
-            if (ry < minY) minY = ry; if (ry > maxY) maxY = ry;
-        });
-    });
-
-    let padding = 30;
-    if (dimState === 1) padding = 60;
-    if (dimState === 2) padding = 100;
-
-    let shiftX = padding - minX, shiftY = padding - minY;
-    let originalPositions = new Map();
-    modules.forEach(m => {
-        originalPositions.set(m, { left: m.style.left, top: m.style.top });
-        m.style.left = (parseFloat(m.style.left) + shiftX) + 'px';
-        m.style.top = (parseFloat(m.style.top) + shiftY) + 'px';
-    });
-    updateDimensions();
-
-    const tmpWrapper = document.getElementById('canvas-wrapper');
-    let oTransform = tmpWrapper.style.transform, oW = tmpWrapper.style.width, oH = tmpWrapper.style.height;
-    tmpWrapper.style.transform = 'translate(0px, 0px)';
-    document.getElementById('workspace').style.backgroundPosition = '0px 0px';
-    tmpWrapper.style.width = ((maxX - minX) + padding * 2) + 'px';
-    tmpWrapper.style.height = ((maxY - minY) + padding * 2) + 'px';
-
-    let _wrapW = parseFloat(tmpWrapper.style.width) || 0;
-    let _wrapH = parseFloat(tmpWrapper.style.height) || 0;
-    let _h2cScale = (_wrapW * 2 > 12000 || _wrapH * 2 > 12000) ? 1 : 2;
-    await new Promise(r => setTimeout(r, 500));
-    const canvas = await html2canvas(tmpWrapper, { scale: _h2cScale, backgroundColor: "#ffffff", useCORS: true });
-
-    tmpWrapper.style.transform = oTransform;
-    tmpWrapper.style.width = oW;
-    tmpWrapper.style.height = oH;
-    document.getElementById('workspace').style.backgroundPosition = `${currentPanX}px ${currentPanY}px`;
-    modules.forEach(m => { let o = originalPositions.get(m); m.style.left = o.left; m.style.top = o.top; });
-    updateDimensions();
-
-    let dimsHtml = '';
-    if (dimState > 0) dimsHtml = document.getElementById('dimension-display').innerHTML.replace(/<br><span[^>]*id="ui-plotas"[^>]*>.*?<\/span>/g, "");
-
-    return {
-        imgData: canvas.toDataURL('image/jpeg', 0.95),
-        imgCmW: (maxX - minX + padding * 2) / scale,
-        imgCmH: (maxY - minY + padding * 2) / scale,
-        dimsHtml: dimsHtml
-    };
-}
-
-function openMultiModal() {
-    let archive = getArchive();
-    let names = Object.keys(archive);
-    let listEl = document.getElementById('multi-variant-list');
-    listEl.innerHTML = '';
-    _multiVariantNames = names;
-
-    if (names.length === 0) {
-        listEl.innerHTML = '<div style="color:#888; font-size:13px; text-align:center; padding:14px 0;">Archyve nėra išsaugotų projektų. Pirma išsaugokite bent vieną variantą.</div>';
-    } else {
-        names.forEach((name, i) => {
-            let row = document.createElement('div');
-            row.style.cssText = "display:flex; align-items:center; gap:8px; padding:8px; border:1px solid #ddd; border-radius:4px; background:#f9f9f9;";
-
-            let cb = document.createElement('input');
-            cb.type = 'checkbox';
-            cb.className = 'multi-check';
-            cb.dataset.idx = i;
-            cb.style.cssText = "width:18px; height:18px; flex-shrink:0; cursor:pointer;";
-
-            let label = document.createElement('strong');
-            label.textContent = name;
-            label.style.cssText = "flex-grow:1; font-size:13px; color:#333; word-break:break-word;";
-
-            let discWrap = document.createElement('div');
-            discWrap.style.cssText = "display:flex; align-items:center; gap:4px; flex-shrink:0;";
-            let disc = document.createElement('input');
-            disc.type = 'number';
-            disc.className = 'multi-disc';
-            disc.dataset.idx = i;
-            disc.min = '0'; disc.max = '100';
-            disc.placeholder = '0';
-            disc.style.cssText = "width:54px; padding:5px; border:1px solid #ccc; border-radius:4px; text-align:center; font-size:13px;";
-            let pct = document.createElement('span');
-            pct.textContent = '% nuol.';
-            pct.style.cssText = "font-size:11px; color:#666;";
-            discWrap.appendChild(disc); discWrap.appendChild(pct);
-
-            row.appendChild(cb); row.appendChild(label); row.appendChild(discWrap);
-            listEl.appendChild(row);
-        });
-    }
-
-    document.getElementById('multi-client-term').value = appSettings.prodTerm || '';
-    document.getElementById('multi-client-delivery').value = appSettings.deliveryNote || '';
-    document.getElementById('multi-client-additional').value = appSettings.additionalInfo || '';
-
-    document.getElementById('archive-modal').style.display = 'none';
-    document.getElementById('multi-modal').style.display = 'flex';
-}
-
-async function generateMultiVariantPDF() {
-    let archive = getArchive();
-
-    let selected = [];
-    document.querySelectorAll('.multi-check').forEach(cb => {
-        if (!cb.checked) return;
-        let idx = parseInt(cb.dataset.idx);
-        let name = _multiVariantNames[idx];
-        let discInput = document.querySelector(`.multi-disc[data-idx="${idx}"]`);
-        let disc = parseInt(discInput && discInput.value) || 0;
-        if (disc < 0) disc = 0;
-        if (disc > 100) disc = 100;
-        let entry = getArchiveEntry(archive, name);
-        if (name && entry.modules.length > 0) {
-            selected.push({ name: name, modules: entry.modules, group: entry.group, discount: disc });
-        }
-    });
-
-    if (selected.length === 0) { alert('Pažymėkite bent vieną variantą.'); return; }
-
-    let sharedClient = {
-        name: document.getElementById('multi-client-name').value.trim(),
-        addr: document.getElementById('multi-client-address').value.trim(),
-        designer: document.getElementById('multi-client-designer').value.trim(),
-        fabric: document.getElementById('multi-client-fabric').value.trim()
-    };
-    let term = document.getElementById('multi-client-term').value.trim();
-    let delivery = document.getElementById('multi-client-delivery').value.trim();
-    let additional = document.getElementById('multi-client-additional').value.trim();
-
-    // Įsimenam dabartinį darbą, kad po generavimo viską atstatytume
-    let savedCurrent = Array.from(document.querySelectorAll('.canvas-module')).map(m => ({
-        id:m.dataset.id, n:m.dataset.name, p:m.dataset.price, c:m.dataset.collection, w:m.dataset.w, h:m.dataset.h,
-        l:(parseFloat(m.style.left)||0)/scale, t:(parseFloat(m.style.top)||0)/scale,
-        a:m.dataset.angle, z:m.style.zIndex, exp:m.dataset.isExpanded
-    }));
-    let savedPanX = currentPanX, savedPanY = currentPanY;
-
-    document.getElementById('multi-modal').style.display = 'none';
-    selectModule(null);
-    document.querySelectorAll('.dynamic-bb').forEach(e => e.style.display = 'none');
-    document.getElementById('zoom-controls').style.display = 'none';
-    document.getElementById('dimension-display').style.display = 'none';
-
-    const pdfTemplate = document.getElementById('pdf-template');
-    const pdfSofaImg = document.getElementById('pdf-sofa-img');
-    ensurePrintStyles();
-    // Konteineris, į kurį dėsime po vieną A4 lapą kiekvienam variantui (spausdinimui).
-    let printContainer = document.getElementById('multi-print-container');
-    if (printContainer) printContainer.remove();
-    printContainer = document.createElement('div');
-    printContainer.id = 'multi-print-container';
-    printContainer.style.display = 'none';
-    document.body.appendChild(printContainer);
-    const today = new Date();
-    const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-
-    try {
-        for (let i = 0; i < selected.length; i++) {
-            let v = selected[i];
-
-            restoreState(v.modules, false);
-            await new Promise(r => setTimeout(r, 120));
-
-            let cap = await _captureCanvasSofaImage();
-            if (!cap) continue;
-
-            const modules = Array.from(document.querySelectorAll('.canvas-module'));
-            const isMixed = new Set(modules.map(m => m.dataset.collection)).size > 1;
-
-            // Naudojam šio varianto SAVO audinio grupę (jei išsaugota), kad kainos
-            // sutaptų su tuo, kas buvo kuriant variantą. Po skaičiavimo grupę grąžinam.
-            const groupSelect = document.getElementById('fabric-group-select');
-            let _prevGroup = groupSelect.value;
-            if (v.group) groupSelect.value = v.group;
-            let vGroupText = groupSelect.options[groupSelect.selectedIndex].text;
-
-            let counts = {}, total = 0;
-            modules.forEach(m => {
-                let dName = getDisplayName({collection:m.dataset.collection, name:m.dataset.name}, isMixed);
-                let price = getModulePrice(m.dataset.collection, m.dataset.id);
-                if (!counts[dName]) counts[dName] = { qty:0, price:price };
-                counts[dName].qty++; total += price;
-            });
-
-            groupSelect.value = _prevGroup; // grąžinam pagrindinio lango pasirinkimą
-
-            const uniqueCollections = Array.from(new Set(modules.map(m => m.dataset.collection.toUpperCase())));
-            const chainText = generateModuleChainText(modules, isMixed);
-
-            let cInfoHtml = "";
-            if (sharedClient.name) cInfoHtml += `<b>Klientas:</b> ${escapeHtml(sharedClient.name)}<br>`;
-            if (sharedClient.addr) cInfoHtml += `<b>Adresas:</b> ${escapeHtml(sharedClient.addr)}<br>`;
-            if (sharedClient.designer) cInfoHtml += `<b>Dizaineris:</b> ${escapeHtml(sharedClient.designer)}<br>`;
-            if (sharedClient.fabric) cInfoHtml += `<b>Audinys:</b> ${escapeHtml(sharedClient.fabric)}<br>`;
-            if (vGroupText && vGroupText !== "I Grupė (Bazinė)") cInfoHtml += `<b>Audinio grupė:</b> ${escapeHtml(vGroupText)}<br>`;
-            document.getElementById('pdf-client-info').innerHTML = cInfoHtml;
-
-            document.getElementById('pdf-main-title').innerText = v.name;
-            document.getElementById('pdf-date').innerText = `Data: ${dateStr}  |  Variantas ${i+1} iš ${selected.length}`;
-
-            const tbody = document.getElementById('pdf-table-body');
-            tbody.innerHTML = '';
-            for (let n in counts) {
-                let it = counts[n];
-                tbody.innerHTML += `<tr><td style="padding:6px 8px; border-bottom:1px solid #eee;">${escapeHtml(n)}</td><td style="text-align:center; padding:6px 8px; border-bottom:1px solid #eee;">${it.qty} vnt.</td><td style="text-align:right; padding:6px 8px; border-bottom:1px solid #eee;"><b>${it.price * it.qty} €</b></td></tr>`;
-            }
-
-            if (cap.dimsHtml) {
-                document.getElementById('pdf-dimensions').innerHTML = cap.dimsHtml;
-                document.getElementById('pdf-dimensions').style.display = 'block';
-            } else {
-                document.getElementById('pdf-dimensions').innerHTML = "";
-                document.getElementById('pdf-dimensions').style.display = 'none';
-            }
-
-            let finalTotal = total;
-            let discountInfoText = '';
-            if (v.discount > 0) {
-                finalTotal = total - Math.round(total * (v.discount / 100));
-                document.getElementById('pdf-discount-text').style.display = 'block';
-                document.getElementById('pdf-discount-text').innerText = `Pradinė kaina: ${total} €`;
-                discountInfoText = `• <b style="color:#d9534f;">Pritaikyta ${v.discount}% nuolaida</b>`;
-            } else {
-                document.getElementById('pdf-discount-text').style.display = 'none';
-            }
-            let bePVM = (finalTotal / 1.21).toFixed(2);
-            let pvmSuma = (finalTotal - bePVM).toFixed(2);
-            document.getElementById('pdf-price-breakdown').innerHTML = `
-                <div style="font-size:10px; color:#555; margin-bottom:2px;">Suma be PVM: <b>${bePVM.replace('.', ',')} €</b></div>
-                <div style="font-size:10px; color:#555; margin-bottom:4px;">PVM (21%): <b>${pvmSuma.replace('.', ',')} €</b></div>
-                <div style="font-size:16px; font-weight:bold; color:#111; border-top: 2px solid #333; padding-top: 4px;">Viso su PVM: ${finalTotal} €</div>`;
-
-            let addInfoHtml = additional ? `• ${escapeHtml(additional)}<br>` : '';
-            document.getElementById('pdf-terms').innerHTML = `<b style="color:#111;">Pasiūlymo sąlygos:</b><br>• Preliminarus gamybos terminas: <b>${escapeHtml(term)}</b><br>• Pristatymas: <b>${escapeHtml(delivery)}</b><br>${addInfoHtml}${discountInfoText}`;
-
-            document.getElementById('pdf-module-chain').innerText = "Kolekcija: " + uniqueCollections.join(' + ') + " | Specifikacija: " + chainText;
-
-            pdfTemplate.style.display = 'flex';
-            pdfSofaImg.src = cap.imgData;
-            const PDF_PX_PER_CM = 1.65;
-            pdfSofaImg.style.width = '';
-            pdfSofaImg.style.height = '';
-            const pdfImgBox = document.querySelector('.pdf-image-box');
-            const availW = pdfImgBox.clientWidth, availH = pdfImgBox.clientHeight;
-            const targetW = cap.imgCmW * PDF_PX_PER_CM, targetH = cap.imgCmH * PDF_PX_PER_CM;
-            const fitScale = Math.min(1, availW / targetW, availH / targetH);
-            pdfSofaImg.style.width = (targetW * fitScale) + 'px';
-            pdfSofaImg.style.height = (targetH * fitScale) + 'px';
-
-            try { await pdfSofaImg.decode(); } catch (e) {}
-            await new Promise(r => setTimeout(r, 60));
-
-            // Vietoj „fotografavimo" – nukopijuojam užpildytą šabloną kaip atskirą A4 lapą.
-            let page = pdfTemplate.cloneNode(true);
-            page.removeAttribute('id');            // kad neliktų #pdf-template (paslėpto) stilių
-            page.classList.add('pdf-print-page');  // A4 lapo stilius spausdinant
-            page.style.display = 'flex';
-            page.style.position = 'static';
-            page.style.top = 'auto';
-            page.style.left = 'auto';
-            printContainer.appendChild(page);
-        }
-
-        pdfTemplate.style.display = 'none';
-
-        // Failo vardas: kliento vardas (iš kelių variantų lango) arba numatytasis; visada su data.
-        let _mvBase = houmyCleanFileName(sharedClient.name) || 'Houmy_Pasiulymas_Variantai';
-        let _mvOrigTitle = document.title;
-        document.title = `${_mvBase}_${dateStr}`;
-        let _mvCleanup = () => {
-            let c = document.getElementById('multi-print-container');
-            if (c) c.remove();
-            document.body.classList.remove('print-multi');
-            document.title = _mvOrigTitle;
-            window.removeEventListener('afterprint', _mvCleanup);
-        };
-        window.addEventListener('afterprint', _mvCleanup);
-        document.body.classList.add('print-multi');
-        window.print();
-
-    } catch (e) {
-        console.error('Klaida ruošiant kelių variantų pasiūlymą', e);
-        alert('Įvyko klaida. Bandykite dar kartą.');
-        let c = document.getElementById('multi-print-container');
-        if (c) c.remove();
-        document.body.classList.remove('print-multi');
-    } finally {
-        pdfTemplate.style.display = 'none';
-        restoreState(savedCurrent, false);
-        currentPanX = savedPanX; currentPanY = savedPanY;
-        document.getElementById('canvas-wrapper').style.transform = `translate(${currentPanX}px, ${currentPanY}px)`;
-        document.getElementById('workspace').style.backgroundPosition = `${currentPanX}px ${currentPanY}px`;
-        document.getElementById('zoom-controls').style.display = 'flex';
-        document.getElementById('dimension-display').style.display = 'block';
-        setTimeout(() => { updateDimensions(); }, 60);
-    }
-}
+        if(d.dataset.
