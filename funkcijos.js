@@ -1554,8 +1554,10 @@ function ensurePrintStyles() {
 /* --- gamybos brėžinys --- */
 '  body.print-blueprint > *:not(#blueprint-template) { display: none !important; }' +
 '  body.print-blueprint #blueprint-template { position: static !important; top: auto !important; left: auto !important;' +
-'    width: 100% !important; max-width: 190mm !important; margin: 0 auto !important; padding: 8mm !important;' +
+'    width: 100% !important; max-width: none !important; margin: 0 !important; padding: 8mm 10mm !important;' +
 '    box-sizing: border-box !important; box-shadow: none !important; z-index: auto !important; display: flex !important; }' +
+'  body.print-blueprint #bp-img-container { border: none !important; padding: 0 !important; margin-bottom: 12px !important; }' +
+'  body.print-blueprint #bp-sofa-img { max-width: 100% !important; max-height: 200mm !important; height: auto !important; }' +
 '}' +
 '@page { size: A4; margin: 0; }';
     document.head.appendChild(s);
@@ -1652,7 +1654,7 @@ async function executeExportBlueprint() {
     // Paveikslėlis įdedamas be fiksuoto dydžio — tikslus dydis nustatomas žemiau,
     // kai šablonas matomas ir žinomas turimas plotis (kad nebūtų iškraipymo).
     document.getElementById('bp-img-container').innerHTML =
-        `<img id="bp-sofa-img" src="${imgData}" style="max-width:100%;">`; 
+        `<img id="bp-sofa-img" src="${imgData}" style="max-width:100%; height:auto; display:block; margin:0 auto;">`; 
     
     const isMixed = new Set(modules.map(m => m.dataset.collection)).size > 1; 
     const uniqueCollections = Array.from(new Set(modules.map(m => m.dataset.collection.toUpperCase())));
@@ -1688,22 +1690,10 @@ async function executeExportBlueprint() {
     const bpTemplate = document.getElementById('blueprint-template'); 
     bpTemplate.style.display = 'flex'; 
     
-    // --- Proporcingas, neiškraipytas dydis ---
-    // BLUEPRINT_PX_PER_CM: didesnis = arčiau/didesni; mažesnis = toliau/mažesni.
-    const BLUEPRINT_PX_PER_CM = 1.6;
-    const bpImgCmW = (maxX - minX + padding * 2) / scale;
-    const bpImgCmH = (maxY - minY + padding * 2) / scale;
+    // Piešinys užpildo turimą plotį (kaip komerciniame pasiūlyme). Dydį lemia CSS:
+    // max-width:100% + height:auto, o spausdinant – dar max-height, kad aukštos sofos tilptų.
+    // html2canvas nuotrauka daroma 2x raiška, todėl sumažinus iki lapo pločio lieka aiški.
     const bpSofaImg = document.getElementById('bp-sofa-img');
-    const bpContainer = document.getElementById('bp-img-container');
-    const bpTargetW = bpImgCmW * BLUEPRINT_PX_PER_CM;
-    const bpTargetH = bpImgCmH * BLUEPRINT_PX_PER_CM;
-    // Šablono aukštis nefiksuotas, todėl riboja tik plotis; mastelis vientisas → be iškraipymo.
-    const bpAvailW = Math.max(0, bpContainer.clientWidth - 40); // 40 = konteinerio paddingas
-    const bpFit = Math.min(1, bpAvailW / bpTargetW);
-    if (bpSofaImg) {
-        bpSofaImg.style.width = (bpTargetW * bpFit) + 'px';
-        bpSofaImg.style.height = (bpTargetH * bpFit) + 'px';
-    }
     
     // Palaukiame, kol naujasis paveikslėlis užsikraus (kad nenufotografuotų seno).
     try { if (bpSofaImg) await bpSofaImg.decode(); } catch (e) {}
