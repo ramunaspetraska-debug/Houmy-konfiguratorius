@@ -8,12 +8,46 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=1.16">
+    <link rel="stylesheet" href="styles.css?v=1.17">
+
+    <!-- Kliento pasiūlymo (?proposal=) režimas: iškart paslepiam redagavimo įrankius,
+         kad klientas nepamatytų admin sąsajos, kol užsikrauna švari peržiūra. -->
+    <script>
+      if (new URLSearchParams(location.search).has('proposal')) {
+        document.documentElement.classList.add('houmy-proposal');
+      }
+    </script>
+    <style>
+      html.houmy-proposal #sidebar-left,
+      html.houmy-proposal #toolbar,
+      html.houmy-proposal #zoom-controls,
+      html.houmy-proposal #version-watermark,
+      html.houmy-proposal .desktop-color-picker,
+      html.houmy-proposal #mobile-color-modal,
+      html.houmy-proposal #mobile-color-overlay { display: none !important; }
+      /* Klientas negali tempti/redaguoti modulių */
+      html.houmy-proposal #canvas-area .canvas-module { pointer-events: none !important; cursor: default !important; }
+      html.houmy-proposal #workspace { cursor: default !important; }
+      /* Krovimo ekranas, kol įkeliamas pasiūlymas */
+      #houmy-proposal-loading { display: none; }
+      html.houmy-proposal:not(.houmy-proposal-ready) #houmy-proposal-loading {
+        display: flex; position: fixed; inset: 0; z-index: 99999;
+        background: #fff; align-items: center; justify-content: center;
+        font-family: sans-serif; color: #444;
+      }
+    </style>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
+
+    <div id="houmy-proposal-loading">
+        <div style="text-align:center;">
+            <div style="font-family:'Montserrat',sans-serif; font-weight:900; font-size:34px; color:#111; letter-spacing:1px;">HOUMY</div>
+            <p style="margin-top:14px; font-size:15px;">Kraunamas pasiūlymas…</p>
+        </div>
+    </div>
 
     <div id="sidebar-left">
         <div class="sidebar-header">
@@ -171,9 +205,19 @@
             </div>
             <input type="text" id="client-delivery" placeholder="Pristatymo sąlygos" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
             <textarea id="client-additional" placeholder="Papildoma informacija" rows="3" style="padding:10px; border:1px solid #ccc; border-radius:4px; font-family: inherit; resize: vertical;"></textarea>
-            
-            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+
+            <div id="proposal-link-result" style="display:none; background:#eef7ff; border:1px solid #b8daff; border-radius:6px; padding:12px;">
+                <div style="font-size:12px; font-weight:bold; color:#0056b3; margin-bottom:6px;">✅ Nuoroda klientui sukurta (nukopijuota į iškarpinę):</div>
+                <div style="display:flex; gap:6px;">
+                    <input type="text" id="proposal-link-input" readonly onclick="this.select()" style="flex-grow:1; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:12px; background:#fff;">
+                    <button onclick="copyProposalLink(this)" style="padding:8px 12px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; white-space:nowrap;">Kopijuoti</button>
+                </div>
+                <div style="font-size:11px; color:#666; margin-top:6px;">Šią nuorodą galite siųsti klientui — jis matys baldą ir kainą tik peržiūrai (redaguoti negalės).</div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px; flex-wrap:wrap;">
                 <button onclick="document.getElementById('client-modal').style.display='none'" style="padding:10px; cursor:pointer; border:1px solid #ccc; border-radius:4px; background:#f4f4f4;">Atšaukti</button>
+                <button id="create-proposal-link-btn" onclick="createClientProposalLink(this)" style="padding:10px 15px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">☁️ Sukurti nuorodą klientui</button>
                 <button onclick="generatePDFWithDetails()" style="padding:10px 15px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Generuoti PDF</button>
             </div>
         </div>
@@ -243,11 +287,11 @@
         </div>
     </div>
 
-    <script src="duomenys.js?v=1.16"></script>
+    <script src="duomenys.js?v=1.17"></script>
 
-    <script src="funkcijos.js?v=1.16"></script>
+    <script src="funkcijos.js?v=1.17"></script>
 
-    <!-- Firebase ryšys: kainų ir nustatymų sinchronizacija tarp kompiuterių -->
-    <script type="module" src="firebase-init.js?v=1.16"></script>
+    <!-- Firebase ryšys: kainų sinchronizacija + kliento pasiūlymų nuorodos -->
+    <script type="module" src="firebase-init.js?v=1.17"></script>
 </body>
 </html>

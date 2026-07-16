@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.16 (Kainų sinchronizacija per debesį)";
+const APP_VERSION = "V1.17 (Kliento pasiūlymų nuorodos)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",

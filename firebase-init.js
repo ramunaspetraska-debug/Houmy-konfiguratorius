@@ -16,7 +16,7 @@
 // ============================================================================
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-import { getDatabase, ref, get, set, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+import { getDatabase, ref, get, set, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 
 // Firebase projekto konfigūracija (tai NĖRA slaptažodžiai — šie duomenys
 // skirti būti viešame kliento kode; prieigą riboja duomenų bazės taisyklės).
@@ -33,6 +33,7 @@ const firebaseConfig = {
 const fbApp = initializeApp(firebaseConfig);
 const db = getDatabase(fbApp);
 const SETTINGS_KELIAS = "houmy_settings";
+const PASIULYMU_KELIAS = "houmy_proposals";
 
 // Paima iš nustatymų tik tuos laukus, kurie sinchronizuojami su debesiu,
 // ir suvienodina tuščias reikšmes (kad palyginimas būtų patikimas).
@@ -65,15 +66,41 @@ async function issaugotiNustatymusDebesyje() {
     });
 }
 
+// Įrašo naują kliento pasiūlymą į debesį (houmy_proposals/<autoID>).
+// Grąžina sugeneruotą <autoID>, kurį naudosim nuorodai ?proposal=<autoID>.
+async function issaugotiPasiulymaDebesyje(pasiulymas) {
+    const nauja = push(ref(db, PASIULYMU_KELIAS));
+    await set(nauja, {
+        ...pasiulymas,
+        createdAt: serverTimestamp(),
+        version: (typeof APP_VERSION !== "undefined") ? APP_VERSION : ""
+    });
+    return nauja.key;
+}
+
+// Nuskaito pasiūlymą pagal ID. Grąžina objektą arba null, jei nerastas.
+async function gautiPasiulymaDebesyje(id) {
+    const snap = await get(ref(db, PASIULYMU_KELIAS + "/" + id));
+    return snap.exists() ? snap.val() : null;
+}
+
 // Viešas „tiltas" į paprastus (ne modulinius) skriptus — funkcijos.js
 window.houmyCloud = {
     pasiruoses: false,          // ar užsikrovus pavyko pasiekti debesį
     debesyjeYraDuomenu: false,  // ar debesyje jau yra išsaugoti nustatymai
-    issaugotiNustatymus: issaugotiNustatymusDebesyje
+    issaugotiNustatymus: issaugotiNustatymusDebesyje,
+    issaugotiPasiulyma: issaugotiPasiulymaDebesyje,
+    gautiPasiulyma: gautiPasiulymaDebesyje
 };
+
+// Ar dabar atidaromas kliento pasiūlymas (?proposal=<id>)? Tokiu atveju
+// kainų sinchronizacijos NEvykdom (klientui rodom įrašytus pasiūlymo duomenis,
+// o ne admin kainas, ir neliečiam kliento naršyklės atminties).
+const yraPasiulymoParametras = new URLSearchParams(window.location.search).has("proposal");
 
 // Užsikrovus puslapiui — parsisiunčiam nustatymus iš debesies ir pritaikom.
 (async function sinchronizuotiUzsikrovus() {
+    if (yraPasiulymoParametras) { window.houmyCloud.pasiruoses = true; return; }
     try {
         const snap = await get(ref(db, SETTINGS_KELIAS));
         window.houmyCloud.pasiruoses = true;
@@ -112,5 +139,122 @@ window.houmyCloud = {
         location.reload();
     } catch (klaida) {
         console.warn("HOUMY debesis nepasiekiamas — naudojami vietiniai nustatymai.", klaida);
+    }
+})();
+
+// ============================================================================
+// KLIENTO PASIŪLYMO PERŽIŪRA (?proposal=<id>) — tik skaitymui.
+// Klientas mato baldą, matmenis, audinį ir galutinę kainą; negali redaguoti,
+// matyti admin funkcijų ar kainų nustatymų.
+// ============================================================================
+
+function saugusTekstas(str) {
+    return String(str == null ? "" : str)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function paslePtiKrovima() {
+    document.documentElement.classList.add("houmy-proposal-ready");
+    const ov = document.getElementById("houmy-proposal-loading");
+    if (ov) ov.remove();
+}
+
+function rodytiPasiulymoPranesima(tekstas) {
+    const ov = document.getElementById("houmy-proposal-loading");
+    if (ov) {
+        ov.innerHTML = '<div style="max-width:420px; text-align:center; padding:24px;">' +
+            '<div style="font-family:\'Montserrat\',sans-serif; font-weight:900; font-size:34px; color:#111; letter-spacing:1px;">HOUMY</div>' +
+            '<p style="margin-top:16px; font-size:16px; color:#444;">' + saugusTekstas(tekstas) + '</p>' +
+            '<p style="margin-top:8px; font-size:13px; color:#999;">Susisiekite su mumis: +370 675 04607 · info@houmy.lt</p>' +
+            '</div>';
+    }
+}
+
+// Sudeda kainos „be PVM / PVM / su PVM" bloką (PVM 21%).
+function kainosPVM(finalTotal) {
+    const bePVM = (finalTotal / 1.21).toFixed(2);
+    const pvmSuma = (finalTotal - bePVM).toFixed(2);
+    return '<div style="font-size:11px; color:#555;">Suma be PVM: <b>' + bePVM.replace(".", ",") + ' €</b></div>' +
+        '<div style="font-size:11px; color:#555; margin-bottom:4px;">PVM (21%): <b>' + pvmSuma.replace(".", ",") + ' €</b></div>' +
+        '<div style="font-size:22px; font-weight:bold; color:#111; border-top:2px solid #333; padding-top:6px;">Viso su PVM: ' + finalTotal + ' €</div>';
+}
+
+function atvaizduotiKlientoPasiulyma(p) {
+    // 1. Audinio grupė ir spalva — nustatom PRIEŠ piešiant, kad kainos/spalva sutaptų.
+    const grSelect = document.getElementById("fabric-group-select");
+    if (grSelect && p.fabricGroup) grSelect.value = String(p.fabricGroup);
+    if (p.fabricColor) document.documentElement.style.setProperty("--sofa-color", p.fabricColor);
+
+    // 2. Piešiam baldą per esamą variklį (restoreState centruoja ir suskaičiuoja matmenis).
+    if (typeof restoreState === "function" && Array.isArray(p.modules)) {
+        restoreState(p.modules, true);
+    }
+
+    // 3. Sudarom švarų kliento skydelį dešinėje (perrašom visą turinį — dingsta
+    //    spalvų paletė, mygtukai ir admin elementai).
+    const dims = (document.getElementById("dimension-display") || {}).innerHTML || "";
+    const grupesTekstas = grSelect ? grSelect.options[grSelect.selectedIndex].text : "";
+
+    let eilutes = "";
+    (p.breakdown || []).forEach(it => {
+        eilutes += '<tr><td style="padding:6px 4px; border-bottom:1px solid #eee;">' + saugusTekstas(it.name) + '</td>' +
+            '<td style="padding:6px 4px; border-bottom:1px solid #eee; text-align:center;">' + saugusTekstas(it.qty) + ' vnt.</td>' +
+            '<td style="padding:6px 4px; border-bottom:1px solid #eee; text-align:right;"><b>' + saugusTekstas(it.unit * it.qty) + ' €</b></td></tr>';
+    });
+
+    let nuolaidaHtml = "";
+    if (p.manualPriceVal > 0 && p.manualPriceVal < p.total) {
+        nuolaidaHtml = '<div style="font-size:12px; color:#d9534f; margin-bottom:6px;">Pradinė kaina: <s>' + p.total + ' €</s> — pritaikyta speciali kaina</div>';
+    } else if (p.discountVal > 0) {
+        nuolaidaHtml = '<div style="font-size:12px; color:#d9534f; margin-bottom:6px;">Pradinė kaina: <s>' + p.total + ' €</s> — pritaikyta ' + p.discountVal + '% nuolaida</div>';
+    }
+
+    let klientoInfo = "";
+    if (p.client) {
+        if (p.client.name) klientoInfo += '<div><b>Klientas:</b> ' + saugusTekstas(p.client.name) + '</div>';
+        if (p.client.project) klientoInfo += '<div><b>Projektas:</b> ' + saugusTekstas(p.client.project) + '</div>';
+        if (p.client.designer) klientoInfo += '<div><b>Dizaineris:</b> ' + saugusTekstas(p.client.designer) + '</div>';
+    }
+    let audinys = "";
+    if (p.fabricName) audinys += '<div><b>Audinys:</b> ' + saugusTekstas(p.fabricName) + '</div>';
+    if (grupesTekstas) audinys += '<div><b>Audinio grupė:</b> ' + saugusTekstas(grupesTekstas) + '</div>';
+
+    let terminai = "";
+    if (p.term) terminai += '<div style="margin-top:4px;">• Gamybos terminas: <b>' + saugusTekstas(p.term) + '</b></div>';
+    if (p.delivery) terminai += '<div>• ' + saugusTekstas(p.delivery) + '</div>';
+    if (p.additionalInfo) terminai += '<div style="margin-top:4px; color:#555;">' + saugusTekstas(p.additionalInfo) + '</div>';
+
+    const sidebar = document.getElementById("sidebar-right");
+    if (sidebar) {
+        sidebar.innerHTML =
+            '<div style="font-family:\'Montserrat\',sans-serif; font-weight:900; font-size:26px; color:#111; letter-spacing:1px;">HOUMY</div>' +
+            '<div style="font-size:13px; color:#007bff; font-weight:bold; margin:2px 0 12px 0;">KOMERCINIS PASIŪLYMAS</div>' +
+            (klientoInfo ? '<div style="font-size:13px; color:#333; line-height:1.5; margin-bottom:10px;">' + klientoInfo + '</div>' : "") +
+            (audinys ? '<div style="font-size:13px; color:#333; line-height:1.5; margin-bottom:10px; border-top:1px solid #eee; padding-top:8px;">' + audinys + '</div>' : "") +
+            '<div style="font-size:13px; font-weight:bold; color:#333; margin-bottom:4px;">Sudėtis:</div>' +
+            '<table style="width:100%; border-collapse:collapse; font-size:13px; margin-bottom:10px;"><tbody>' + eilutes + '</tbody></table>' +
+            (dims ? '<div style="font-size:12px; color:#555; margin-bottom:10px;">' + dims + '</div>' : "") +
+            '<div style="border-top:2px solid #333; padding-top:8px;">' + nuolaidaHtml + kainosPVM(p.finalTotal) + '</div>' +
+            (terminai ? '<div style="font-size:12px; color:#333; line-height:1.5; margin-top:12px; border-top:1px solid #eee; padding-top:8px;">' + terminai + '</div>' : "") +
+            '<div style="font-size:11px; color:#999; margin-top:16px; border-top:1px solid #eee; padding-top:8px;">MB Praktiški baldai · Savanorių pr. 290, Kaunas<br>+370 675 04607 · info@houmy.lt</div>';
+    }
+}
+
+(async function rodytiPasiulymaJeiReikia() {
+    if (!yraPasiulymoParametras) return;
+    const id = new URLSearchParams(window.location.search).get("proposal");
+    try {
+        const p = await gautiPasiulymaDebesyje(id);
+        if (!p) {
+            rodytiPasiulymoPranesima("Pasiūlymas nerastas arba nebegalioja.");
+            return;
+        }
+        atvaizduotiKlientoPasiulyma(p);
+        // Palaukiam, kol restoreState (setTimeout 50ms) atnaujins matmenis, ir atskleidžiam.
+        setTimeout(paslePtiKrovima, 250);
+    } catch (klaida) {
+        console.error("HOUMY pasiūlymo įkėlimo klaida:", klaida);
+        rodytiPasiulymoPranesima("Nepavyko įkelti pasiūlymo. Patikrinkite interneto ryšį arba bandykite vėliau.");
     }
 })();

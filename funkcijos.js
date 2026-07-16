@@ -1414,13 +1414,111 @@ function openClientModal() {
     
     if (!validateWorkspace()) return;
     
-    document.getElementById('client-modal').style.display = 'flex'; 
-    document.getElementById('client-term').value = appSettings.prodTerm; 
-    document.getElementById('client-delivery').value = appSettings.deliveryNote; 
-    document.getElementById('client-additional').value = appSettings.additionalInfo; 
+    document.getElementById('client-modal').style.display = 'flex';
+    document.getElementById('client-term').value = appSettings.prodTerm;
+    document.getElementById('client-delivery').value = appSettings.deliveryNote;
+    document.getElementById('client-additional').value = appSettings.additionalInfo;
+    // Paslepiam ankstesnės nuorodos rezultatą (kad neliktų senos nuorodos)
+    const linkRes = document.getElementById('proposal-link-result');
+    if (linkRes) linkRes.style.display = 'none';
 }
 
-async function generatePDFWithDetails() { 
+// Surenka dabartinį pasiūlymą į objektą, kurį galima įrašyti į debesį (kliento nuorodai).
+// Kainų suvestinė skaičiuojama TA PAČIA logika kaip PDF, kad klientas matytų tą patį.
+function surinktiPasiulymoDuomenis() {
+    const moduleEls = Array.from(document.querySelectorAll('.canvas-module'));
+
+    // Moduliai piešimui — toks pat formatas kaip saveState() (l/t centimetrais)
+    const modules = moduleEls.map(m => ({
+        id: m.dataset.id, n: m.dataset.name, p: m.dataset.price, c: m.dataset.collection,
+        w: m.dataset.w, h: m.dataset.h,
+        l: (parseFloat(m.style.left) || 0) / scale,
+        t: (parseFloat(m.style.top) || 0) / scale,
+        a: m.dataset.angle, z: m.style.zIndex, exp: m.dataset.isExpanded
+    }));
+
+    // Kainų suvestinė (grupuojam pagal pavadinimą, kaip PDF lentelėje)
+    const isMixed = new Set(moduleEls.map(m => m.dataset.collection)).size > 1;
+    let counts = {}; let total = 0;
+    moduleEls.forEach(m => {
+        let dName = getDisplayName({collection: m.dataset.collection, name: m.dataset.name}, isMixed);
+        let price = getModulePrice(m.dataset.collection, m.dataset.id);
+        if (!counts[dName]) counts[dName] = { qty: 0, unit: price };
+        counts[dName].qty++; total += price;
+    });
+    const breakdown = Object.keys(counts).map(name => ({ name: name, qty: counts[name].qty, unit: counts[name].unit }));
+
+    const discountVal = parseInt(document.getElementById('client-discount').value) || 0;
+    const manualPriceVal = parseInt(document.getElementById('client-manual-price').value) || 0;
+    let finalTotal = total;
+    if (manualPriceVal > 0 && manualPriceVal < total) finalTotal = manualPriceVal;
+    else if (discountVal > 0) finalTotal = total - Math.round(total * (discountVal / 100));
+
+    const grSelect = document.getElementById('fabric-group-select');
+
+    return {
+        modules: modules,
+        fabricGroup: grSelect ? grSelect.value : "1",
+        fabricColor: appSettings.fabricColor || "#ffffff",
+        fabricName: document.getElementById('client-fabric').value.trim(),
+        client: {
+            name: document.getElementById('client-name').value.trim(),
+            address: document.getElementById('client-address').value.trim(),
+            project: document.getElementById('project-name').value.trim(),
+            designer: document.getElementById('client-designer').value.trim()
+        },
+        breakdown: breakdown,
+        total: total,
+        discountVal: discountVal,
+        manualPriceVal: manualPriceVal,
+        finalTotal: finalTotal,
+        term: document.getElementById('client-term').value.trim(),
+        delivery: document.getElementById('client-delivery').value.trim(),
+        additionalInfo: document.getElementById('client-additional').value.trim()
+    };
+}
+
+// Sukuria kliento nuorodą (?proposal=<id>): įrašo pasiūlymą į debesį ir parodo nuorodą.
+async function createClientProposalLink(btn) {
+    const modules = Array.from(document.querySelectorAll('.canvas-module'));
+    if (modules.length === 0) return alert("Nėra modulių pasiūlymui!");
+    if (!validateWorkspace()) return;
+    if (!window.houmyCloud || !window.houmyCloud.pasiruoses) {
+        return alert("Nėra ryšio su debesimi — patikrinkite interneto ryšį ir bandykite dar kartą.");
+    }
+
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = "⏳ Kuriama...";
+
+    try {
+        const pasiulymas = surinktiPasiulymoDuomenis();
+        const id = await window.houmyCloud.issaugotiPasiulyma(pasiulymas);
+        const baseUrl = window.location.href.split('?')[0];
+        const link = baseUrl + "?proposal=" + id;
+
+        document.getElementById('proposal-link-input').value = link;
+        document.getElementById('proposal-link-result').style.display = 'block';
+        try { await navigator.clipboard.writeText(link); } catch(e) {}
+    } catch (e) {
+        console.error("Pasiūlymo įrašymo klaida:", e);
+        alert("Nepavyko sukurti nuorodos: " + (e && e.message ? e.message : e));
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+function copyProposalLink(btn) {
+    const input = document.getElementById('proposal-link-input');
+    input.select();
+    navigator.clipboard.writeText(input.value).then(() => {
+        const t = btn.innerHTML; btn.innerHTML = '✅';
+        setTimeout(() => { btn.innerHTML = t; }, 1500);
+    }).catch(() => { try { document.execCommand('copy'); } catch(e) {} });
+}
+
+async function generatePDFWithDetails() {
     appSettings.prodTerm = document.getElementById('client-term').value.trim();
     appSettings.deliveryNote = document.getElementById('client-delivery').value.trim();
     appSettings.additionalInfo = document.getElementById('client-additional').value.trim();
