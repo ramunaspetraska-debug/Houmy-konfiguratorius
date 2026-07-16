@@ -1,0 +1,8 @@
+node_modules/
+.env
+firebase-debug.log
+.firebase/
+
+# Vidiniai failai — neturi patekti į viešą repozitoriją
+HOUMY_ClaudeCode_instrukcija.md
+.claude/

@@ -1,0 +1,21 @@
+{
+  /* HOUMY konfigūratoriaus duomenų bazės taisyklės.
+     DĖMESIO: rašymas kol kas atviras, kad viskas veiktų be prisijungimo.
+     Vėliau (kai veiks) taisykles BŪTINA sugriežtinti! */
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "houmy_settings": {
+      ".read": true,
+      ".write": true
+    },
+
+    "houmy_proposals": {
+      ".read": true,
+      "$pid": {
+        ".write": true
+      }
+    }
+  }
+}

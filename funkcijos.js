@@ -1055,8 +1055,16 @@ function importPrices(event) {
             if (confirm("Ar tikrai norite perrašyti visas dabartines kainas iš failo?")) {
                 appSettings.customPrices = imported;
                 localStorage.setItem('houmySettings', JSON.stringify(appSettings));
-                alert("Kainos sėkmingai importuotos!");
-                location.reload();
+                // NAUJA: importuotos kainos įrašomos ir į debesį (Firebase)
+                if (window.houmyCloud) {
+                    window.houmyCloud.issaugotiNustatymus()
+                        .then(() => { alert("Kainos importuotos ir įkeltos į debesį — jas matys visi kompiuteriai!"); })
+                        .catch((e) => { console.error("Debesies įrašymo klaida:", e); alert("DĖMESIO: kainos importuotos tik ŠIAME kompiuteryje — įkelti į debesį nepavyko."); })
+                        .finally(() => location.reload());
+                } else {
+                    alert("Kainos sėkmingai importuotos (tik šiame kompiuteryje — debesies ryšys neužkrautas).");
+                    location.reload();
+                }
             }
         } catch(err) {
             alert("Klaida skaitant failą.");
@@ -1294,9 +1302,17 @@ function saveAdminSettings() {
     }
 
     appSettings.customPrices = tempAdminPrices;
-    localStorage.setItem('houmySettings', JSON.stringify(appSettings)); 
-    alert("Nustatymai sėkmingai išsaugoti!"); 
-    location.reload(); 
+    localStorage.setItem('houmySettings', JSON.stringify(appSettings));
+    // NAUJA: kainos įrašomos ir į debesį (Firebase), kad jas matytų visi kompiuteriai
+    if (window.houmyCloud) {
+        window.houmyCloud.issaugotiNustatymus()
+            .then(() => { alert("Nustatymai išsaugoti ir įkelti į debesį — juos matys visi kompiuteriai!"); })
+            .catch((e) => { console.error("Debesies įrašymo klaida:", e); alert("DĖMESIO: nustatymai išsaugoti tik ŠIAME kompiuteryje — įkelti į debesį nepavyko (patikrinkite interneto ryšį ir paspauskite Išsaugoti dar kartą)."); })
+            .finally(() => location.reload());
+    } else {
+        alert("Nustatymai išsaugoti tik ŠIAME kompiuteryje — debesies ryšys neužkrautas.");
+        location.reload();
+    }
 }
 
 // ----------------------------------------------
@@ -1405,10 +1421,16 @@ function openClientModal() {
 }
 
 async function generatePDFWithDetails() { 
-    appSettings.prodTerm = document.getElementById('client-term').value.trim(); 
-    appSettings.deliveryNote = document.getElementById('client-delivery').value.trim(); 
-    appSettings.additionalInfo = document.getElementById('client-additional').value.trim(); 
-    localStorage.setItem('houmySettings', JSON.stringify(appSettings)); 
+    appSettings.prodTerm = document.getElementById('client-term').value.trim();
+    appSettings.deliveryNote = document.getElementById('client-delivery').value.trim();
+    appSettings.additionalInfo = document.getElementById('client-additional').value.trim();
+    localStorage.setItem('houmySettings', JSON.stringify(appSettings));
+    // NAUJA: terminas/pastabos tyliai atnaujinami ir debesyje. Saugiklis: tik jei debesis
+    // buvo pasiekiamas užsikrovus IR jame jau yra duomenų (kad netyčia neįrašytume senų
+    // kainų į tuščią debesį anksčiau, nei admin pirmą kartą išsaugos tikras kainas).
+    if (window.houmyCloud && window.houmyCloud.pasiruoses && window.houmyCloud.debesyjeYraDuomenu) {
+        window.houmyCloud.issaugotiNustatymus().catch(() => {});
+    }
     document.getElementById('client-modal').style.display = 'none'; 
     selectModule(null); 
     

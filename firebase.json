@@ -1,0 +1,8 @@
+{
+  "database": [
+    {
+      "instance": "houmy-konfiguratorius-eu",
+      "rules": "database.rules.json"
+    }
+  ]
+}

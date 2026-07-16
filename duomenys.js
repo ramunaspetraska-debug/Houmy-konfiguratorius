@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.15 (Panning & Zoom-to-Cursor)";
+const APP_VERSION = "V1.16 (Kainų sinchronizacija per debesį)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
