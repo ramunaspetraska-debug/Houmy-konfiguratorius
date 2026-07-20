@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.17 (Kliento pasiūlymų nuorodos)";
+const APP_VERSION = "V1.18 (Saugumo taisyklės ir versijos užrašas)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",

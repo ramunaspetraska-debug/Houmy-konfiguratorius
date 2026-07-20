@@ -1,6 +1,7 @@
-// Nustatome versijos pavadinimą ir pakeičiame jo dizainą per JS
+// Versijos užrašas ekrane imamas iš APP_VERSION (duomenys.js) — rodoma tik
+// trumpoji dalis (pvz. "V1.18"), be aprašymo skliaustuose.
 const watermarkEl = document.getElementById('version-watermark');
-watermarkEl.innerText = "V1.27";
+watermarkEl.innerText = (typeof APP_VERSION !== 'undefined') ? APP_VERSION.split(' ')[0] : '';
 watermarkEl.style.cssText = "position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: #888; font-weight: normal; z-index: 100; pointer-events: none; font-family: sans-serif; opacity: 0.7;";
 
 let isGridOn = true;

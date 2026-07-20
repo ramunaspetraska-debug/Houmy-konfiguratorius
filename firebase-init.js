@@ -253,6 +253,18 @@ function atvaizduotiKlientoPasiulyma(p) {
         atvaizduotiKlientoPasiulyma(p);
         // Palaukiam, kol restoreState (setTimeout 50ms) atnaujins matmenis, ir atskleidžiam.
         setTimeout(paslePtiKrovima, 250);
+
+        // Pasukus telefoną ar pakeitus lango dydį baldas piešiamas iš naujo,
+        // kad visada liktų ekrano centre (kitaip liktų už matomos zonos).
+        let persipiesimoLaikmatis = null;
+        window.addEventListener("resize", () => {
+            clearTimeout(persipiesimoLaikmatis);
+            persipiesimoLaikmatis = setTimeout(() => {
+                if (typeof restoreState === "function" && Array.isArray(p.modules)) {
+                    restoreState(p.modules, true);
+                }
+            }, 300);
+        });
     } catch (klaida) {
         console.error("HOUMY pasiūlymo įkėlimo klaida:", klaida);
         rodytiPasiulymoPranesima("Nepavyko įkelti pasiūlymo. Patikrinkite interneto ryšį arba bandykite vėliau.");

@@ -1,20 +1,62 @@
 {
-  /* HOUMY konfigūratoriaus duomenų bazės taisyklės.
-     DĖMESIO: rašymas kol kas atviras, kad viskas veiktų be prisijungimo.
-     Vėliau (kai veiks) taisykles BŪTINA sugriežtinti! */
+  /* HOUMY konfigūratoriaus duomenų bazės taisyklės (sugriežtinta versija).
+
+     houmy_settings  — kainos ir bendri nustatymai:
+       - skaityti gali visi (programa jas parsisiunčia užsikrovusi);
+       - rašyti galima, bet TIK teisingos struktūros duomenis (žr. validacijas) —
+         pašaliniai negali įrašyti bet ko / sugadinti struktūros.
+
+     houmy_proposals — klientų pasiūlymai:
+       - VISO sąrašo skaityti NEGALIMA (niekas negali „atsisiųsti visų pasiūlymų");
+       - pavienį pasiūlymą perskaityti gali tik žinantis jo ID (nuoroda klientui);
+       - pasiūlymą galima TIK SUKURTI — jau įrašyto pakeisti ar ištrinti
+         per programą/internetą nebegalima (apsauga nuo klastojimo). */
   "rules": {
     ".read": false,
     ".write": false,
 
     "houmy_settings": {
       ".read": true,
-      ".write": true
+      ".write": "newData.exists()",
+      "prodTerm":       { ".validate": "newData.isString() && newData.val().length < 500" },
+      "deliveryNote":   { ".validate": "newData.isString() && newData.val().length < 1000" },
+      "additionalInfo": { ".validate": "newData.isString() && newData.val().length < 2000" },
+      "appVersion":     { ".validate": "newData.isString() && newData.val().length < 100" },
+      "updatedAt":      { ".validate": "newData.isNumber()" },
+      "customPrices": {
+        "$kaina": { ".validate": "newData.isNumber()" }
+      },
+      "$kita": { ".validate": false }
     },
 
     "houmy_proposals": {
-      ".read": true,
+      ".read": false,
       "$pid": {
-        ".write": true
+        ".read": true,
+        ".write": "!data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['modules', 'breakdown', 'total', 'finalTotal', 'createdAt'])",
+        "modules":        { ".validate": "newData.hasChildren()" },
+        "breakdown":      { ".validate": "newData.hasChildren()" },
+        "total":          { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 1000000" },
+        "finalTotal":     { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 1000000" },
+        "discountVal":    { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
+        "manualPriceVal": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 1000000" },
+        "fabricGroup":    { ".validate": "newData.isString() && newData.val().length < 10" },
+        "fabricColor":    { ".validate": "newData.isString() && newData.val().length < 30" },
+        "fabricName":     { ".validate": "newData.isString() && newData.val().length < 300" },
+        "term":           { ".validate": "newData.isString() && newData.val().length < 500" },
+        "delivery":       { ".validate": "newData.isString() && newData.val().length < 1000" },
+        "additionalInfo": { ".validate": "newData.isString() && newData.val().length < 2000" },
+        "client": {
+          "name":     { ".validate": "newData.isString() && newData.val().length < 300" },
+          "address":  { ".validate": "newData.isString() && newData.val().length < 500" },
+          "project":  { ".validate": "newData.isString() && newData.val().length < 300" },
+          "designer": { ".validate": "newData.isString() && newData.val().length < 300" },
+          "$kita":    { ".validate": false }
+        },
+        "createdAt": { ".validate": "newData.isNumber()" },
+        "version":   { ".validate": "newData.isString() && newData.val().length < 100" },
+        "$kita":     { ".validate": false }
       }
     }
   }
