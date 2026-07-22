@@ -62,6 +62,41 @@
     document.getElementById('sidebar-right').appendChild(uzklausosBtn);
 })();
 
+// --- 5. Modulių brėžinukai pasirinkimų meniu ---
+// Kiekvieno modulio SVG piešinys (tas pats, kuris piešiamas ant stalo) įdedamas
+// į meniu mygtuką virš pavadinimo. Plotis proporcingas tikram modulio pločiui
+// (lyginant su plačiausiu kolekcijos moduliu), todėl klientas iškart mato
+// modulių dydžių santykius.
+function dekoruotiMeniuBreziniais() {
+    const kolekcijosRaktas = document.getElementById('model-select').value;
+    const moduliai = (typeof furnitureModels !== 'undefined') ? furnitureModels[kolekcijosRaktas] : null;
+    if (!moduliai) return;
+
+    const didziausiasPlotis = Math.max(...moduliai.map(m => m.w));
+    document.querySelectorAll('#module-list .menu-item').forEach((btn, i) => {
+        const mod = moduliai[i];
+        if (!mod || btn.querySelector('.menu-thumb')) return;
+        const plotisProc = Math.max(28, Math.round(mod.w / didziausiasPlotis * 100));
+        const kaina = getModulePrice(kolekcijosRaktas, mod.id);
+        btn.innerHTML =
+            `<div class="menu-thumb" style="position:relative; width:${plotisProc}%; aspect-ratio:${mod.w}/${mod.h}; margin:0 auto;">${mod.svg}</div>` +
+            `<div style="display:flex; justify-content:space-between; align-items:center; width:100%;">` +
+            `<span>${mod.name}${mod.expandable ? ' ⇕' : ''}<br><small>${mod.w}x${mod.h} cm</small></span>` +
+            `<span class="menu-price">${kaina}€</span></div>`;
+    });
+}
+
+// Meniu jau nupieštas užsikraunant — dekoruojam iškart, o loadModel apvyniojam,
+// kad po bet kokio meniu perpiešimo brėžinukai atsirastų vėl.
+dekoruotiMeniuBreziniais();
+if (typeof loadModel === 'function') {
+    const _origLoadModel = loadModel;
+    loadModel = function (raktas) {
+        _origLoadModel(raktas);
+        dekoruotiMeniuBreziniais();
+    };
+}
+
 // Atidaro užklausos langą (tik jei baldas sudėliotas ir be klaidų)
 function atidarytiUzklausosModal() {
     const moduliai = document.querySelectorAll('.canvas-module');

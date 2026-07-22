@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.20 (Kliento konfigūratorius houmy.lt svetainei)";
+const APP_VERSION = "V1.21 (Modulių brėžinukai kliento meniu)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
