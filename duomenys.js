@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.18 (Saugumo taisyklės ir versijos užrašas)";
+const APP_VERSION = "V1.19 (PDF generavimo pataisymas telefonams)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",

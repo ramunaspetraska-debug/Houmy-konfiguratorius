@@ -1735,9 +1735,37 @@ async function generatePDFWithDetails() {
         pdfTemplate.style.display = 'none';
         document.body.classList.remove('print-single');
         document.title = origTitle;
-        window.removeEventListener('afterprint', cleanup);
     };
-    window.addEventListener('afterprint', cleanup);
+    houmyPrintIrSutvarkyti(cleanup);
+}
+
+// Paleidžia naršyklės spausdinimą ir SAUGIAI sutvarko puslapį po jo.
+// Problema: Android/iOS naršyklėse window.print() nelaukia, o 'afterprint'
+// įvykis suveikia dar PRIEŠ naršyklei „nufotografuojant" puslapį PDF'ui.
+// Jei tuo metu šablonas jau paslėptas — į PDF patenka programos langas be
+// brėžinio. Todėl mobiliuose įrenginiuose tvarkomės tik vartotojui grįžus
+// į puslapį (visibilitychange) arba po atsargos laiko, o 'afterprint'
+// naudojamas tik kompiuteriuose, kur jis veikia patikimai.
+function houmyPrintIrSutvarkyti(cleanup) {
+    const mobilus = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    let atlikta = false;
+    let laikmatis = null;
+    const poGrizimo = () => { if (document.visibilityState === 'visible') vienaKarta(); };
+    const vienaKarta = () => {
+        if (atlikta) return;
+        atlikta = true;
+        clearTimeout(laikmatis);
+        window.removeEventListener('afterprint', vienaKarta);
+        document.removeEventListener('visibilitychange', poGrizimo);
+        cleanup();
+    };
+    if (mobilus) {
+        document.addEventListener('visibilitychange', poGrizimo);
+        laikmatis = setTimeout(vienaKarta, 25000);
+    } else {
+        window.addEventListener('afterprint', vienaKarta);
+        laikmatis = setTimeout(vienaKarta, 120000);
+    }
     window.print();
 }
 
@@ -1940,10 +1968,8 @@ async function executeExportBlueprint() {
         bpTemplate.style.display = 'none';
         document.body.classList.remove('print-blueprint');
         document.title = _bpOrigTitle;
-        window.removeEventListener('afterprint', _bpCleanup);
     };
-    window.addEventListener('afterprint', _bpCleanup);
-    window.print();
+    houmyPrintIrSutvarkyti(_bpCleanup);
 }
 
 function shareConfiguration() {
@@ -2683,11 +2709,9 @@ async function generateMultiVariantPDF() {
             if (c) c.remove();
             document.body.classList.remove('print-multi');
             document.title = _mvOrigTitle;
-            window.removeEventListener('afterprint', _mvCleanup);
         };
-        window.addEventListener('afterprint', _mvCleanup);
         document.body.classList.add('print-multi');
-        window.print();
+        houmyPrintIrSutvarkyti(_mvCleanup);
 
     } catch (e) {
         console.error('Klaida ruošiant kelių variantų pasiūlymą', e);
