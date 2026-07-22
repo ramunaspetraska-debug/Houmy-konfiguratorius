@@ -70,13 +70,20 @@
 function dekoruotiMeniuBreziniais() {
     const kolekcijosRaktas = document.getElementById('model-select').value;
     const moduliai = (typeof furnitureModels !== 'undefined') ? furnitureModels[kolekcijosRaktas] : null;
-    if (!moduliai) return;
+    if (!moduliai || !moduliai.length) return;
 
+    // VIENODAS mastelis visiems kolekcijos moduliams (be jokių minimumų!),
+    // todėl proporcijos tikros: siauras porankis atrodo siauras, platus
+    // kampas — platus. Bazinis mastelis parinktas taip, kad aukščiausias
+    // modulis būtų ~110px, o plačiausias neužimtų daugiau ~55% kortelės.
     const didziausiasPlotis = Math.max(...moduliai.map(m => m.w));
+    const didziausiasAukstis = Math.max(...moduliai.map(m => m.h));
+    const bazeProc = Math.min(55, 48 * didziausiasPlotis / didziausiasAukstis);
+
     document.querySelectorAll('#module-list .menu-item').forEach((btn, i) => {
         const mod = moduliai[i];
         if (!mod || btn.querySelector('.menu-thumb')) return;
-        const plotisProc = Math.max(28, Math.round(mod.w / didziausiasPlotis * 100));
+        const plotisProc = (mod.w / didziausiasPlotis * bazeProc).toFixed(1);
         const kaina = getModulePrice(kolekcijosRaktas, mod.id);
         btn.innerHTML =
             `<div class="menu-thumb" style="position:relative; width:${plotisProc}%; aspect-ratio:${mod.w}/${mod.h}; margin:0 auto;">${mod.svg}</div>` +

@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.21 (Modulių brėžinukai kliento meniu)";
+const APP_VERSION = "V1.22 (Proporcingi meniu brėžinukai)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
