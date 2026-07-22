@@ -23,10 +23,7 @@
     if (galimos.includes(kolekcija)) {
         kolekcijosSelect.value = kolekcija;
         kolekcijosSelect.dispatchEvent(new Event('change'));
-        // Paslepiam kolekcijos pasirinkimą (antraštę ir sąrašą)
         kolekcijosSelect.style.display = 'none';
-        const antraste = kolekcijosSelect.previousElementSibling;
-        if (antraste && antraste.tagName === 'H2') antraste.style.display = 'none';
     }
     // Jei parametro nėra — pasirinkimas lieka matomas (atsarginis variantas).
 
@@ -34,8 +31,11 @@
     const grupesSelect = document.getElementById('fabric-group-select');
     grupesSelect.value = '1';
     grupesSelect.style.display = 'none';
-    const grupesAntraste = grupesSelect.previousElementSibling;
-    if (grupesAntraste && grupesAntraste.tagName === 'H2') grupesAntraste.style.display = 'none';
+
+    // Antraštės „Kolekcija:" ir „Audinio grupė:" paslepiamos visada
+    // (previousElementSibling nepatikimas, kai ?s= atkūrimas įterpia
+    // kolekcijos ženkliuką prieš pasirinkimo sąrašą)
+    document.querySelectorAll('.sidebar-header h2').forEach(h => { h.style.display = 'none'; });
 
     // --- 3. Įrankių juostos supaprastinimas ---
     document.querySelectorAll('#toolbar .tool-btn').forEach(btn => {
@@ -60,7 +60,52 @@
     uzklausosBtn.innerHTML = '💬 Gauti pasiūlymą';
     uzklausosBtn.onclick = atidarytiUzklausosModal;
     document.getElementById('sidebar-right').appendChild(uzklausosBtn);
+
+    // --- 5. „Per visą ekraną" mygtukas (rodomas TIK įterptame lange) ---
+    // Naršyklės įterptam langui (iframe) skiria ATSKIRĄ atmintį nei atskiram
+    // skirtukui, todėl paprastas mygtukas svetainėje atidaro ne tą būseną.
+    // Šis mygtukas dabartinius modulius persiduoda per nuorodą (?s=...).
+    if (window.self !== window.top) {
+        const fsBtn = document.createElement('button');
+        fsBtn.id = 'pilno-ekrano-btn';
+        fsBtn.innerHTML = '⛶ Per visą ekraną';
+        fsBtn.title = 'Atidaryti didesniame lange su jūsų sudėliotais moduliais';
+        fsBtn.style.cssText = 'position:absolute; top:10px; left:10px; z-index:95; padding:8px 14px; background:#111; color:#fff; border:none; border-radius:6px; font-weight:bold; font-size:12px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.25);';
+        fsBtn.onclick = atidarytiPilnaEkrana;
+        document.getElementById('workspace').appendChild(fsBtn);
+    }
 })();
+
+// Sudaro pilno ekrano nuorodą: kolekcija + dabartiniai moduliai (?s= formatu,
+// tokiu pačiu kaip dalinimosi nuoroda — atkūrimo kodas jau moka jį perskaityti).
+function pilnoEkranoNuoroda() {
+    const baseUrl = window.location.href.split('?')[0];
+    const kolekcijosRaktas = document.getElementById('model-select').value;
+    let url = baseUrl + '?kolekcija=' + encodeURIComponent(kolekcijosRaktas);
+
+    const moduleEls = Array.from(document.querySelectorAll('.canvas-module'));
+    if (moduleEls.length > 0) {
+        const cols = {};
+        moduleEls.forEach(m => {
+            const c = m.dataset.collection;
+            if (!cols[c]) cols[c] = [];
+            const x = Math.round((parseFloat(m.style.left) || 0) / scale);
+            const y = Math.round((parseFloat(m.style.top) || 0) / scale);
+            const a = parseInt(m.dataset.angle) || 0;
+            const e = m.dataset.isExpanded === 'true' ? 1 : 0;
+            cols[c].push(`${m.dataset.id},${x},${y},${a},${e}`);
+        });
+        const suspausta = Object.keys(cols).map(c => `${c}:${cols[c].join('!')}`).join('~');
+        // encodeURIComponent BŪTINAS: base64 gali turėti +/= simbolius,
+        // kurie be kodavimo URL'e virstų tarpais ir sugadintų atkūrimą.
+        url += '&s=' + encodeURIComponent(btoa(suspausta));
+    }
+    return url;
+}
+
+function atidarytiPilnaEkrana() {
+    window.open(pilnoEkranoNuoroda(), '_blank');
+}
 
 // --- 5. Modulių brėžinukai pasirinkimų meniu ---
 // Kiekvieno modulio SVG piešinys (tas pats, kuris piešiamas ant stalo) įdedamas

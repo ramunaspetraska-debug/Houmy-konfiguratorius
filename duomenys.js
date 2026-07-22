@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.22 (Proporcingi meniu brėžinukai)";
+const APP_VERSION = "V1.23 (Meniu lygiavimas ir pilno ekrano mygtukas)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
