@@ -29,6 +29,28 @@
       "$kita": { ".validate": false }
     },
 
+    "houmy_uzklausos": {
+      /* Klientų užklausos iš viešo konfigūratoriaus (houmy.lt).
+         Skaityti per internetą NEGALIMA niekam (viduje — el. paštai!);
+         Ramūnas jas mato Firebase konsolėje. Galima tik SUKURTI naują. */
+      ".read": false,
+      "$uid": {
+        ".read": false,
+        ".write": "!data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['email', 'proposalId', 'createdAt'])",
+        "email":      { ".validate": "newData.isString() && newData.val().length > 4 && newData.val().length < 200 && newData.val().contains('@')" },
+        "name":       { ".validate": "newData.isString() && newData.val().length < 200" },
+        "phone":      { ".validate": "newData.isString() && newData.val().length < 50" },
+        "comment":    { ".validate": "newData.isString() && newData.val().length < 2000" },
+        "collection": { ".validate": "newData.isString() && newData.val().length < 50" },
+        "total":      { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 1000000" },
+        "proposalId": { ".validate": "newData.isString() && newData.val().length < 100" },
+        "createdAt":  { ".validate": "newData.isNumber()" },
+        "version":    { ".validate": "newData.isString() && newData.val().length < 100" },
+        "$kita":      { ".validate": false }
+      }
+    },
+
     "houmy_proposals": {
       ".read": false,
       "$pid": {

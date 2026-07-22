@@ -84,13 +84,26 @@ async function gautiPasiulymaDebesyje(id) {
     return snap.exists() ? snap.val() : null;
 }
 
+// Įrašo kliento užklausą iš viešo konfigūratoriaus (houmy_uzklausos/<autoID>).
+// Užklausų skaityti per internetą negalima — jas mato tik Ramūnas Firebase konsolėje.
+async function issaugotiUzklausaDebesyje(uzklausa) {
+    const nauja = push(ref(db, "houmy_uzklausos"));
+    await set(nauja, {
+        ...uzklausa,
+        createdAt: serverTimestamp(),
+        version: (typeof APP_VERSION !== "undefined") ? APP_VERSION : ""
+    });
+    return nauja.key;
+}
+
 // Viešas „tiltas" į paprastus (ne modulinius) skriptus — funkcijos.js
 window.houmyCloud = {
     pasiruoses: false,          // ar užsikrovus pavyko pasiekti debesį
     debesyjeYraDuomenu: false,  // ar debesyje jau yra išsaugoti nustatymai
     issaugotiNustatymus: issaugotiNustatymusDebesyje,
     issaugotiPasiulyma: issaugotiPasiulymaDebesyje,
-    gautiPasiulyma: gautiPasiulymaDebesyje
+    gautiPasiulyma: gautiPasiulymaDebesyje,
+    issaugotiUzklausa: issaugotiUzklausaDebesyje
 };
 
 // Ar dabar atidaromas kliento pasiūlymas (?proposal=<id>)? Tokiu atveju

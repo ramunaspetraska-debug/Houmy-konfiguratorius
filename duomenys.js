@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.19 (PDF generavimo pataisymas telefonams)";
+const APP_VERSION = "V1.20 (Kliento konfigūratorius houmy.lt svetainei)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",

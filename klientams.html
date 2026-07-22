@@ -3,51 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HOUMY Baldų Konfigūratorius</title>
-    
+    <title>HOUMY konfigūratorius — susikurk savo sofą</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css?v=1.20">
 
-    <!-- Kliento pasiūlymo (?proposal=) režimas: iškart paslepiam redagavimo įrankius,
-         kad klientas nepamatytų admin sąsajos, kol užsikrauna švari peržiūra. -->
-    <script>
-      if (new URLSearchParams(location.search).has('proposal')) {
-        document.documentElement.classList.add('houmy-proposal');
-      }
-    </script>
+    <!-- KLIENTO režimas: supaprastinta versija houmy.lt lankytojams.
+         Redagavimo variklis tas pats, bet paslėpti vidiniai įrankiai
+         (admin, archyvas, brėžiniai, PDF) — klientas tik dėlioja ir
+         siunčia užklausą. -->
     <style>
-      html.houmy-proposal #sidebar-left,
-      html.houmy-proposal #toolbar,
-      html.houmy-proposal #zoom-controls,
-      html.houmy-proposal #version-watermark,
-      html.houmy-proposal .desktop-color-picker,
-      html.houmy-proposal #mobile-color-modal,
-      html.houmy-proposal #mobile-color-overlay { display: none !important; }
-      /* Klientas negali tempti/redaguoti modulių */
-      html.houmy-proposal #canvas-area .canvas-module { pointer-events: none !important; cursor: default !important; }
-      html.houmy-proposal #workspace { cursor: default !important; }
-      /* Krovimo ekranas, kol įkeliamas pasiūlymas */
-      #houmy-proposal-loading { display: none; }
-      html.houmy-proposal:not(.houmy-proposal-ready) #houmy-proposal-loading {
-        display: flex; position: fixed; inset: 0; z-index: 99999;
-        background: #fff; align-items: center; justify-content: center;
-        font-family: sans-serif; color: #444;
-      }
+      /* Vidiniai elementai, kurių klientas neturi matyti */
+      #module-chain-display, #share-btn { display: none !important; }
     </style>
-    
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-
-    <div id="houmy-proposal-loading">
-        <div style="text-align:center;">
-            <div style="font-family:'Montserrat',sans-serif; font-weight:900; font-size:34px; color:#111; letter-spacing:1px;">HOUMY</div>
-            <p style="margin-top:14px; font-size:15px;">Kraunamas pasiūlymas…</p>
-        </div>
-    </div>
 
     <div id="sidebar-left">
         <div class="sidebar-header">
@@ -65,7 +40,7 @@
                 <option value="muto">MUTO</option>
                 <option value="stone">STONE</option>
             </select>
-            
+
             <h2>Audinio grupė:</h2>
             <select id="fabric-group-select">
                 <option value="1" selected>I Grupė (Bazinė)</option>
@@ -81,13 +56,13 @@
     <div id="main-area">
         <div id="toolbar">
             <label class="toggle-label" title="Grupuoti"><input type="checkbox" id="group-toggle"><span>🔗</span></label>
-            
+
             <div class="toggle-label" id="arrow-toggle-btn" onclick="cycleDimensions()" title="Matmenys (Grupės / Visi / Išjungta)" style="cursor:pointer; background: #eef5ff; border-color: #b8daff; filter: drop-shadow(0px 0px 2px rgba(0,123,255,0.5)); margin-left:5px;">
                 <span>📏<sup id="dim-state-indicator" style="font-size:10px; font-weight:bold; color:#007bff; margin-left:1px;">1</sup></span>
             </div>
-            
+
             <div style="border-left: 1px solid #ddd; height: 20px; margin: 0 5px;"></div>
-            
+
             <button class="tool-btn" onclick="toggleGrid()" title="Tinklelis On/Off">▦</button>
             <button class="tool-btn" onclick="openArchive()" title="Archyvas">📂</button>
             <button class="tool-btn" onclick="undo()" title="Atšaukti">↩</button>
@@ -107,13 +82,13 @@
                 <span id="zoom-level">100%</span>
                 <button onclick="changeZoom(0.15)">+</button>
             </div>
-            
+
             <div id="canvas-wrapper">
                 <svg id="svg-arrows" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:85;">
                 </svg>
                 <div id="canvas-area"></div>
             </div>
-            
+
             <div id="dimension-display">Išmatavimai: <b>0 x 0 cm</b></div>
         </div>
     </div>
@@ -130,6 +105,31 @@
         <button class="action-btn" onclick="openBlueprintModal()" style="background:#007bff; font-size: 11px; padding: 8px;">🖼️ Gamybos Brėžinys</button>
     </div>
 
+    <!-- Kliento užklausos langas -->
+    <div id="uzklausa-modal" class="custom-modal">
+        <div style="background:#fff; padding:20px; border-radius:8px; width:100%; max-width:440px; display:flex; flex-direction:column; gap:12px;">
+            <div id="uzklausa-forma" style="display:flex; flex-direction:column; gap:12px;">
+                <h3 style="margin:0; border-bottom:1px solid #eee; padding-bottom:10px;">Gauti pasiūlymą</h3>
+                <p style="font-size:13px; color:#555; margin:0;">Jūsų sudėliotas variantas bus išsaugotas, o mes susisieksime dėl pasiūlymo.</p>
+                <input type="text" id="uzklausa-vardas" placeholder="Vardas" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="email" id="uzklausa-pastas" placeholder="El. paštas *" required style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="tel" id="uzklausa-telefonas" placeholder="Telefonas" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <textarea id="uzklausa-komentaras" placeholder="Komentaras (audinys, spalva, terminai...)" rows="3" style="padding:10px; border:1px solid #ccc; border-radius:4px; font-family:inherit; resize:vertical;"></textarea>
+                <div style="display:flex; justify-content:flex-end; gap:10px;">
+                    <button onclick="document.getElementById('uzklausa-modal').style.display='none'" style="padding:10px; cursor:pointer; border:1px solid #ccc; border-radius:4px; background:#f4f4f4;">Atšaukti</button>
+                    <button id="uzklausa-siusti-btn" onclick="siustiUzklausa(this)" style="padding:10px 18px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">💬 Siųsti užklausą</button>
+                </div>
+            </div>
+            <div id="uzklausa-sekme" style="display:none; flex-direction:column; gap:12px; text-align:center; padding:10px 0;">
+                <div style="font-size:40px;">✅</div>
+                <h3 style="margin:0;">Ačiū! Užklausa išsiųsta</h3>
+                <p style="font-size:13px; color:#555; margin:0;">Susisieksime su jumis artimiausiu metu. Jūsų sudėlioto varianto nuoroda (išsisaugokite):</p>
+                <input type="text" id="uzklausa-nuoroda" readonly onclick="this.select()" style="padding:8px; border:1px solid #ccc; border-radius:4px; font-size:12px; background:#f8f9fa; text-align:center;">
+                <button onclick="document.getElementById('uzklausa-modal').style.display='none'" style="padding:10px; cursor:pointer; border:1px solid #ccc; border-radius:4px; background:#f4f4f4;">Uždaryti</button>
+            </div>
+        </div>
+    </div>
+
     <div id="admin-modal" class="custom-modal">
         <div class="admin-content">
             <div class="admin-header">
@@ -142,7 +142,7 @@
                         <h3 style="margin:0; color:#007bff; border-bottom:none;">Bazinės Modulių Kainos (I gr.)</h3>
                     </div>
                     <div id="price-config" style="display:block; margin-top:15px; border-top:1px solid #ddd; padding-top:15px;">
-                        <p style="font-size:12px; color:#666; margin-top:0;">Pakeiskite pavienio modulio bazinę (I gr.) kainą. Priedai už aukštesnes grupes skaičiuojami automatiškai iš duomenų bazės.</p>
+                        <p style="font-size:12px; color:#666; margin-top:0;">Pakeiskite pavienio modulio bazinę (I gr.) kainą.</p>
                         <div id="admin-prices-container"></div>
                     </div>
                 </div>
@@ -157,7 +157,7 @@
         <div style="background:#fff; padding:20px; border-radius:8px; width:100%; max-width:500px; display:flex; flex-direction:column; gap:10px;">
             <h3 style="margin-top:0; color:#007bff;">Projektų Archyvas</h3>
             <div style="display:flex; gap:10px;">
-                <input type="text" id="archive-name" placeholder="Įveskite projekto pavadinimą išsaugojimui" style="flex-grow:1; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                <input type="text" id="archive-name" placeholder="Projekto pavadinimas" style="flex-grow:1; padding:8px; border:1px solid #ccc; border-radius:4px;">
                 <button onclick="saveToArchive()" style="padding:8px 15px; background:#28a745; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">Išsaugoti</button>
             </div>
             <div id="archive-list" style="margin-top:10px; max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:5px;"></div>
@@ -170,15 +170,13 @@
 
     <div id="multi-modal" class="custom-modal">
         <div style="background:#fff; padding:20px; border-radius:8px; width:100%; max-width:560px; display:flex; flex-direction:column; gap:12px; max-height:90vh; overflow-y:auto;">
-            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;">Kelių variantų pasiūlymas (vienas PDF)</h3>
-            <p style="font-size:12px; color:#666; margin:0;">Pažymėkite variantus iš archyvo. Kiekvienam galite nurodyti atskirą nuolaidą (%). Audinio grupė imama iš pagrindinio lango pasirinkimo.</p>
+            <h3 style="margin-top:0;">Kelių variantų pasiūlymas</h3>
             <div id="multi-variant-list" style="display:flex; flex-direction:column; gap:6px; max-height:240px; overflow-y:auto;"></div>
-            <div style="border-top:1px solid #eee; padding-top:10px; font-size:12px; font-weight:bold; color:#333;">Bendra kliento informacija (visiems variantams):</div>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                 <input type="text" id="multi-client-name" placeholder="Vardas Pavardė / Įmonė" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
                 <input type="text" id="multi-client-address" placeholder="Pristatymo adresas" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
                 <input type="text" id="multi-client-designer" placeholder="Dizaineris" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
-                <input type="text" id="multi-client-fabric" placeholder="Audinio pavadinimas / kodas" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="text" id="multi-client-fabric" placeholder="Audinys" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
                 <input type="text" id="multi-client-term" placeholder="Gamybos terminas" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
                 <input type="text" id="multi-client-delivery" placeholder="Pristatymo sąlygos" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
             </div>
@@ -192,29 +190,22 @@
 
     <div id="client-modal" class="custom-modal">
         <div style="background:#fff; padding:20px; border-radius:8px; width:100%; max-width:500px; display:flex; flex-direction:column; gap:12px;">
-            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;">Kliento informacija (PDF)</h3>
+            <h3 style="margin-top:0;">Kliento informacija (PDF)</h3>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                 <input type="text" id="client-name" placeholder="Vardas Pavardė / Įmonė" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
                 <input type="text" id="client-address" placeholder="Pristatymo adresas" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
-                <input type="text" id="project-name" placeholder="Projekto pavadinimas (nebūtina)" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
-                <input type="text" id="client-fabric" placeholder="Audinio pavadinimas / kodas" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="text" id="project-name" placeholder="Projekto pavadinimas" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="text" id="client-fabric" placeholder="Audinys" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
                 <input type="text" id="client-designer" placeholder="Dizaineris" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
-                <input type="number" id="client-discount" placeholder="Suteikiama nuolaida (%)" min="0" max="100" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
-                <input type="number" id="client-manual-price" placeholder="Arba sutarta galutinė kaina (€)" min="0" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="number" id="client-discount" placeholder="Nuolaida (%)" min="0" max="100" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <input type="number" id="client-manual-price" placeholder="Sutarta kaina (€)" min="0" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
                 <input type="text" id="client-term" placeholder="Gamybos terminas" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
             </div>
             <input type="text" id="client-delivery" placeholder="Pristatymo sąlygos" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
             <textarea id="client-additional" placeholder="Papildoma informacija" rows="3" style="padding:10px; border:1px solid #ccc; border-radius:4px; font-family: inherit; resize: vertical;"></textarea>
-
-            <div id="proposal-link-result" style="display:none; background:#eef7ff; border:1px solid #b8daff; border-radius:6px; padding:12px;">
-                <div style="font-size:12px; font-weight:bold; color:#0056b3; margin-bottom:6px;">✅ Nuoroda klientui sukurta (nukopijuota į iškarpinę):</div>
-                <div style="display:flex; gap:6px;">
-                    <input type="text" id="proposal-link-input" readonly onclick="this.select()" style="flex-grow:1; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:12px; background:#fff;">
-                    <button onclick="copyProposalLink(this)" style="padding:8px 12px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; white-space:nowrap;">Kopijuoti</button>
-                </div>
-                <div style="font-size:11px; color:#666; margin-top:6px;">Šią nuorodą galite siųsti klientui — jis matys baldą ir kainą tik peržiūrai (redaguoti negalės).</div>
+            <div id="proposal-link-result" style="display:none;">
+                <input type="text" id="proposal-link-input" readonly style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
             </div>
-
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px; flex-wrap:wrap;">
                 <button onclick="document.getElementById('client-modal').style.display='none'" style="padding:10px; cursor:pointer; border:1px solid #ccc; border-radius:4px; background:#f4f4f4;">Atšaukti</button>
                 <button id="create-proposal-link-btn" onclick="createClientProposalLink(this)" style="padding:10px 15px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">☁️ Sukurti nuorodą klientui</button>
@@ -225,9 +216,9 @@
 
     <div id="blueprint-modal" class="custom-modal">
         <div style="background:#fff; padding:20px; border-radius:8px; width:100%; max-width:400px; display:flex; flex-direction:column; gap:12px;">
-            <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;">Gamybos brėžinys</h3>
-            <input type="text" id="blueprint-fabric" placeholder="Įveskite audinį" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
-            <textarea id="blueprint-notes" placeholder="Pastabos gamintojui (Notes)" rows="3" style="padding:10px; border:1px solid #ccc; border-radius:4px; font-family: inherit; resize: vertical;"></textarea>
+            <h3 style="margin-top:0;">Gamybos brėžinys</h3>
+            <input type="text" id="blueprint-fabric" placeholder="Audinys" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+            <textarea id="blueprint-notes" placeholder="Pastabos" rows="3" style="padding:10px; border:1px solid #ccc; border-radius:4px; font-family: inherit; resize: vertical;"></textarea>
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
                 <button onclick="document.getElementById('blueprint-modal').style.display='none'" style="padding:10px; cursor:pointer; border:1px solid #ccc; border-radius:4px; background:#f4f4f4;">Atšaukti</button>
                 <button onclick="executeExportBlueprint()" style="padding:10px 15px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Generuoti Brėžinį</button>
@@ -268,7 +259,7 @@
                     <div id="pdf-terms"></div>
                 </div>
                 <div style="text-align:right;">
-                    <div id="pdf-discount-text" style="font-size:11px; color:#d9534f; text-decoration:line-through; display:none; margin-bottom:5px;"></div>
+                    <div id="pdf-discount-text" style="display:none;"></div>
                     <div id="pdf-price-breakdown"></div>
                 </div>
             </div>
@@ -276,14 +267,14 @@
     </div>
 
     <div id="blueprint-template">
-        <h2 style="margin: 0 0 20px 0; border-bottom: 3px solid #111; padding-bottom: 10px; text-transform: uppercase;">PRODUCTION BLUEPRINT</h2>
-        <div id="bp-img-container" style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px; padding: 20px; background: #fff; border: 1px solid #eee;"></div>
-        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 5px solid #007bff;">
-            <p style="margin: 0 0 10px 0; font-size: 18px;"><b>Collection:</b> <span id="bp-collection" style="color: #333;"></span></p>
-            <p style="margin: 0 0 10px 0; font-size: 16px; display: none;" id="bp-fabric-container"><b>Fabric:</b> <span id="bp-fabric" style="color: #333;"></span></p>
-            <p id="bp-dims-container" style="margin: 0 0 10px 0; font-size: 16px;"><b>Dimensions:</b><br><span id="bp-dims" style="color: #007bff;"></span></p>
-            <p style="margin: 0 0 10px 0; font-size: 16px;"><b>Specification (L➔R):</b> <span id="bp-chain"></span></p>
-            <p style="margin: 0; font-size: 14px; color: #555;" id="bp-notes"></p>
+        <h2 style="margin: 0 0 20px 0;">PRODUCTION BLUEPRINT</h2>
+        <div id="bp-img-container"></div>
+        <div>
+            <p><b>Collection:</b> <span id="bp-collection"></span></p>
+            <p style="display:none;" id="bp-fabric-container"><b>Fabric:</b> <span id="bp-fabric"></span></p>
+            <p id="bp-dims-container"><b>Dimensions:</b><br><span id="bp-dims"></span></p>
+            <p><b>Specification (L➔R):</b> <span id="bp-chain"></span></p>
+            <p id="bp-notes"></p>
         </div>
     </div>
 
@@ -291,7 +282,10 @@
 
     <script src="funkcijos.js?v=1.20"></script>
 
-    <!-- Firebase ryšys: kainų sinchronizacija + kliento pasiūlymų nuorodos -->
+    <!-- Kliento režimo pritaikymai (paslepia vidinius įrankius, užklausos siuntimas) -->
+    <script src="klientams.js?v=1.20"></script>
+
+    <!-- Firebase ryšys: kainos + užklausų siuntimas -->
     <script type="module" src="firebase-init.js?v=1.20"></script>
 </body>
 </html>
