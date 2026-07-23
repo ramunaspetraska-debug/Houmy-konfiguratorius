@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.25 (Prisitaikantis meniu plotis)";
+const APP_VERSION = "V1.26 (Tikslus meniu plotis ir režimo perpiešimas)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",

@@ -112,6 +112,10 @@ function atidarytiPilnaEkrana() {
 // į meniu mygtuką virš pavadinimo. Plotis proporcingas tikram modulio pločiui
 // (lyginant su plačiausiu kolekcijos moduliu), todėl klientas iškart mato
 // modulių dydžių santykius.
+// Ar dabar telefono režimas? Naudojam matchMedia — tą patį matavimą kaip CSS,
+// todėl JS sudėliotas turinys visada sutampa su CSS išdėstymu.
+const mobilausEkranoMedia = window.matchMedia('(max-width: 768px)');
+
 function dekoruotiMeniuBreziniais() {
     const kolekcijosRaktas = document.getElementById('model-select').value;
     const moduliai = (typeof furnitureModels !== 'undefined') ? furnitureModels[kolekcijosRaktas] : null;
@@ -122,7 +126,7 @@ function dekoruotiMeniuBreziniais() {
     // kampas — platus.
     const didziausiasPlotis = Math.max(...moduliai.map(m => m.w));
     const didziausiasAukstis = Math.max(...moduliai.map(m => m.h));
-    const mobilus = window.innerWidth <= 768;
+    const mobilus = mobilausEkranoMedia.matches;
 
     // Kompiuteryje: kompaktiška eilutė — piešinys kairėje (fiksuotas stulpelis,
     // kad tekstas visose kortelėse lygiuotųsi), pavadinimas/matmenys/kaina dešinėje.
@@ -131,15 +135,6 @@ function dekoruotiMeniuBreziniais() {
     const stulpelisPx = Math.ceil(didziausiasPlotis * K);
     // Telefone: piešinys viršuje (kortelės siauros), mastelis procentais.
     const bazeProc = Math.min(55, 48 * didziausiasPlotis / didziausiasAukstis);
-
-    // Visa kairė juosta susiaurinama pagal ŠIOS kolekcijos turinį: piešinių
-    // stulpelis + vieta tekstui + tarpai/rėmeliai/slinkties juosta. Smulkių
-    // modulių kolekcijoms juosta automatiškai siauresnė, stambių — platesnė.
-    if (!mobilus) {
-        const tekstoPlotis = 84;
-        const kraštai = 68; // 8 tarpas + 16 kortelės paraštės + 2 rėmeliai + 30 juostos paraštės + ~12 slinkčiai
-        document.getElementById('sidebar-left').style.width = (stulpelisPx + tekstoPlotis + kraštai) + 'px';
-    }
 
     document.querySelectorAll('#module-list .menu-item').forEach((btn, i) => {
         const mod = moduliai[i];
@@ -165,6 +160,22 @@ function dekoruotiMeniuBreziniais() {
                 `<div class="menu-price" style="margin-top:2px;">${kaina}€</div></div>`;
         }
     });
+
+    // Kairės juostos plotis pritaikomas ŠIOS kolekcijos turiniui: piešinių
+    // stulpelis + ILGIAUSIAS realus tekstas (išmatuojamas, ne spėjamas) +
+    // paraštės. Telefone pločio nevaldome — ten juosta per visą ekraną.
+    const juosta = document.getElementById('sidebar-left');
+    if (mobilus) {
+        juosta.style.width = '';
+    } else {
+        const tekstuBlokai = document.querySelectorAll('#module-list .menu-item > div:last-child');
+        let ilgiausiasTekstas = 0;
+        tekstuBlokai.forEach(d => { d.style.width = 'max-content'; d.style.flex = 'none'; });
+        tekstuBlokai.forEach(d => { ilgiausiasTekstas = Math.max(ilgiausiasTekstas, d.offsetWidth); });
+        tekstuBlokai.forEach(d => { d.style.width = ''; d.style.flex = '1'; });
+        // 70 = 8 tarpas + 16 kortelės paraštės + 2 rėmeliai + 30 juostos paraštės + ~12 slinkties juostai + 2 atsarga
+        juosta.style.width = Math.min(280, stulpelisPx + ilgiausiasTekstas + 70) + 'px';
+    }
 }
 
 // Meniu jau nupieštas užsikraunant — dekoruojam iškart, o loadModel apvyniojam,
@@ -176,6 +187,19 @@ if (typeof loadModel === 'function') {
         _origLoadModel(raktas);
         dekoruotiMeniuBreziniais();
     };
+}
+
+// Kai lango plotis kerta 768px ribą, meniu perpiešiamas pagal naują režimą.
+// Tai svarbu PrestaShop įterptam langui: jis pirmą akimirką būna siauras
+// (width="300" atributas), o tik tada išsiplečia į pilną plotį — be šio
+// perpiešimo likdavo mišrus (telefono) išdėstymas kompiuterio ekrane.
+function perpiestiMeniuPagalRezima() {
+    if (typeof loadModel === 'function') loadModel(document.getElementById('model-select').value);
+}
+try {
+    mobilausEkranoMedia.addEventListener('change', perpiestiMeniuPagalRezima);
+} catch (e) {
+    if (mobilausEkranoMedia.addListener) mobilausEkranoMedia.addListener(perpiestiMeniuPagalRezima);
 }
 
 // Atidaro užklausos langą (tik jei baldas sudėliotas ir be klaidų)
