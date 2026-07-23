@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.23 (Meniu lygiavimas ir pilno ekrano mygtukas)";
+const APP_VERSION = "V1.24 (Kompaktiškos meniu kortelės)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",

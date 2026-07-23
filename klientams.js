@@ -119,22 +119,42 @@ function dekoruotiMeniuBreziniais() {
 
     // VIENODAS mastelis visiems kolekcijos moduliams (be jokių minimumų!),
     // todėl proporcijos tikros: siauras porankis atrodo siauras, platus
-    // kampas — platus. Bazinis mastelis parinktas taip, kad aukščiausias
-    // modulis būtų ~110px, o plačiausias neužimtų daugiau ~55% kortelės.
+    // kampas — platus.
     const didziausiasPlotis = Math.max(...moduliai.map(m => m.w));
     const didziausiasAukstis = Math.max(...moduliai.map(m => m.h));
+    const mobilus = window.innerWidth <= 768;
+
+    // Kompiuteryje: kompaktiška eilutė — piešinys kairėje (fiksuotas stulpelis,
+    // kad tekstas visose kortelėse lygiuotųsi), pavadinimas/matmenys/kaina dešinėje.
+    // Mastelis: plačiausias modulis <=84px, aukščiausias <=76px.
+    const K = Math.min(0.55, 84 / didziausiasPlotis, 76 / didziausiasAukstis);
+    const stulpelisPx = Math.ceil(didziausiasPlotis * K);
+    // Telefone: piešinys viršuje (kortelės siauros), mastelis procentais.
     const bazeProc = Math.min(55, 48 * didziausiasPlotis / didziausiasAukstis);
 
     document.querySelectorAll('#module-list .menu-item').forEach((btn, i) => {
         const mod = moduliai[i];
         if (!mod || btn.querySelector('.menu-thumb')) return;
-        const plotisProc = (mod.w / didziausiasPlotis * bazeProc).toFixed(1);
         const kaina = getModulePrice(kolekcijosRaktas, mod.id);
-        btn.innerHTML =
-            `<div class="menu-thumb" style="position:relative; width:${plotisProc}%; aspect-ratio:${mod.w}/${mod.h}; margin:0 auto;">${mod.svg}</div>` +
-            `<div style="display:flex; justify-content:space-between; align-items:center; width:100%;">` +
-            `<span>${mod.name}${mod.expandable ? ' ⇕' : ''}<br><small>${mod.w}x${mod.h} cm</small></span>` +
-            `<span class="menu-price">${kaina}€</span></div>`;
+        const vardas = `${mod.name}${mod.expandable ? ' ⇕' : ''}`;
+
+        if (mobilus) {
+            const plotisProc = (mod.w / didziausiasPlotis * bazeProc).toFixed(1);
+            btn.innerHTML =
+                `<div class="menu-thumb" style="position:relative; width:${plotisProc}%; aspect-ratio:${mod.w}/${mod.h}; margin:0 auto;">${mod.svg}</div>` +
+                `<div style="width:100%; text-align:center; line-height:1.3;">` +
+                `<div>${vardas} <span class="menu-price">${kaina}€</span></div>` +
+                `<small style="color:#888; font-weight:normal;">${mod.w}x${mod.h} cm</small></div>`;
+        } else {
+            const w = (mod.w * K).toFixed(1), h = (mod.h * K).toFixed(1);
+            btn.innerHTML =
+                `<div style="flex:0 0 ${stulpelisPx}px; display:flex; align-items:center; justify-content:center;">` +
+                `<div class="menu-thumb" style="position:relative; width:${w}px; height:${h}px;">${mod.svg}</div></div>` +
+                `<div style="flex:1; min-width:0; text-align:left; line-height:1.4;">` +
+                `<div>${vardas}</div>` +
+                `<small style="color:#888; font-weight:normal;">${mod.w}x${mod.h} cm</small>` +
+                `<div class="menu-price" style="margin-top:2px;">${kaina}€</div></div>`;
+        }
     });
 }
 

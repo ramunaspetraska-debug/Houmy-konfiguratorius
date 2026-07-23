@@ -8,28 +8,35 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=1.23">
+    <link rel="stylesheet" href="styles.css?v=1.24">
 
     <!-- KLIENTO režimas: supaprastinta versija houmy.lt lankytojams.
          Redagavimo variklis tas pats, bet paslėpti vidiniai įrankiai
          (admin, archyvas, brėžiniai, PDF) — klientas tik dėlioja ir
          siunčia užklausą. -->
     <style>
-      /* Vidiniai elementai, kurių klientas neturi matyti */
-      #module-chain-display, #share-btn { display: none !important; }
+      /* Vidiniai elementai, kurių klientas neturi matyti. !important būtinas:
+         mobilioji optimizacija (funkcijos.js) PDF/brėžinio mygtukus vėl įjungia
+         per inline stilių — CSS su !important tai nurungia. */
+      #module-chain-display, #share-btn, #mobile-btn-wrap,
+      .action-btn[onclick="openClientModal()"],
+      .action-btn[onclick="openBlueprintModal()"] { display: none !important; }
 
-      /* Modulių meniu su brėžinukais: kortelė — piešinys viršuje, info apačioje */
-      .menu-item { flex-direction: column; align-items: stretch; gap: 6px; padding: 10px 8px; }
-      /* Piešinys visada kortelės rėmelio viduje, prispaustas prie savo dėžutės
-         kairio viršutinio kampo (kitaip text-align:center jį nustumia dešinėn) */
+      /* Piešinys visada savo dėžutės viduje, prispaustas prie kairio viršutinio
+         kampo (kitaip text-align:center jį nustumia dešinėn) */
       .menu-thumb svg { left: 0; top: 0; }
-      /* Kompiuteryje meniu slenka tik vertikaliai; telefone horizontalus slinkimas būtinas */
+
+      /* Kompiuteryje: kompaktiška kortelės eilutė — piešinys kairėje, tekstas dešinėje */
       @media (min-width: 769px) {
+        .menu-item { flex-direction: row; align-items: center; gap: 8px; padding: 6px 8px; text-align: left; }
         #module-list { overflow-x: hidden; }
       }
+      /* Telefone: piešinys viršuje, tekstas po juo; „Per visą ekraną" mygtukas
+         perkeliamas žemyn, kad neuždengtų išmatavimų lentelės */
       @media (max-width: 768px) {
-        .menu-item { min-width: 100px; }
+        .menu-item { min-width: 100px; flex-direction: column; align-items: stretch; gap: 5px; padding: 8px 6px; }
         .menu-thumb { max-height: 52px; }
+        #pilno-ekrano-btn { top: auto !important; bottom: 10px !important; left: 10px !important; }
       }
     </style>
 
@@ -292,14 +299,14 @@
         </div>
     </div>
 
-    <script src="duomenys.js?v=1.23"></script>
+    <script src="duomenys.js?v=1.24"></script>
 
-    <script src="funkcijos.js?v=1.23"></script>
+    <script src="funkcijos.js?v=1.24"></script>
 
     <!-- Kliento režimo pritaikymai (paslepia vidinius įrankius, užklausos siuntimas) -->
-    <script src="klientams.js?v=1.23"></script>
+    <script src="klientams.js?v=1.24"></script>
 
     <!-- Firebase ryšys: kainos + užklausų siuntimas -->
-    <script type="module" src="firebase-init.js?v=1.23"></script>
+    <script type="module" src="firebase-init.js?v=1.24"></script>
 </body>
 </html>
