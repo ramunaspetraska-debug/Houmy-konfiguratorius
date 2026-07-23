@@ -132,6 +132,15 @@ function dekoruotiMeniuBreziniais() {
     // Telefone: piešinys viršuje (kortelės siauros), mastelis procentais.
     const bazeProc = Math.min(55, 48 * didziausiasPlotis / didziausiasAukstis);
 
+    // Visa kairė juosta susiaurinama pagal ŠIOS kolekcijos turinį: piešinių
+    // stulpelis + vieta tekstui + tarpai/rėmeliai/slinkties juosta. Smulkių
+    // modulių kolekcijoms juosta automatiškai siauresnė, stambių — platesnė.
+    if (!mobilus) {
+        const tekstoPlotis = 84;
+        const kraštai = 68; // 8 tarpas + 16 kortelės paraštės + 2 rėmeliai + 30 juostos paraštės + ~12 slinkčiai
+        document.getElementById('sidebar-left').style.width = (stulpelisPx + tekstoPlotis + kraštai) + 'px';
+    }
+
     document.querySelectorAll('#module-list .menu-item').forEach((btn, i) => {
         const mod = moduliai[i];
         if (!mod || btn.querySelector('.menu-thumb')) return;

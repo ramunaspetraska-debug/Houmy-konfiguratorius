@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.24 (Kompaktiškos meniu kortelės)";
+const APP_VERSION = "V1.25 (Prisitaikantis meniu plotis)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
