@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.26 (Tikslus meniu plotis ir režimo perpiešimas)";
+const APP_VERSION = "V1.27 (Matmenys vienoje eilutėje)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
