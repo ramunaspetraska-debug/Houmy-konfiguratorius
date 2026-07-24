@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.31 (Administratoriaus Google prisijungimas)";
+const APP_VERSION = "V1.32 (Trečia administratoriaus paskyra)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
