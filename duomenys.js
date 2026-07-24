@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.30 (Brėžinukai vidinėje programoje ir dalinimosi mygtukas)";
+const APP_VERSION = "V1.31 (Administratoriaus Google prisijungimas)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",

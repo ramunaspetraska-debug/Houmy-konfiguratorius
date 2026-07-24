@@ -1206,17 +1206,20 @@ function applyDynamicBulk(multiplier) {
     alert(`Pakeista kainų: ${count}. (Nepamirškite išsaugoti nustatymų!)`); 
 }
 
-function openAdmin() { 
-    // PIN kodo patikrinimas
-    let pin = prompt("Įveskite administratoriaus PIN kodą:");
-    if (pin !== "7030") {
-        if (pin !== null) { // Jei vartotojas nepaspaudė "Atšaukti" (Cancel)
-            alert("Neteisingas PIN kodas!");
-        }
-        return; // Nutraukiame funkcijos vykdymą, admin langas neatsidarys
+function openAdmin() {
+    // Administratoriaus prisijungimas per Google (pakeitė senąjį PIN kodą,
+    // kuris buvo matomas viešame kode). Tikrą apsaugą užtikrina duomenų
+    // bazės taisyklės — kainas įrašyti gali tik prisijungęs administratorius.
+    if (!window.houmyCloud || !window.houmyCloud.prisijungtiAdmin) {
+        alert("Debesies ryšys dar neužkrautas — palaukite sekundę ir bandykite dar kartą.");
+        return;
     }
+    window.houmyCloud.prisijungtiAdmin().then(pavyko => {
+        if (pavyko) atidarytiAdminPaneli();
+    });
+}
 
-    // Jei PIN teisingas, vykdome kodą toliau:
+function atidarytiAdminPaneli() {
     tempAdminPrices = JSON.parse(JSON.stringify(appSettings.customPrices));
 
     document.getElementById('admin-modal').style.display = 'flex'; 

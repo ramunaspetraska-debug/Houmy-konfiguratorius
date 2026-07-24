@@ -17,6 +17,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import { getDatabase, ref, get, set, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 
 // Firebase projekto konfigūracija (tai NĖRA slaptažodžiai — šie duomenys
 // skirti būti viešame kliento kode; prieigą riboja duomenų bazės taisyklės).
@@ -32,8 +33,46 @@ const firebaseConfig = {
 
 const fbApp = initializeApp(firebaseConfig);
 const db = getDatabase(fbApp);
+const auth = getAuth(fbApp);
 const SETTINGS_KELIAS = "houmy_settings";
 const PASIULYMU_KELIAS = "houmy_proposals";
+
+// Administratorių sąrašas: tik šios Google paskyros gali atidaryti admin
+// panelę ir įrašyti kainas į debesį (tą patį sąrašą saugo ir duomenų bazės
+// taisyklės — apsauga veikia serverio pusėje, ne tik naršyklėje).
+const ADMIN_PASTAI = ["ramunaspetraska@gmail.com", "info@houmy.lt"];
+
+// Prisijungimas per Google iškylantį langą. Grąžina true, jei prisijungė
+// administratorius; kitaip — false (su paaiškinimu vartotojui).
+async function prisijungtiAdmin() {
+    const esamas = auth.currentUser;
+    if (esamas && ADMIN_PASTAI.includes((esamas.email || "").toLowerCase())) return true;
+    try {
+        const rezultatas = await signInWithPopup(auth, new GoogleAuthProvider());
+        const pastas = (rezultatas.user.email || "").toLowerCase();
+        if (!ADMIN_PASTAI.includes(pastas)) {
+            await signOut(auth);
+            alert("Paskyra " + pastas + " neturi administratoriaus teisių.");
+            return false;
+        }
+        return true;
+    } catch (klaida) {
+        console.error("Prisijungimo klaida:", klaida);
+        const kodas = klaida && klaida.code;
+        if (kodas === "auth/popup-closed-by-user" || kodas === "auth/cancelled-popup-request") {
+            // vartotojas tiesiog uždarė langą — nieko nerodome
+        } else if (kodas === "auth/popup-blocked") {
+            alert("Naršyklė užblokavo prisijungimo langą. Leiskite iškylančius langus šiai svetainei ir bandykite dar kartą.");
+        } else if (kodas === "auth/operation-not-allowed" || kodas === "auth/configuration-not-found") {
+            alert("Google prisijungimas dar neįjungtas Firebase konsolėje (Authentication -> Sign-in method -> Google).");
+        } else if (kodas === "auth/unauthorized-domain") {
+            alert("Šis svetainės adresas dar neįtrauktas į leidžiamus domenus Firebase konsolėje (Authentication -> Settings -> Authorized domains).");
+        } else {
+            alert("Nepavyko prisijungti — bandykite dar kartą.");
+        }
+        return false;
+    }
+}
 
 // Paima iš nustatymų tik tuos laukus, kurie sinchronizuojami su debesiu,
 // ir suvienodina tuščias reikšmes (kad palyginimas būtų patikimas).
@@ -100,11 +139,18 @@ async function issaugotiUzklausaDebesyje(uzklausa) {
 window.houmyCloud = {
     pasiruoses: false,          // ar užsikrovus pavyko pasiekti debesį
     debesyjeYraDuomenu: false,  // ar debesyje jau yra išsaugoti nustatymai
+    vartotojas: null,           // prisijungusio administratoriaus el. paštas
     issaugotiNustatymus: issaugotiNustatymusDebesyje,
     issaugotiPasiulyma: issaugotiPasiulymaDebesyje,
     gautiPasiulyma: gautiPasiulymaDebesyje,
-    issaugotiUzklausa: issaugotiUzklausaDebesyje
+    issaugotiUzklausa: issaugotiUzklausaDebesyje,
+    prisijungtiAdmin: prisijungtiAdmin
 };
+
+// Sekame prisijungimo būseną (išlieka tarp apsilankymų toje pačioje naršyklėje)
+onAuthStateChanged(auth, (u) => {
+    window.houmyCloud.vartotojas = u ? (u.email || "") : null;
+});
 
 // Ar dabar atidaromas kliento pasiūlymas (?proposal=<id>)? Tokiu atveju
 // kainų sinchronizacijos NEvykdom (klientui rodom įrašytus pasiūlymo duomenis,
