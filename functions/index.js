@@ -58,8 +58,10 @@ exports.uzklausoslaiskas = onValueCreated(
             ["Komentaras", u.comment]
         ].filter(e => e[1]);
 
+        // lang="lt" + translate="no" + notranslate klasė: apsauga nuo Gmail
+        // automatinio vertėjo, kuris CORE paversdavo „ŠERDIS", Suma — „Papildymas".
         const html =
-            `<div style="font-family:Arial,sans-serif; font-size:14px; color:#222; line-height:1.6;">` +
+            `<div lang="lt" translate="no" class="notranslate" style="font-family:Arial,sans-serif; font-size:14px; color:#222; line-height:1.6;">` +
             `<h2 style="margin:0 0 4px 0;">Nauja užklausa iš houmy.lt konfigūratoriaus</h2>` +
             `<table style="border-collapse:collapse; margin:12px 0;">` +
             eilutes.map(e =>

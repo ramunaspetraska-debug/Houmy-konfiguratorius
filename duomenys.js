@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.28 (Kolekcijų maišymosi apsauga)";
+const APP_VERSION = "V1.29 (Kopijavimo mygtukas ir laiško apsauga nuo vertimo)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",

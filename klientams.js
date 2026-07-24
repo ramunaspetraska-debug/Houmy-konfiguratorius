@@ -129,6 +129,20 @@ function atidarytiPilnaEkrana() {
     window.open(pilnoEkranoNuoroda(), '_blank');
 }
 
+// Nukopijuoja kliento varianto nuorodą iš padėkos lango vienu paspaudimu
+function kopijuotiUzklausosNuoroda(btn) {
+    const laukas = document.getElementById('uzklausa-nuoroda');
+    const originalusTekstas = btn.innerHTML;
+    const pavyko = () => {
+        btn.innerHTML = '✅ Nukopijuota!';
+        setTimeout(() => { btn.innerHTML = originalusTekstas; }, 2000);
+    };
+    navigator.clipboard.writeText(laukas.value).then(pavyko).catch(() => {
+        // Atsarginis kelias senesnėms naršyklėms
+        try { laukas.select(); document.execCommand('copy'); pavyko(); } catch (e) {}
+    });
+}
+
 // --- 5. Modulių brėžinukai pasirinkimų meniu ---
 // Kiekvieno modulio SVG piešinys (tas pats, kuris piešiamas ant stalo) įdedamas
 // į meniu mygtuką virš pavadinimo. Plotis proporcingas tikram modulio pločiui
