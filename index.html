@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=1.29">
+    <link rel="stylesheet" href="styles.css?v=1.30">
 
     <!-- Kliento pasiūlymo (?proposal=) režimas: iškart paslepiam redagavimo įrankius,
          kad klientas nepamatytų admin sąsajos, kol užsikrauna švari peržiūra. -->
@@ -34,6 +34,16 @@
         display: flex; position: fixed; inset: 0; z-index: 99999;
         background: #fff; align-items: center; justify-content: center;
         font-family: sans-serif; color: #444;
+      }
+
+      /* Modulių meniu su brėžinukais (tokia pati išvaizda kaip klientų versijoje) */
+      .menu-thumb svg { left: 0; top: 0; }
+      @media (min-width: 769px) {
+        .menu-item { flex-direction: row; align-items: center; gap: 8px; padding: 6px 8px; text-align: left; }
+      }
+      @media (max-width: 768px) {
+        .menu-item { flex-direction: column; align-items: stretch; gap: 5px; padding: 8px 6px; min-width: 100px; }
+        .menu-thumb { max-height: 52px; }
       }
     </style>
     
@@ -287,11 +297,15 @@
         </div>
     </div>
 
-    <script src="duomenys.js?v=1.29"></script>
+    <script src="duomenys.js?v=1.30"></script>
 
-    <script src="funkcijos.js?v=1.29"></script>
+    <script src="funkcijos.js?v=1.30"></script>
+
+    <!-- Modulių brėžinukai meniu (bendras failas su klientų versija) -->
+    <script src="meniu-breziniai.js?v=1.30"></script>
+    <script>ijungtiMeniuBrezinius(false);</script>
 
     <!-- Firebase ryšys: kainų sinchronizacija + kliento pasiūlymų nuorodos -->
-    <script type="module" src="firebase-init.js?v=1.29"></script>
+    <script type="module" src="firebase-init.js?v=1.30"></script>
 </body>
 </html>

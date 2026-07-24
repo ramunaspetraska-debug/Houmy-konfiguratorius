@@ -83,6 +83,17 @@
     uzklausosBtn.onclick = atidarytiUzklausosModal;
     document.getElementById('sidebar-right').appendChild(uzklausosBtn);
 
+    // Mygtukas „Kopijuoti nuorodą": klientas gali nusikopijuoti savo dėlionės
+    // nuorodą (pvz., nusiųsti draugui ar per Messenger) be užklausos siuntimo.
+    // Nuoroda atidaro dėlionę su galimybe toliau redaguoti.
+    const dalinimosiBtn = document.createElement('button');
+    dalinimosiBtn.className = 'action-btn';
+    dalinimosiBtn.id = 'dalintis-btn';
+    dalinimosiBtn.innerHTML = '🔗 Kopijuoti nuorodą';
+    dalinimosiBtn.style.cssText = 'background:#6c757d; font-size:12px; padding:9px; margin-top:6px;';
+    dalinimosiBtn.onclick = function () { kopijuotiDalinimosiNuoroda(this); };
+    document.getElementById('sidebar-right').appendChild(dalinimosiBtn);
+
     // --- 5. „Per visą ekraną" mygtukas (rodomas TIK įterptame lange) ---
     // Naršyklės įterptam langui (iframe) skiria ATSKIRĄ atmintį nei atskiram
     // skirtukui, todėl paprastas mygtukas svetainėje atidaro ne tą būseną.
@@ -129,6 +140,31 @@ function atidarytiPilnaEkrana() {
     window.open(pilnoEkranoNuoroda(), '_blank');
 }
 
+// Nukopijuoja dabartinės dėlionės nuorodą (redaguojamą) į iškarpinę
+function kopijuotiDalinimosiNuoroda(btn) {
+    if (document.querySelectorAll('.canvas-module').length === 0) {
+        return alert('Pirmiausia sudėliokite baldą — tada galėsite nusikopijuoti jo nuorodą.');
+    }
+    const nuoroda = pilnoEkranoNuoroda();
+    const originalusTekstas = btn.innerHTML;
+    const pavyko = () => {
+        btn.innerHTML = '✅ Nukopijuota!';
+        setTimeout(() => { btn.innerHTML = originalusTekstas; }, 2000);
+    };
+    navigator.clipboard.writeText(nuoroda).then(pavyko).catch(() => {
+        // Atsarginis kelias senesnėms naršyklėms
+        try {
+            const laukas = document.createElement('textarea');
+            laukas.value = nuoroda;
+            document.body.appendChild(laukas);
+            laukas.select();
+            document.execCommand('copy');
+            laukas.remove();
+            pavyko();
+        } catch (e) {}
+    });
+}
+
 // Nukopijuoja kliento varianto nuorodą iš padėkos lango vienu paspaudimu
 function kopijuotiUzklausosNuoroda(btn) {
     const laukas = document.getElementById('uzklausa-nuoroda');
@@ -144,101 +180,9 @@ function kopijuotiUzklausosNuoroda(btn) {
 }
 
 // --- 5. Modulių brėžinukai pasirinkimų meniu ---
-// Kiekvieno modulio SVG piešinys (tas pats, kuris piešiamas ant stalo) įdedamas
-// į meniu mygtuką virš pavadinimo. Plotis proporcingas tikram modulio pločiui
-// (lyginant su plačiausiu kolekcijos moduliu), todėl klientas iškart mato
-// modulių dydžių santykius.
-// Ar dabar telefono režimas? Naudojam matchMedia — tą patį matavimą kaip CSS,
-// todėl JS sudėliotas turinys visada sutampa su CSS išdėstymu.
-const mobilausEkranoMedia = window.matchMedia('(max-width: 768px)');
-
-function dekoruotiMeniuBreziniais(kolekcijosRaktas) {
-    // Kolekcija paduodama iš loadModel (kad visada sutaptų su nupieštu meniu);
-    // jei nepaduota — imama iš pasirinkimo lauko.
-    kolekcijosRaktas = kolekcijosRaktas || document.getElementById('model-select').value;
-    const moduliai = (typeof furnitureModels !== 'undefined') ? furnitureModels[kolekcijosRaktas] : null;
-    if (!moduliai || !moduliai.length) return;
-
-    // VIENODAS mastelis visiems kolekcijos moduliams (be jokių minimumų!),
-    // todėl proporcijos tikros: siauras porankis atrodo siauras, platus
-    // kampas — platus.
-    const didziausiasPlotis = Math.max(...moduliai.map(m => m.w));
-    const didziausiasAukstis = Math.max(...moduliai.map(m => m.h));
-    const mobilus = mobilausEkranoMedia.matches;
-
-    // Kompiuteryje: kompaktiška eilutė — piešinys kairėje (fiksuotas stulpelis,
-    // kad tekstas visose kortelėse lygiuotųsi), pavadinimas/matmenys/kaina dešinėje.
-    // Mastelis: plačiausias modulis <=84px, aukščiausias <=76px.
-    const K = Math.min(0.55, 84 / didziausiasPlotis, 76 / didziausiasAukstis);
-    const stulpelisPx = Math.ceil(didziausiasPlotis * K);
-    // Telefone: piešinys viršuje (kortelės siauros), mastelis procentais.
-    const bazeProc = Math.min(55, 48 * didziausiasPlotis / didziausiasAukstis);
-
-    document.querySelectorAll('#module-list .menu-item').forEach((btn, i) => {
-        const mod = moduliai[i];
-        if (!mod || btn.querySelector('.menu-thumb')) return;
-        const kaina = getModulePrice(kolekcijosRaktas, mod.id);
-        const vardas = `${mod.name}${mod.expandable ? ' ⇕' : ''}`;
-
-        if (mobilus) {
-            const plotisProc = (mod.w / didziausiasPlotis * bazeProc).toFixed(1);
-            btn.innerHTML =
-                `<div class="menu-thumb" style="position:relative; width:${plotisProc}%; aspect-ratio:${mod.w}/${mod.h}; margin:0 auto;">${mod.svg}</div>` +
-                `<div style="width:100%; text-align:center; line-height:1.3;">` +
-                `<div>${vardas} <span class="menu-price">${kaina}€</span></div>` +
-                `<small style="color:#888; font-weight:normal; white-space:nowrap;">${mod.w}x${mod.h} cm</small></div>`;
-        } else {
-            const w = (mod.w * K).toFixed(1), h = (mod.h * K).toFixed(1);
-            btn.innerHTML =
-                `<div style="flex:0 0 ${stulpelisPx}px; display:flex; align-items:center; justify-content:center;">` +
-                `<div class="menu-thumb" style="position:relative; width:${w}px; height:${h}px;">${mod.svg}</div></div>` +
-                `<div style="flex:1; min-width:0; text-align:left; line-height:1.4;">` +
-                `<div>${vardas}</div>` +
-                `<small style="color:#888; font-weight:normal; white-space:nowrap;">${mod.w}x${mod.h} cm</small>` +
-                `<div class="menu-price" style="margin-top:2px;">${kaina}€</div></div>`;
-        }
-    });
-
-    // Kairės juostos plotis pritaikomas ŠIOS kolekcijos turiniui: piešinių
-    // stulpelis + ILGIAUSIAS realus tekstas (išmatuojamas, ne spėjamas) +
-    // paraštės. Telefone pločio nevaldome — ten juosta per visą ekraną.
-    const juosta = document.getElementById('sidebar-left');
-    if (mobilus) {
-        juosta.style.width = '';
-    } else {
-        const tekstuBlokai = document.querySelectorAll('#module-list .menu-item > div:last-child');
-        let ilgiausiasTekstas = 0;
-        tekstuBlokai.forEach(d => { d.style.width = 'max-content'; d.style.flex = 'none'; });
-        tekstuBlokai.forEach(d => { ilgiausiasTekstas = Math.max(ilgiausiasTekstas, d.offsetWidth); });
-        tekstuBlokai.forEach(d => { d.style.width = ''; d.style.flex = '1'; });
-        // 74 = 8 tarpas + 16 kortelės paraštės + 2 rėmeliai + 30 juostos paraštės + ~12 slinkties juostai + 6 atsarga
-        juosta.style.width = Math.min(280, stulpelisPx + ilgiausiasTekstas + 74) + 'px';
-    }
-}
-
-// Meniu jau nupieštas užsikraunant — dekoruojam iškart, o loadModel apvyniojam,
-// kad po bet kokio meniu perpiešimo brėžinukai atsirastų vėl.
-dekoruotiMeniuBreziniais();
-if (typeof loadModel === 'function') {
-    const _origLoadModel = loadModel;
-    loadModel = function (raktas) {
-        _origLoadModel(raktas);
-        dekoruotiMeniuBreziniais(raktas);
-    };
-}
-
-// Kai lango plotis kerta 768px ribą, meniu perpiešiamas pagal naują režimą.
-// Tai svarbu PrestaShop įterptam langui: jis pirmą akimirką būna siauras
-// (width="300" atributas), o tik tada išsiplečia į pilną plotį — be šio
-// perpiešimo likdavo mišrus (telefono) išdėstymas kompiuterio ekrane.
-function perpiestiMeniuPagalRezima() {
-    if (typeof loadModel === 'function') loadModel(document.getElementById('model-select').value);
-}
-try {
-    mobilausEkranoMedia.addEventListener('change', perpiestiMeniuPagalRezima);
-} catch (e) {
-    if (mobilausEkranoMedia.addListener) mobilausEkranoMedia.addListener(perpiestiMeniuPagalRezima);
-}
+// Bendra logika perkelta į meniu-breziniai.js (ją naudoja ir vidinė programa).
+// Kliento versijoje papildomai valdomas kairės juostos plotis (true).
+ijungtiMeniuBrezinius(true);
 
 // Atidaro užklausos langą (tik jei baldas sudėliotas ir be klaidų)
 function atidarytiUzklausosModal() {

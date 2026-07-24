@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.29 (Kopijavimo mygtukas ir laiško apsauga nuo vertimo)";
+const APP_VERSION = "V1.30 (Brėžinukai vidinėje programoje ir dalinimosi mygtukas)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
