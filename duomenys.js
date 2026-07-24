@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.27 (Matmenys vienoje eilutėje)";
+const APP_VERSION = "V1.28 (Kolekcijų maišymosi apsauga)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",

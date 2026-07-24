@@ -27,6 +27,28 @@
     }
     // Jei parametro nėra — pasirinkimas lieka matomas (atsarginis variantas).
 
+    // --- Kolekcijų maišymosi apsauga ---
+    // Naršyklė įsimena paskutinę dėlionę bendrai visiems puslapiams, todėl
+    // atsidarius KITOS kolekcijos puslapį senas baldas "atsineštų" kartu.
+    // Jei išsaugoti moduliai ne šios kolekcijos — pradedam tuščiu lapu.
+    // Tos pačios kolekcijos darbas po puslapio atnaujinimo išlieka, o
+    // ?s= nuoroda (pilno ekrano perdavimas) neliečiama.
+    if (galimos.includes(kolekcija) && !params.has('s') && !params.has('proposal')) {
+        const yraSvetimu = Array.from(document.querySelectorAll('.canvas-module'))
+            .some(m => (m.dataset.collection || '') !== kolekcija);
+        if (yraSvetimu) {
+            document.getElementById('canvas-area').innerHTML = '';
+            if (typeof currentPanX !== 'undefined') { currentPanX = 0; currentPanY = 0; }
+            const cw = document.getElementById('canvas-wrapper');
+            if (cw) cw.style.transform = 'translate(0px, 0px)';
+            document.getElementById('workspace').style.backgroundPosition = '0px 0px';
+            if (typeof updateOrderSummary === 'function') updateOrderSummary();
+            if (typeof updateLabels === 'function') updateLabels();
+            if (typeof updateDimensions === 'function') updateDimensions();
+            if (typeof saveState === 'function') saveState();
+        }
+    }
+
     // --- 2. Audinio grupė: visada bazinė, pasirinkimas paslepiamas ---
     const grupesSelect = document.getElementById('fabric-group-select');
     grupesSelect.value = '1';
