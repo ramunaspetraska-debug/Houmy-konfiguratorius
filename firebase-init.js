@@ -40,7 +40,7 @@ const PASIULYMU_KELIAS = "houmy_proposals";
 // Administratorių sąrašas: tik šios Google paskyros gali atidaryti admin
 // panelę ir įrašyti kainas į debesį (tą patį sąrašą saugo ir duomenų bazės
 // taisyklės — apsauga veikia serverio pusėje, ne tik naršyklėje).
-const ADMIN_PASTAI = ["ramunaspetraska@gmail.com", "info@houmy.lt", "info@praktiskibaldai.lt"];
+const ADMIN_PASTAI = ["ramunaspetraska@gmail.com", "info@houmy.lt", "info@praktiskibaldai.lt", "ciupaite.ingrida@gmail.com"];
 
 // Prisijungimas per Google iškylantį langą. Grąžina true, jei prisijungė
 // administratorius; kitaip — false (su paaiškinimu vartotojui).

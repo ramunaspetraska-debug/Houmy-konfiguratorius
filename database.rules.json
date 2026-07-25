@@ -17,7 +17,7 @@
 
     "houmy_settings": {
       ".read": true,
-      ".write": "newData.exists() && auth != null && auth.token.email_verified == true && (auth.token.email == 'ramunaspetraska@gmail.com' || auth.token.email == 'info@houmy.lt' || auth.token.email == 'info@praktiskibaldai.lt')",
+      ".write": "newData.exists() && auth != null && auth.token.email_verified == true && (auth.token.email == 'ramunaspetraska@gmail.com' || auth.token.email == 'info@houmy.lt' || auth.token.email == 'info@praktiskibaldai.lt' || auth.token.email == 'ciupaite.ingrida@gmail.com')",
       "prodTerm":       { ".validate": "newData.isString() && newData.val().length < 500" },
       "deliveryNote":   { ".validate": "newData.isString() && newData.val().length < 1000" },
       "additionalInfo": { ".validate": "newData.isString() && newData.val().length < 2000" },

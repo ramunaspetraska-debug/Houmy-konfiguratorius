@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.32 (Trečia administratoriaus paskyra)";
+const APP_VERSION = "V1.33 (Kolegės administratoriaus paskyra)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
