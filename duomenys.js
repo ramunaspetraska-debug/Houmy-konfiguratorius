@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.34 (Modulių sujungimai)";
+const APP_VERSION = "V1.35 (Specifikacija be jungčių prierašo)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",

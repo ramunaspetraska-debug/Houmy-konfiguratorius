@@ -180,11 +180,9 @@ function orderModulesReadingOrder(mods) {
 
 function generateModuleChainText(modules, isMixed) {
     if (!modules || modules.length === 0) return "";
-    // Prie modulio su sujungimais specifikacijoje pridedamas prierašas "(jungtys)"
-    const vardasSuJungtimis = m => m.dataset.name + (m.dataset.jungtys ? ' (jungtys)' : '');
     if (!isMixed) {
         let sorted = orderModulesReadingOrder(modules);
-        return sorted.map(vardasSuJungtimis).join(' + ');
+        return sorted.map(m => m.dataset.name).join(' + ');
     } else {
         let collections = {};
         [...modules].forEach(m => {
@@ -195,7 +193,7 @@ function generateModuleChainText(modules, isMixed) {
         let chainParts = [];
         for (let col in collections) {
             let sorted = orderModulesReadingOrder(collections[col]);
-            chainParts.push(sorted.map(m => `${col.toUpperCase()} ${vardasSuJungtimis(m)}`).join(' + '));
+            chainParts.push(sorted.map(m => `${col.toUpperCase()} ${m.dataset.name}`).join(' + '));
         }
         return chainParts.join('  |  ');
     }
