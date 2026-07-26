@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=1.33">
+    <link rel="stylesheet" href="styles.css?v=1.34">
 
     <!-- Kliento pasiūlymo (?proposal=) režimas: iškart paslepiam redagavimo įrankius,
          kad klientas nepamatytų admin sąsajos, kol užsikrauna švari peržiūra. -->
@@ -104,6 +104,7 @@
             <button class="tool-btn" onclick="undo()" title="Atšaukti">↩</button>
             <button class="tool-btn" onclick="rotateSelected(-90)" title="Pasukti kairėn">↺</button>
             <button class="tool-btn" onclick="rotateSelected(90)" title="Pasukti dešinėn">↻</button>
+            <button class="tool-btn" id="jungtys-btn" onclick="cycleJungtys()" title="Sujungimai: pažymėkite modulį ir spauskite — žymos keliauja per kraštus (viršus → dešinė → apačia → kairė → išjungta)" style="color:#dc3545; font-weight:bold;">❚❚</button>
             <button class="tool-btn danger-btn" onclick="deleteSelected()" title="Ištrinti">🗑️</button>
             <button class="tool-btn" onclick="openAdmin()" title="Nustatymai" style="margin-left: 10px;">⚙️</button>
             <div style="flex-grow:1;"></div>
@@ -298,15 +299,15 @@
         </div>
     </div>
 
-    <script src="duomenys.js?v=1.33"></script>
+    <script src="duomenys.js?v=1.34"></script>
 
-    <script src="funkcijos.js?v=1.33"></script>
+    <script src="funkcijos.js?v=1.34"></script>
 
     <!-- Modulių brėžinukai meniu (bendras failas su klientų versija) -->
-    <script src="meniu-breziniai.js?v=1.33"></script>
+    <script src="meniu-breziniai.js?v=1.34"></script>
     <script>ijungtiMeniuBrezinius(false);</script>
 
     <!-- Firebase ryšys: kainų sinchronizacija + kliento pasiūlymų nuorodos -->
-    <script type="module" src="firebase-init.js?v=1.33"></script>
+    <script type="module" src="firebase-init.js?v=1.34"></script>
 </body>
 </html>

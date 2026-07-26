@@ -180,9 +180,11 @@ function orderModulesReadingOrder(mods) {
 
 function generateModuleChainText(modules, isMixed) {
     if (!modules || modules.length === 0) return "";
+    // Prie modulio su sujungimais specifikacijoje pridedamas prierašas "(jungtys)"
+    const vardasSuJungtimis = m => m.dataset.name + (m.dataset.jungtys ? ' (jungtys)' : '');
     if (!isMixed) {
         let sorted = orderModulesReadingOrder(modules);
-        return sorted.map(m => m.dataset.name).join(' + ');
+        return sorted.map(vardasSuJungtimis).join(' + ');
     } else {
         let collections = {};
         [...modules].forEach(m => {
@@ -193,7 +195,7 @@ function generateModuleChainText(modules, isMixed) {
         let chainParts = [];
         for (let col in collections) {
             let sorted = orderModulesReadingOrder(collections[col]);
-            chainParts.push(sorted.map(m => `${col.toUpperCase()} ${m.dataset.name}`).join(' + '));
+            chainParts.push(sorted.map(m => `${col.toUpperCase()} ${vardasSuJungtimis(m)}`).join(' + '));
         }
         return chainParts.join('  |  ');
     }
@@ -354,11 +356,12 @@ function validateWorkspace() {
 let saveStateTimeout = null;
 function saveState() { 
     const s = Array.from(document.querySelectorAll('.canvas-module')).map(m=>({
-        id:m.dataset.id, n:m.dataset.name, p:m.dataset.price, c:m.dataset.collection, w:m.dataset.w, h:m.dataset.h, 
+        id:m.dataset.id, n:m.dataset.name, p:m.dataset.price, c:m.dataset.collection, w:m.dataset.w, h:m.dataset.h,
         l: (parseFloat(m.style.left) || 0) / scale,
         t: (parseFloat(m.style.top) || 0) / scale,
-        a:m.dataset.angle, z:m.style.zIndex, exp: m.dataset.isExpanded
-    })); 
+        a:m.dataset.angle, z:m.style.zIndex, exp: m.dataset.isExpanded,
+        j: m.dataset.jungtys || ''
+    }));
     const stateStr = JSON.stringify(s);
     
     historyStack.push(stateStr); 
@@ -379,16 +382,18 @@ function restoreState(data, centerView = false) {
     data.forEach(d=>{ 
         let modBase = furnitureModels[d.c]?.find(x=>x.id===d.id);
         if (!modBase) return;
-        const el=document.createElement('div'); el.className='canvas-module'; 
-        Object.assign(el.dataset,{id:d.id, name:d.n, price:d.p, collection:d.c, w:d.w, h:d.h, angle:d.a, isExpanded: d.exp || 'false'}); 
-        
+        const el=document.createElement('div'); el.className='canvas-module';
+        Object.assign(el.dataset,{id:d.id, name:d.n, price:d.p, collection:d.c, w:d.w, h:d.h, angle:d.a, isExpanded: d.exp || 'false'});
+        if (d.j) el.dataset.jungtys = d.j;
+
         let leftVal = (typeof d.l === 'string' && d.l.includes('px')) ? parseFloat(d.l) : parseFloat(d.l) * scale;
         let topVal = (typeof d.t === 'string' && d.t.includes('px')) ? parseFloat(d.t) : parseFloat(d.t) * scale;
 
-        el.style.cssText=`width:${d.w*scale}px; height:${d.h*scale}px; left:${leftVal}px; top:${topVal}px; z-index:${d.z}; transform:rotate(${d.a}deg)`; 
-        el.innerHTML= (d.exp === 'true' && modBase.expandable ? modBase.svgExpanded : modBase.svg) + `<span class="label" style="transform:rotate(${-d.a}deg)"></span>`; 
-        attachEvents(el); canvasArea.appendChild(el); 
-    }); 
+        el.style.cssText=`width:${d.w*scale}px; height:${d.h*scale}px; left:${leftVal}px; top:${topVal}px; z-index:${d.z}; transform:rotate(${d.a}deg)`;
+        el.innerHTML= (d.exp === 'true' && modBase.expandable ? modBase.svgExpanded : modBase.svg) + `<span class="label" style="transform:rotate(${-d.a}deg)"></span>`;
+        attachEvents(el); canvasArea.appendChild(el);
+        atnaujintiJungtiesZymas(el);
+    });
     updateOrderSummary(); updateLabels(); 
     setTimeout(() => { 
         updateDimensions(); 
@@ -396,7 +401,46 @@ function restoreState(data, centerView = false) {
     }, 50);
 }
 
-function clearWorkspace() { 
+// ---------- SUJUNGIMAI (connectors) ----------
+// Papildoma gamintojo galimybė: specialūs sujungimai, kuriais modulis
+// (pvz., pufas) tvirtinasi prie sofos. Žymima dviem raudonomis juostelėmis
+// ant pasirinkto modulio krašto. dataset.jungtys reikšmės:
+// '' (nėra), 'v' (viršus), 'd' (dešinė), 'a' (apačia), 'k' (kairė).
+const JUNGCIU_SEKA = ['', 'v', 'd', 'a', 'k'];
+const JUNGCIU_PUSES = { v: 'viršuje', d: 'dešinėje', a: 'apačioje', k: 'kairėje' };
+
+function atnaujintiJungtiesZymas(el) {
+    el.querySelectorAll('.jungtis-zyma').forEach(z => z.remove());
+    const krastas = el.dataset.jungtys;
+    if (!krastas || !JUNGCIU_PUSES[krastas]) return;
+    [33, 67].forEach(proc => {
+        const z = document.createElement('div');
+        z.className = 'jungtis-zyma';
+        if (krastas === 'v') z.style.cssText = `left:calc(${proc}% - 2px); top:-8px; width:4px; height:16px;`;
+        if (krastas === 'a') z.style.cssText = `left:calc(${proc}% - 2px); bottom:-8px; width:4px; height:16px;`;
+        if (krastas === 'k') z.style.cssText = `top:calc(${proc}% - 2px); left:-8px; width:16px; height:4px;`;
+        if (krastas === 'd') z.style.cssText = `top:calc(${proc}% - 2px); right:-8px; width:16px; height:4px;`;
+        el.appendChild(z);
+    });
+}
+
+// Mygtukas įrankių juostoje: kiekvienas paspaudimas perkelia žymas per
+// pasirinkto modulio kraštus (viršus -> dešinė -> apačia -> kairė -> išjungta)
+function cycleJungtys() {
+    if (!selectedModule) {
+        alert("Pirmiausia spustelėkite modulį, prie kurio montuojami sujungimai, tada spauskite šį mygtuką.");
+        return;
+    }
+    const dabar = selectedModule.dataset.jungtys || '';
+    const kitas = JUNGCIU_SEKA[(JUNGCIU_SEKA.indexOf(dabar) + 1) % JUNGCIU_SEKA.length];
+    if (kitas) selectedModule.dataset.jungtys = kitas;
+    else selectedModule.removeAttribute('data-jungtys');
+    atnaujintiJungtiesZymas(selectedModule);
+    saveState();
+}
+// ----------------------------------------------
+
+function clearWorkspace() {
     if(confirm("Išvalyti viską?")) { 
         canvasArea.innerHTML = ''; 
         currentPanX = 0; currentPanY = 0;
@@ -760,6 +804,7 @@ function toggleExpand(modEl) {
     modEl.dataset.isExpanded = !isExp;
     modEl.style.width = (targetW * scale) + 'px'; modEl.style.height = (targetH * scale) + 'px';
     modEl.innerHTML = (!isExp ? modData.svgExpanded : modData.svg) + `<span class="label" style="transform:rotate(${-currentAngle}deg)"></span>`;
+    atnaujintiJungtiesZymas(modEl); // innerHTML pakeitimas ištrina žymas — atkuriame
     updateLabels(); updateDimensions(); saveState();
 }
 
@@ -941,6 +986,7 @@ document.addEventListener('keydown', (e) => {
             id: m.dataset.id, name: m.dataset.name, price: m.dataset.price, collection: m.dataset.collection,
             w: m.dataset.w, h: m.dataset.h, angle: m.dataset.angle || 0, isExpanded: m.dataset.isExpanded,
             isChaise: m.dataset.isChaise, sleepw: m.dataset.sleepw, sleeph: m.dataset.sleeph,
+            jungtys: m.dataset.jungtys || '',
             left: (parseFloat(m.style.left) || 0) / scale,
             top: (parseFloat(m.style.top) || 0) / scale
         }));
@@ -965,11 +1011,12 @@ document.addEventListener('keydown', (e) => {
             
             if (d.isChaise) el.dataset.isChaise = d.isChaise;
             if (d.sleepw) { el.dataset.sleepw = d.sleepw; el.dataset.sleeph = d.sleeph; }
-            
+            if (d.jungtys) el.dataset.jungtys = d.jungtys;
+
             el.style.cssText = `width:${d.w*scale}px; height:${d.h*scale}px; left:${pLeft}px; top:${pTop}px; z-index:${zIndexCounter++}; transform:rotate(${d.angle}deg)`;
             el.innerHTML = (d.isExpanded === 'true' && modBase.expandable ? modBase.svgExpanded : modBase.svg) + `<span class="label" style="transform:rotate(${-d.angle}deg)"></span>`;
-            
-            attachEvents(el); canvasArea.appendChild(el); newlyPasted.push(el);
+
+            attachEvents(el); canvasArea.appendChild(el); atnaujintiJungtiesZymas(el); newlyPasted.push(el);
         });
 
         if (newlyPasted.length > 0) {
@@ -1365,11 +1412,12 @@ function saveToArchive() {
     if(!name) return alert('Prašome įvesti projekto pavadinimą!'); 
     
     let state = Array.from(document.querySelectorAll('.canvas-module')).map(m=>({
-        id:m.dataset.id, n:m.dataset.name, p:m.dataset.price, c:m.dataset.collection, w:m.dataset.w, h:m.dataset.h, 
+        id:m.dataset.id, n:m.dataset.name, p:m.dataset.price, c:m.dataset.collection, w:m.dataset.w, h:m.dataset.h,
         l: (parseFloat(m.style.left) || 0) / scale,
         t: (parseFloat(m.style.top) || 0) / scale,
-        a:m.dataset.angle, z:m.style.zIndex, exp: m.dataset.isExpanded
-    })); 
+        a:m.dataset.angle, z:m.style.zIndex, exp: m.dataset.isExpanded,
+        j: m.dataset.jungtys || ''
+    }));
     
     if(state.length === 0) return alert('Nėra ką išsaugoti, sofa tuščia!'); 
     
@@ -1438,7 +1486,8 @@ function surinktiPasiulymoDuomenis() {
         w: m.dataset.w, h: m.dataset.h,
         l: (parseFloat(m.style.left) || 0) / scale,
         t: (parseFloat(m.style.top) || 0) / scale,
-        a: m.dataset.angle, z: m.style.zIndex, exp: m.dataset.isExpanded
+        a: m.dataset.angle, z: m.style.zIndex, exp: m.dataset.isExpanded,
+        j: m.dataset.jungtys || ''
     }));
 
     // Kainų suvestinė (grupuojam pagal pavadinimą, kaip PDF lentelėje)
@@ -1993,7 +2042,8 @@ function shareConfiguration() {
         const y = Math.round((parseFloat(m.style.top) || 0) / scale);
         const a = parseInt(m.dataset.angle) || 0;
         const e = m.dataset.isExpanded === 'true' ? 1 : 0;
-        cols[c].push(`${i},${x},${y},${a},${e}`);
+        const j = Math.max(0, JUNGCIU_SEKA.indexOf(m.dataset.jungtys || ''));
+        cols[c].push(`${i},${x},${y},${a},${e},${j}`);
     });
 
     const compressedString = Object.keys(cols).map(c => `${c}:${cols[c].join('!')}`).join('~');
@@ -2244,8 +2294,8 @@ if (sharedStateNew || sharedStateOld) {
                 const c = parts[0];
                 if (parts[1]) {
                     parts[1].split('!').forEach(mod => {
-                        const [i, x, y, a, e] = mod.split(',');
-                        parsedState.push({ c: c, i: i, x: parseInt(x), y: parseInt(y), a: parseInt(a), e: parseInt(e) });
+                        const [i, x, y, a, e, j] = mod.split(',');
+                        parsedState.push({ c: c, i: i, x: parseInt(x), y: parseInt(y), a: parseInt(a), e: parseInt(e), j: JUNGCIU_SEKA[parseInt(j) || 0] || '' });
                     });
                 }
             });
@@ -2280,20 +2330,22 @@ if (sharedStateNew || sharedStateOld) {
             let modBase = furnitureModels[d.c]?.find(x => x.id === d.i);
             if (!modBase) return;
             
-            const el = document.createElement('div'); el.className = 'canvas-module'; 
+            const el = document.createElement('div'); el.className = 'canvas-module';
             Object.assign(el.dataset, {
-                id: d.i, name: modBase.name, price: modBase.price, collection: d.c, 
+                id: d.i, name: modBase.name, price: modBase.price, collection: d.c,
                 w: modBase.w, h: modBase.h, angle: d.a, isExpanded: d.e === 1 ? 'true' : 'false'
-            }); 
+            });
+            if (d.j) el.dataset.jungtys = d.j;
             
             if(modBase.expandable) { el.dataset.sleepw = modBase.sleepW; el.dataset.sleeph = modBase.sleepH; }
             if(modBase.isChaise) { el.dataset.isChaise = 'true'; el.dataset.sleepw = modBase.sleepW; el.dataset.sleeph = modBase.sleepH; }
 
-            el.style.cssText = `width:${modBase.w*scale}px; height:${modBase.h*scale}px; left:${d.x*scale}px; top:${d.y*scale}px; z-index:${zIndexCounter++}; transform:rotate(${d.a}deg)`; 
-            el.innerHTML = (d.e === 1 && modBase.expandable ? modBase.svgExpanded : modBase.svg) + `<span class="label" style="transform:rotate(${-d.a}deg)"></span>`; 
-            
-            attachEvents(el); 
+            el.style.cssText = `width:${modBase.w*scale}px; height:${modBase.h*scale}px; left:${d.x*scale}px; top:${d.y*scale}px; z-index:${zIndexCounter++}; transform:rotate(${d.a}deg)`;
+            el.innerHTML = (d.e === 1 && modBase.expandable ? modBase.svgExpanded : modBase.svg) + `<span class="label" style="transform:rotate(${-d.a}deg)"></span>`;
+
+            attachEvents(el);
             canvasArea.appendChild(el);
+            atnaujintiJungtiesZymas(el);
         });
         
         updateOrderSummary(); updateLabels(); 
@@ -2571,7 +2623,8 @@ async function generateMultiVariantPDF() {
     let savedCurrent = Array.from(document.querySelectorAll('.canvas-module')).map(m => ({
         id:m.dataset.id, n:m.dataset.name, p:m.dataset.price, c:m.dataset.collection, w:m.dataset.w, h:m.dataset.h,
         l:(parseFloat(m.style.left)||0)/scale, t:(parseFloat(m.style.top)||0)/scale,
-        a:m.dataset.angle, z:m.style.zIndex, exp:m.dataset.isExpanded
+        a:m.dataset.angle, z:m.style.zIndex, exp:m.dataset.isExpanded,
+        j:m.dataset.jungtys || ''
     }));
     let savedPanX = currentPanX, savedPanY = currentPanY;
 

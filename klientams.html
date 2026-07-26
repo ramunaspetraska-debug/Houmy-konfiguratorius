@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=1.33">
+    <link rel="stylesheet" href="styles.css?v=1.34">
 
     <!-- KLIENTO režimas: supaprastinta versija houmy.lt lankytojams.
          Redagavimo variklis tas pats, bet paslėpti vidiniai įrankiai
@@ -19,7 +19,7 @@
       /* Vidiniai elementai, kurių klientas neturi matyti. !important būtinas:
          mobilioji optimizacija (funkcijos.js) PDF/brėžinio mygtukus vėl įjungia
          per inline stilių — CSS su !important tai nurungia. */
-      #module-chain-display, #share-btn, #mobile-btn-wrap,
+      #module-chain-display, #share-btn, #mobile-btn-wrap, #jungtys-btn,
       .action-btn[onclick="openClientModal()"],
       .action-btn[onclick="openBlueprintModal()"] { display: none !important; }
 
@@ -90,6 +90,7 @@
             <button class="tool-btn" onclick="undo()" title="Atšaukti">↩</button>
             <button class="tool-btn" onclick="rotateSelected(-90)" title="Pasukti kairėn">↺</button>
             <button class="tool-btn" onclick="rotateSelected(90)" title="Pasukti dešinėn">↻</button>
+            <button class="tool-btn" id="jungtys-btn" onclick="cycleJungtys()" title="Sujungimai" style="color:#dc3545; font-weight:bold;">❚❚</button>
             <button class="tool-btn danger-btn" onclick="deleteSelected()" title="Ištrinti">🗑️</button>
             <button class="tool-btn" onclick="openAdmin()" title="Nustatymai" style="margin-left: 10px;">⚙️</button>
             <div style="flex-grow:1;"></div>
@@ -301,17 +302,17 @@
         </div>
     </div>
 
-    <script src="duomenys.js?v=1.33"></script>
+    <script src="duomenys.js?v=1.34"></script>
 
-    <script src="funkcijos.js?v=1.33"></script>
+    <script src="funkcijos.js?v=1.34"></script>
 
     <!-- Modulių brėžinukai meniu (bendras failas su vidine programa) -->
-    <script src="meniu-breziniai.js?v=1.33"></script>
+    <script src="meniu-breziniai.js?v=1.34"></script>
 
     <!-- Kliento režimo pritaikymai (paslepia vidinius įrankius, užklausos siuntimas) -->
-    <script src="klientams.js?v=1.33"></script>
+    <script src="klientams.js?v=1.34"></script>
 
     <!-- Firebase ryšys: kainos + užklausų siuntimas -->
-    <script type="module" src="firebase-init.js?v=1.33"></script>
+    <script type="module" src="firebase-init.js?v=1.34"></script>
 </body>
 </html>

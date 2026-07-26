@@ -126,7 +126,8 @@ function pilnoEkranoNuoroda() {
             const y = Math.round((parseFloat(m.style.top) || 0) / scale);
             const a = parseInt(m.dataset.angle) || 0;
             const e = m.dataset.isExpanded === 'true' ? 1 : 0;
-            cols[c].push(`${m.dataset.id},${x},${y},${a},${e}`);
+            const j = (typeof JUNGCIU_SEKA !== 'undefined') ? Math.max(0, JUNGCIU_SEKA.indexOf(m.dataset.jungtys || '')) : 0;
+            cols[c].push(`${m.dataset.id},${x},${y},${a},${e},${j}`);
         });
         const suspausta = Object.keys(cols).map(c => `${c}:${cols[c].join('!')}`).join('~');
         // encodeURIComponent BŪTINAS: base64 gali turėti +/= simbolius,
