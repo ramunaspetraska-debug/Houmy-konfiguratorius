@@ -69,6 +69,13 @@
         "term":           { ".validate": "newData.isString() && newData.val().length < 500" },
         "delivery":       { ".validate": "newData.isString() && newData.val().length < 1000" },
         "additionalInfo": { ".validate": "newData.isString() && newData.val().length < 2000" },
+        "kambarys": {
+          "w": { ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 5000" },
+          "h": { ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 5000" },
+          "x": { ".validate": "newData.isNumber() && newData.val() > -100000 && newData.val() < 100000" },
+          "y": { ".validate": "newData.isNumber() && newData.val() > -100000 && newData.val() < 100000" },
+          "$kita": { ".validate": false }
+        },
         "client": {
           "name":     { ".validate": "newData.isString() && newData.val().length < 300" },
           "address":  { ".validate": "newData.isString() && newData.val().length < 500" },

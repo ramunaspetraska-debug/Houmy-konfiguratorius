@@ -245,7 +245,13 @@ function atvaizduotiKlientoPasiulyma(p) {
     if (grSelect && p.fabricGroup) grSelect.value = String(p.fabricGroup);
     if (p.fabricColor) document.documentElement.style.setProperty("--sofa-color", p.fabricColor);
 
-    // 2. Piešiam baldą per esamą variklį (restoreState centruoja ir suskaičiuoja matmenis).
+    // 2. Kambarys (jei klientas jį buvo nusibraižęs) — nustatom PRIEŠ piešiant,
+    //    kad matmenų juostoje atsirastų atstumai iki sienų.
+    if (typeof nustatytiKambariIsDuomenu === "function") {
+        nustatytiKambariIsDuomenu(p.kambarys, false);
+    }
+
+    // 3. Piešiam baldą per esamą variklį (restoreState centruoja ir suskaičiuoja matmenis).
     if (typeof restoreState === "function" && Array.isArray(p.modules)) {
         restoreState(p.modules, true);
     }

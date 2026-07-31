@@ -61,9 +61,9 @@ function getArchive() {
 // Normalizuoja archyvo įrašą: palaiko ir seną formatą (masyvas), ir naują ({modules, group})
 function getArchiveEntry(archive, name) {
     let raw = archive[name];
-    if (Array.isArray(raw)) return { modules: raw, group: null };          // senas formatas
-    if (raw && Array.isArray(raw.modules)) return { modules: raw.modules, group: raw.group || null };
-    return { modules: [], group: null };
+    if (Array.isArray(raw)) return { modules: raw, group: null, kambarys: null };          // senas formatas
+    if (raw && Array.isArray(raw.modules)) return { modules: raw.modules, group: raw.group || null, kambarys: raw.kambarys || null };
+    return { modules: [], group: null, kambarys: null };
 }
 
 // Randa laisvą pavadinimą su priesaga, pvz. „26/77" → „26/77 (2)" → „26/77 (3)"
@@ -255,13 +255,14 @@ function changeZoom(f, e = null) {
         m.style.left = (parseFloat(m.style.left) * ratio) + 'px';
         m.style.top = (parseFloat(m.style.top) * ratio) + 'px';
     });
-    updateZoomText(); 
-    setTimeout(() => { updateDimensions(); }, 50); 
+    piestiKambari(); // kambario kontūras keičia dydį kartu su baldais
+    updateZoomText();
+    setTimeout(() => { updateDimensions(); }, 50);
 }
 
 function centerWorkspaceToModules() {
     const modules = Array.from(document.querySelectorAll('.canvas-module'));
-    if (modules.length === 0) return;
+    if (modules.length === 0 && !kambarys) return;
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     modules.forEach(m => {
@@ -277,6 +278,13 @@ function centerWorkspaceToModules() {
             minY = Math.min(minY, ry); maxY = Math.max(maxY, ry);
         });
     });
+
+    // Jei įjungtas kambarys — centruojam visą vaizdą kartu su juo
+    const kr = kambarioRibosPx();
+    if (kr) {
+        minX = Math.min(minX, kr.minX); maxX = Math.max(maxX, kr.maxX);
+        minY = Math.min(minY, kr.minY); maxY = Math.max(maxY, kr.maxY);
+    }
 
     const wsRect = document.getElementById('workspace').getBoundingClientRect();
     let sofaCX = (minX + maxX) / 2;
@@ -375,9 +383,10 @@ function saveState() {
 
 function undo() { if(historyStack.length>1){ historyStack.pop(); restoreState(JSON.parse(historyStack[historyStack.length-1]), false); } }
 
-function restoreState(data, centerView = false) { 
-    canvasArea.innerHTML=''; 
-    data.forEach(d=>{ 
+function restoreState(data, centerView = false) {
+    canvasArea.innerHTML='';
+    piestiKambari(); // kambario kontūras gyvena tame pačiame lauke — atkuriam po valymo
+    data.forEach(d=>{
         let modBase = furnitureModels[d.c]?.find(x=>x.id===d.id);
         if (!modBase) return;
         const el=document.createElement('div'); el.className='canvas-module';
@@ -438,9 +447,179 @@ function cycleJungtys() {
 }
 // ----------------------------------------------
 
+// ---------- MANO KAMBARYS ----------
+// Kambario kontūras darbo lauke: vartotojas įveda matmenis centimetrais,
+// baldus dėlioja laisvai (išlindę už sienų paraudonuoja), o po baldu
+// rodomi atstumai nuo baldo kraštų iki kiekvienos sienos.
+// kambarys = { w, h, x, y } — viskas centimetrais (x,y — kairysis viršutinis kampas).
+let kambarys = null;
+
+function irasytiKambariAtmintin() {
+    try {
+        if (kambarys) localStorage.setItem('houmyKambarys', JSON.stringify(kambarys));
+        else localStorage.removeItem('houmyKambarys');
+    } catch (e) {}
+}
+
+// Visų baldų bendros ribos centimetrais (įvertinant pasukimą). null — jei tuščia.
+function baldoRibosCm() {
+    const modules = Array.from(document.querySelectorAll('.canvas-module'));
+    if (modules.length === 0) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    modules.forEach(m => {
+        let angle = (parseInt(m.dataset.angle) || 0) * Math.PI / 180;
+        let w = parseFloat(m.style.width), h = parseFloat(m.style.height);
+        let cx = parseFloat(m.style.left) + w / 2, cy = parseFloat(m.style.top) + h / 2;
+        let dx = w / 2, dy = h / 2;
+        [{x:-dx,y:-dy},{x:dx,y:-dy},{x:dx,y:dy},{x:-dx,y:dy}].forEach(c => {
+            let rx = cx + c.x * Math.cos(angle) - c.y * Math.sin(angle);
+            let ry = cy + c.x * Math.sin(angle) + c.y * Math.cos(angle);
+            minX = Math.min(minX, rx); maxX = Math.max(maxX, rx);
+            minY = Math.min(minY, ry); maxY = Math.max(maxY, ry);
+        });
+    });
+    return { minX: minX/scale, maxX: maxX/scale, minY: minY/scale, maxY: maxY/scale };
+}
+
+// Kambario ribos pikseliais (eksportui ir centravimui)
+function kambarioRibosPx() {
+    if (!kambarys) return null;
+    return {
+        minX: kambarys.x * scale, minY: kambarys.y * scale,
+        maxX: (kambarys.x + kambarys.w) * scale, maxY: (kambarys.y + kambarys.h) * scale
+    };
+}
+
+function piestiKambari() {
+    let el = document.getElementById('kambario-plotas');
+    if (!kambarys) { if (el) el.remove(); return; }
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'kambario-plotas';
+        canvasArea.appendChild(el);
+    }
+    el.style.left = (kambarys.x * scale) + 'px';
+    el.style.top = (kambarys.y * scale) + 'px';
+    el.style.width = (kambarys.w * scale) + 'px';
+    el.style.height = (kambarys.h * scale) + 'px';
+    el.innerHTML = `<span class="kambario-uzrasas">Kambarys ${kambarys.w} x ${kambarys.h} cm</span>`;
+}
+
+// Pažymi raudonai modulius, kurie kyšo už kambario ribų
+function zymetiUzKambarioRibu() {
+    document.querySelectorAll('.canvas-module').forEach(m => m.classList.remove('uz-kambario-ribu'));
+    if (!kambarys) return;
+    const tol = 0.5; // cm paklaida
+    document.querySelectorAll('.canvas-module').forEach(m => {
+        let angle = (parseInt(m.dataset.angle) || 0) * Math.PI / 180;
+        let w = parseFloat(m.style.width), h = parseFloat(m.style.height);
+        let cx = parseFloat(m.style.left) + w / 2, cy = parseFloat(m.style.top) + h / 2;
+        let dx = w / 2, dy = h / 2;
+        let xs = [], ys = [];
+        [{x:-dx,y:-dy},{x:dx,y:-dy},{x:dx,y:dy},{x:-dx,y:dy}].forEach(c => {
+            xs.push((cx + c.x * Math.cos(angle) - c.y * Math.sin(angle)) / scale);
+            ys.push((cy + c.x * Math.sin(angle) + c.y * Math.cos(angle)) / scale);
+        });
+        if (Math.min(...xs) < kambarys.x - tol || Math.max(...xs) > kambarys.x + kambarys.w + tol ||
+            Math.min(...ys) < kambarys.y - tol || Math.max(...ys) > kambarys.y + kambarys.h + tol) {
+            m.classList.add('uz-kambario-ribu');
+        }
+    });
+}
+
+// Eilutės matmenų juostai: kambario dydis ir atstumai iki sienų
+function kambarioInfoEilutes() {
+    if (!kambarys) return [];
+    const eil = [`<b>Kambarys:</b> ${kambarys.w} x ${kambarys.h} cm`];
+    const r = baldoRibosCm();
+    if (!r) {
+        eil.push(`<span style="color:#888;">Įdėkite baldus — matysite atstumus iki sienų.</span>`);
+        return eil;
+    }
+    const kaire = Math.round(r.minX - kambarys.x);
+    const desine = Math.round((kambarys.x + kambarys.w) - r.maxX);
+    const virsus = Math.round(r.minY - kambarys.y);
+    const apacia = Math.round((kambarys.y + kambarys.h) - r.maxY);
+    const f = v => v < 0 ? `<span style="color:#dc3545; font-weight:bold;">${v}</span>` : `<b>${v}</b>`;
+    eil.push(`<b>Iki sienų:</b> kairė ${f(kaire)} · dešinė ${f(desine)} · viršuje ${f(virsus)} · apačioje ${f(apacia)} cm`);
+    if ([kaire, desine, virsus, apacia].some(v => v < 0)) {
+        eil.push(`<span style="color:#dc3545; font-weight:bold;">Dėmesio: baldas netelpa į kambarį</span>`);
+    }
+    return eil;
+}
+
+function atidarytiKambarioLanga() {
+    document.getElementById('kambario-plotis').value = kambarys ? kambarys.w : '';
+    document.getElementById('kambario-gylis').value = kambarys ? kambarys.h : '';
+    document.getElementById('kambario-modal').style.display = 'flex';
+}
+
+function issaugotiKambari() {
+    const w = parseInt(document.getElementById('kambario-plotis').value) || 0;
+    const h = parseInt(document.getElementById('kambario-gylis').value) || 0;
+    if (w < 50 || h < 50 || w > 2000 || h > 2000) {
+        alert("Įveskite kambario matmenis centimetrais nuo 50 iki 2000 (pvz. 400 x 300).");
+        return;
+    }
+    // Kambarys statomas aplink esamus baldus (arba matomo lauko centre, jei baldų nėra)
+    let cx, cy;
+    const r = baldoRibosCm();
+    if (r) { cx = (r.minX + r.maxX) / 2; cy = (r.minY + r.maxY) / 2; }
+    else {
+        const ws = document.getElementById('workspace').getBoundingClientRect();
+        cx = (ws.width / 2 - currentPanX) / scale;
+        cy = (ws.height / 2 - currentPanY) / scale;
+    }
+    kambarys = { w: w, h: h, x: Math.round(cx - w / 2), y: Math.round(cy - h / 2) };
+    irasytiKambariAtmintin();
+    piestiKambari();
+    updateDimensions();
+    centerWorkspaceToModules();
+    document.getElementById('kambario-modal').style.display = 'none';
+}
+
+function pasalintiKambari() {
+    kambarys = null;
+    irasytiKambariAtmintin();
+    piestiKambari();
+    updateDimensions();
+    document.getElementById('kambario-modal').style.display = 'none';
+}
+
+// Kambario nustatymas iš išorinių duomenų (dalinimosi nuoroda, archyvas, pasiūlymas)
+function nustatytiKambariIsDuomenu(k, irasyti) {
+    kambarys = (k && k.w > 0 && k.h > 0)
+        ? { w: parseInt(k.w), h: parseInt(k.h), x: parseInt(k.x) || 0, y: parseInt(k.y) || 0 }
+        : null;
+    if (irasyti) irasytiKambariAtmintin();
+    piestiKambari();
+    updateDimensions();
+}
+
+// Eksportui: perstumia kambarį kartu su baldais; grąžina atstatymo funkciją
+function perstumtiKambari(shiftX, shiftY) {
+    const el = document.getElementById('kambario-plotas');
+    if (!el) return null;
+    const orig = { left: el.style.left, top: el.style.top };
+    el.style.left = ((parseFloat(el.style.left) || 0) + shiftX) + 'px';
+    el.style.top = ((parseFloat(el.style.top) || 0) + shiftY) + 'px';
+    return () => { el.style.left = orig.left; el.style.top = orig.top; };
+}
+
+// Užsikrovus atkuriam paskutinį kambarį (išskyrus kliento pasiūlymo peržiūrą —
+// ten kambarys ateina kartu su pasiūlymu)
+if (!new URLSearchParams(window.location.search).has('proposal')) {
+    try {
+        const issaugotas = localStorage.getItem('houmyKambarys');
+        if (issaugotas) { kambarys = JSON.parse(issaugotas); piestiKambari(); }
+    } catch (e) {}
+}
+// ----------------------------------------------
+
 function clearWorkspace() {
-    if(confirm("Išvalyti viską?")) { 
-        canvasArea.innerHTML = ''; 
+    if(confirm("Išvalyti viską?")) {
+        canvasArea.innerHTML = '';
+        piestiKambari(); // kambarys lieka — išvalomi tik baldai
         currentPanX = 0; currentPanY = 0;
         document.getElementById('canvas-wrapper').style.transform = `translate(0px, 0px)`;
         document.getElementById('workspace').style.backgroundPosition = `0px 0px`;
@@ -548,10 +727,11 @@ function updateDimensions() {
     
     svgAr.style.overflow = 'visible';
     
-    if (modules.length === 0) { 
-        document.getElementById('dimension-display').innerHTML = 'Išmatavimai: <b>0 x 0 cm</b>'; 
-        svgAr.style.display = 'none'; 
-        return; 
+    if (modules.length === 0) {
+        document.getElementById('dimension-display').innerHTML =
+            ['Išmatavimai: <b>0 x 0 cm</b>'].concat(kambarioInfoEilutes()).join('<br>');
+        svgAr.style.display = 'none';
+        return;
     }
     
     let groups = [], unvisited = new Set(modules);
@@ -728,7 +908,9 @@ function updateDimensions() {
     }
 
     svgAr.innerHTML = svgContent;
-    document.getElementById('dimension-display').innerHTML = displayTexts.join('<br>');
+    zymetiUzKambarioRibu();
+    document.getElementById('dimension-display').innerHTML =
+        displayTexts.concat(kambarioInfoEilutes()).join('<br>');
 }
 
 function loadModel(modelKey) {
@@ -1436,7 +1618,7 @@ function saveToArchive() {
         }
     }
     
-    archive[name] = { modules: state, group: curGroup, savedAt: Date.now() }; 
+    archive[name] = { modules: state, group: curGroup, kambarys: kambarys, savedAt: Date.now() };
     localStorage.setItem('houmyArchive', JSON.stringify(archive)); 
     document.getElementById('archive-name').value = ''; 
     renderArchiveList(); 
@@ -1449,10 +1631,11 @@ function loadFromArchive(name) {
     if(entry.modules.length > 0) { 
         // Pirma atstatom audinio grupę (jei išsaugota), kad kainos būtų teisingos
         if (entry.group) document.getElementById('fabric-group-select').value = entry.group;
-        document.getElementById('model-select').value = entry.modules[0].c; 
-        loadModel(entry.modules[0].c); 
-        restoreState(entry.modules, true); 
-        document.getElementById('archive-modal').style.display = 'none'; 
+        document.getElementById('model-select').value = entry.modules[0].c;
+        loadModel(entry.modules[0].c);
+        nustatytiKambariIsDuomenu(entry.kambarys, true); // kambarys išsaugomas kartu su projektu
+        restoreState(entry.modules, true);
+        document.getElementById('archive-modal').style.display = 'none';
     } 
 }
 
@@ -1509,6 +1692,7 @@ function surinktiPasiulymoDuomenis() {
 
     return {
         modules: modules,
+        kambarys: kambarys, // null, jei kambarys neįjungtas (Firebase tokio lauko nesaugo)
         fabricGroup: grSelect ? grSelect.value : "1",
         fabricColor: appSettings.fabricColor || "#ffffff",
         fabricName: document.getElementById('client-fabric').value.trim(),
@@ -1623,10 +1807,17 @@ async function generatePDFWithDetails() {
         }); 
     }); 
     
+    // Jei įjungtas kambarys — jo kontūras taip pat turi tilpti į nuotrauką
+    const _krPdf = kambarioRibosPx();
+    if (_krPdf) {
+        minX = Math.min(minX, _krPdf.minX); maxX = Math.max(maxX, _krPdf.maxX);
+        minY = Math.min(minY, _krPdf.minY); maxY = Math.max(maxY, _krPdf.maxY);
+    }
+
     let padding = 30;
     if (dimState === 1) padding = 60;
     if (dimState === 2) padding = 100;
-    
+
     let shiftX = padding - minX;
     let shiftY = padding - minY;
 
@@ -1636,9 +1827,10 @@ async function generatePDFWithDetails() {
         m.style.left = (parseFloat(m.style.left) + shiftX) + 'px';
         m.style.top = (parseFloat(m.style.top) + shiftY) + 'px';
     });
-    updateDimensions(); 
-    
-    const tmpWrapper = document.getElementById('canvas-wrapper'); 
+    const _atstatytiKambariPdf = perstumtiKambari(shiftX, shiftY);
+    updateDimensions();
+
+    const tmpWrapper = document.getElementById('canvas-wrapper');
     let originalTransform = tmpWrapper.style.transform;
     let originalWidth = tmpWrapper.style.width;
     let originalHeight = tmpWrapper.style.height;
@@ -1672,12 +1864,13 @@ async function generatePDFWithDetails() {
         m.style.left = orig.left;
         m.style.top = orig.top;
     });
+    if (_atstatytiKambariPdf) _atstatytiKambariPdf();
     updateDimensions();
-    
-    document.getElementById('zoom-controls').style.display = 'flex'; 
-    document.getElementById('dimension-display').style.display = 'block'; 
-    
-    const imgData = canvas.toDataURL('image/jpeg', 0.95); 
+
+    document.getElementById('zoom-controls').style.display = 'flex';
+    document.getElementById('dimension-display').style.display = 'block';
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
     const pdfSofaImg = document.getElementById('pdf-sofa-img');
     pdfSofaImg.src = imgData; 
     
@@ -1904,10 +2097,17 @@ async function executeExportBlueprint() {
         }); 
     }); 
     
+    // Kambario kontūras taip pat turi tilpti į brėžinio nuotrauką
+    const _krBp = kambarioRibosPx();
+    if (_krBp) {
+        minX = Math.min(minX, _krBp.minX); maxX = Math.max(maxX, _krBp.maxX);
+        minY = Math.min(minY, _krBp.minY); maxY = Math.max(maxY, _krBp.maxY);
+    }
+
     let padding = 30;
     if (dimState === 1) padding = 60;
     if (dimState === 2) padding = 100;
-    
+
     let shiftX = padding - minX;
     let shiftY = padding - minY;
 
@@ -1917,9 +2117,10 @@ async function executeExportBlueprint() {
         m.style.left = (parseFloat(m.style.left) + shiftX) + 'px';
         m.style.top = (parseFloat(m.style.top) + shiftY) + 'px';
     });
-    updateDimensions(); 
+    const _atstatytiKambariBp = perstumtiKambari(shiftX, shiftY);
+    updateDimensions();
 
-    const tmpWrapper = document.getElementById('canvas-wrapper'); 
+    const tmpWrapper = document.getElementById('canvas-wrapper');
     let originalTransform = tmpWrapper.style.transform;
     let originalWidth = tmpWrapper.style.width;
     let originalHeight = tmpWrapper.style.height;
@@ -1951,12 +2152,13 @@ async function executeExportBlueprint() {
         m.style.left = orig.left;
         m.style.top = orig.top;
     });
+    if (_atstatytiKambariBp) _atstatytiKambariBp();
     updateDimensions();
 
-    document.getElementById('zoom-controls').style.display = 'flex'; 
-    document.getElementById('dimension-display').style.display = 'block'; 
-    
-    const imgData = canvas.toDataURL('image/jpeg', 0.95); 
+    document.getElementById('zoom-controls').style.display = 'flex';
+    document.getElementById('dimension-display').style.display = 'block';
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
 
     // Paveikslėlis įdedamas be fiksuoto dydžio — tikslus dydis nustatomas žemiau,
     // kai šablonas matomas ir žinomas turimas plotis (kad nebūtų iškraipymo).
@@ -2045,10 +2247,11 @@ function shareConfiguration() {
     });
 
     const compressedString = Object.keys(cols).map(c => `${c}:${cols[c].join('!')}`).join('~');
-    
-    const encodedState = btoa(compressedString); 
-    const baseUrl = window.location.href.split('?')[0]; 
-    const shareUrl = `${baseUrl}?s=${encodedState}`; 
+
+    const encodedState = btoa(compressedString);
+    const baseUrl = window.location.href.split('?')[0];
+    const kambarioDalis = kambarys ? `&k=${kambarys.w},${kambarys.h},${kambarys.x},${kambarys.y}` : '';
+    const shareUrl = `${baseUrl}?s=${encodeURIComponent(encodedState)}${kambarioDalis}`;
 
     navigator.clipboard.writeText(shareUrl).then(() => {
         const btn = document.getElementById('share-btn');
@@ -2322,7 +2525,18 @@ if (sharedStateNew || sharedStateOld) {
         }
 
         loadModel(modelSelect.value);
-        canvasArea.innerHTML = ''; 
+
+        // Kambarys iš nuorodos (?k=plotis,gylis,x,y) — jei jo nėra, lieka vietinis
+        const kParam = urlParams.get('k');
+        if (kParam) {
+            const kd = kParam.split(',').map(v => parseInt(v));
+            if (kd.length >= 2 && kd[0] > 0 && kd[1] > 0) {
+                kambarys = { w: kd[0], h: kd[1], x: kd[2] || 0, y: kd[3] || 0 };
+            }
+        }
+
+        canvasArea.innerHTML = '';
+        piestiKambari();
 
         parsedState.forEach(d => {
             let modBase = furnitureModels[d.c]?.find(x => x.id === d.i);
@@ -2492,6 +2706,13 @@ async function _captureCanvasSofaImage() {
         });
     });
 
+    // Kambarys (jei įjungtas) turi patekti ir į kelių variantų PDF nuotrauką
+    const _krMv = kambarioRibosPx();
+    if (_krMv) {
+        minX = Math.min(minX, _krMv.minX); maxX = Math.max(maxX, _krMv.maxX);
+        minY = Math.min(minY, _krMv.minY); maxY = Math.max(maxY, _krMv.maxY);
+    }
+
     let padding = 30;
     if (dimState === 1) padding = 60;
     if (dimState === 2) padding = 100;
@@ -2503,6 +2724,7 @@ async function _captureCanvasSofaImage() {
         m.style.left = (parseFloat(m.style.left) + shiftX) + 'px';
         m.style.top = (parseFloat(m.style.top) + shiftY) + 'px';
     });
+    const _atstatytiKambariMv = perstumtiKambari(shiftX, shiftY);
     updateDimensions();
 
     const tmpWrapper = document.getElementById('canvas-wrapper');
@@ -2523,6 +2745,7 @@ async function _captureCanvasSofaImage() {
     tmpWrapper.style.height = oH;
     document.getElementById('workspace').style.backgroundPosition = `${currentPanX}px ${currentPanY}px`;
     modules.forEach(m => { let o = originalPositions.get(m); m.style.left = o.left; m.style.top = o.top; });
+    if (_atstatytiKambariMv) _atstatytiKambariMv();
     updateDimensions();
 
     let dimsHtml = '';
@@ -2601,7 +2824,7 @@ async function generateMultiVariantPDF() {
         if (disc > 100) disc = 100;
         let entry = getArchiveEntry(archive, name);
         if (name && entry.modules.length > 0) {
-            selected.push({ name: name, modules: entry.modules, group: entry.group, discount: disc });
+            selected.push({ name: name, modules: entry.modules, group: entry.group, kambarys: entry.kambarys, discount: disc });
         }
     });
 
@@ -2625,6 +2848,7 @@ async function generateMultiVariantPDF() {
         j:m.dataset.jungtys || ''
     }));
     let savedPanX = currentPanX, savedPanY = currentPanY;
+    let savedKambarys = kambarys; // kiekvienas variantas gali turėti savo kambarį
 
     document.getElementById('multi-modal').style.display = 'none';
     selectModule(null);
@@ -2649,6 +2873,7 @@ async function generateMultiVariantPDF() {
         for (let i = 0; i < selected.length; i++) {
             let v = selected[i];
 
+            nustatytiKambariIsDuomenu(v.kambarys, false); // šio varianto kambarys (jei buvo)
             restoreState(v.modules, false);
             await new Promise(r => setTimeout(r, 120));
 
@@ -2775,6 +3000,7 @@ async function generateMultiVariantPDF() {
         document.body.classList.remove('print-multi');
     } finally {
         pdfTemplate.style.display = 'none';
+        nustatytiKambariIsDuomenu(savedKambarys, false); // grąžinam savo kambarį
         restoreState(savedCurrent, false);
         currentPanX = savedPanX; currentPanY = savedPanY;
         document.getElementById('canvas-wrapper').style.transform = `translate(${currentPanX}px, ${currentPanY}px)`;

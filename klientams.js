@@ -38,6 +38,7 @@
             .some(m => (m.dataset.collection || '') !== kolekcija);
         if (yraSvetimu) {
             document.getElementById('canvas-area').innerHTML = '';
+            if (typeof piestiKambari === 'function') piestiKambari(); // kambarys lieka
             if (typeof currentPanX !== 'undefined') { currentPanX = 0; currentPanY = 0; }
             const cw = document.getElementById('canvas-wrapper');
             if (cw) cw.style.transform = 'translate(0px, 0px)';
@@ -133,6 +134,10 @@ function pilnoEkranoNuoroda() {
         // encodeURIComponent BŪTINAS: base64 gali turėti +/= simbolius,
         // kurie be kodavimo URL'e virstų tarpais ir sugadintų atkūrimą.
         url += '&s=' + encodeURIComponent(btoa(suspausta));
+    }
+    // Kambarys keliauja kartu su dėlione
+    if (typeof kambarys !== 'undefined' && kambarys) {
+        url += `&k=${kambarys.w},${kambarys.h},${kambarys.x},${kambarys.y}`;
     }
     return url;
 }

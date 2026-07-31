@@ -122,3 +122,8 @@ select { width: 100%; padding: 8px; margin-bottom: 12px; font-size: 13px; border
 
 /* Sujungimu (connectors) zymos: dvi raudonos juosteles ant modulio krasto */
 .jungtis-zyma { position: absolute; background: #dc3545; border-radius: 2px; z-index: 60; pointer-events: none; box-shadow: 0 0 0 1px rgba(255,255,255,0.6); }
+
+/* Mano kambarys: kontūras darbo lauke ir uz ribu isejusiu moduliu zymejimas */
+#kambario-plotas { position: absolute; z-index: 0; border: 2px dashed #6c757d; border-radius: 3px; background: rgba(108,117,125,0.05); pointer-events: none; box-sizing: border-box; }
+.kambario-uzrasas { position: absolute; top: -21px; left: 0; font-size: 11px; font-weight: bold; color: #495057; background: rgba(255,255,255,0.9); padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+.canvas-module.uz-kambario-ribu { outline: 2px solid #dc3545; outline-offset: 1px; }
