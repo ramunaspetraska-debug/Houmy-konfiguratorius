@@ -1235,6 +1235,7 @@ function exportToExcel() {
                 <th style="background-color: #f8f9fa; padding: 10px;">II Grupė</th>
                 <th style="background-color: #f8f9fa; padding: 10px;">III Grupė</th>
                 <th style="background-color: #f8f9fa; padding: 10px;">IV Grupė</th>
+                <th style="background-color: #f8f9fa; padding: 10px;">V Grupė</th>
             </tr>`;
     
     for(let key in rawModels) {
@@ -1247,6 +1248,7 @@ function exportToExcel() {
             let gr2 = appSettings.customPrices[pKey+'_gr2'] !== undefined ? appSettings.customPrices[pKey+'_gr2'] : (basePrice + (mod.prices?.gr2 || 0));
             let gr3 = appSettings.customPrices[pKey+'_gr3'] !== undefined ? appSettings.customPrices[pKey+'_gr3'] : (basePrice + (mod.prices?.gr3 || 0));
             let gr4 = appSettings.customPrices[pKey+'_gr4'] !== undefined ? appSettings.customPrices[pKey+'_gr4'] : (basePrice + (mod.prices?.gr4 || 0));
+            let gr5 = appSettings.customPrices[pKey+'_gr5'] !== undefined ? appSettings.customPrices[pKey+'_gr5'] : (basePrice + (mod.prices?.gr5 || 0));
             
             html += `<tr>
                 <td style="padding: 5px;">${key.toUpperCase()}</td>
@@ -1256,6 +1258,7 @@ function exportToExcel() {
                 <td style="padding: 5px; text-align: center;">${gr2 > basePrice ? gr2 + ' €' : '-'}</td>
                 <td style="padding: 5px; text-align: center;">${gr3 > basePrice ? gr3 + ' €' : '-'}</td>
                 <td style="padding: 5px; text-align: center;">${gr4 > basePrice ? gr4 + ' €' : '-'}</td>
+                <td style="padding: 5px; text-align: center;">${gr5 > basePrice ? gr5 + ' €' : '-'}</td>
             </tr>`;
         });
     }
@@ -1368,12 +1371,13 @@ function renderAdminGrid(key) {
     let grid = `<h4 style="text-transform:uppercase; margin-top:0; margin-bottom:10px; color:#333;">${key} Kolekcijos kainos</h4>`;
     grid += `<div style="display:flex; flex-direction:column; gap:8px;">`; 
     
-    grid += `<div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap:10px; font-weight:bold; font-size:12px; text-align:center; padding-bottom:5px; border-bottom:2px solid #ddd; min-width: 600px;">
+    grid += `<div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr; gap:10px; font-weight:bold; font-size:12px; text-align:center; padding-bottom:5px; border-bottom:2px solid #ddd; min-width: 700px;">
         <div style="text-align:left;">Modulis</div>
         <div>I Gr (Bazinė)</div>
         <div>II Gr</div>
         <div>III Gr</div>
         <div>IV Gr</div>
+        <div>V Gr</div>
     </div>`;
 
     rawModels[key].forEach(mod => { 
@@ -1385,13 +1389,15 @@ function renderAdminGrid(key) {
         let p2 = tempAdminPrices[pKey+'_gr2'] !== undefined ? tempAdminPrices[pKey+'_gr2'] : (p1 + (mod.prices?.gr2 || 0));
         let p3 = tempAdminPrices[pKey+'_gr3'] !== undefined ? tempAdminPrices[pKey+'_gr3'] : (p1 + (mod.prices?.gr3 || 0));
         let p4 = tempAdminPrices[pKey+'_gr4'] !== undefined ? tempAdminPrices[pKey+'_gr4'] : (p1 + (mod.prices?.gr4 || 0));
+        let p5 = tempAdminPrices[pKey+'_gr5'] !== undefined ? tempAdminPrices[pKey+'_gr5'] : (p1 + (mod.prices?.gr5 || 0));
         
-        grid += `<div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap:10px; align-items:center; background:#f9f9f9; padding:8px; border-radius:4px; border:1px solid #eee; min-width: 600px;">
+        grid += `<div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr; gap:10px; align-items:center; background:#f9f9f9; padding:8px; border-radius:4px; border:1px solid #eee; min-width: 700px;">
             <div style="font-size:13px; font-weight:500;">${mod.name} <small style="color:#888; display:block;">${mod.w}x${mod.h} cm</small></div>
             <input type="number" data-pkey="${pKey}" class="admin-price-input" value="${p1}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
             <input type="number" data-pkey="${pKey}_gr2" class="admin-price-input" value="${p2}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
             <input type="number" data-pkey="${pKey}_gr3" class="admin-price-input" value="${p3}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
             <input type="number" data-pkey="${pKey}_gr4" class="admin-price-input" value="${p4}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
+            <input type="number" data-pkey="${pKey}_gr5" class="admin-price-input" value="${p5}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
         </div>`; 
     }); 
     grid += `</div>`; 
@@ -1415,7 +1421,8 @@ function applyDynamicBulk(multiplier) {
         let isGr2 = pkey.endsWith('_gr2');
         let isGr3 = pkey.endsWith('_gr3');
         let isGr4 = pkey.endsWith('_gr4');
-        let isGr1 = !isGr2 && !isGr3 && !isGr4;
+        let isGr5 = pkey.endsWith('_gr5');
+        let isGr1 = !isGr2 && !isGr3 && !isGr4 && !isGr5;
 
         let shouldUpdate = false;
         if (targetGroup === 'all') shouldUpdate = true;
@@ -1423,6 +1430,7 @@ function applyDynamicBulk(multiplier) {
         else if (targetGroup === 'gr2' && isGr2) shouldUpdate = true;
         else if (targetGroup === 'gr3' && isGr3) shouldUpdate = true;
         else if (targetGroup === 'gr4' && isGr4) shouldUpdate = true;
+        else if (targetGroup === 'gr5' && isGr5) shouldUpdate = true;
 
         if (shouldUpdate) {
             input.value = Math.round(parseFloat(input.value) * factor); 
@@ -1489,6 +1497,7 @@ function atidarytiAdminPaneli() {
             <option value="gr2">Tik II Grupei</option>
             <option value="gr3">Tik III Grupei</option>
             <option value="gr4">Tik IV Grupei</option>
+            <option value="gr5">Tik V Grupei</option>
         </select>
         <button onclick="applyDynamicBulk(1)" style="padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight:bold; font-size: 12px;">+ Pakelti</button>
         <button onclick="applyDynamicBulk(-1)" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight:bold; font-size: 12px;">- Sumažinti</button>
