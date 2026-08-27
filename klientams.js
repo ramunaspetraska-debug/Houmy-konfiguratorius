@@ -70,6 +70,14 @@
     const grupavimas = document.getElementById('group-toggle');
     if (grupavimas && grupavimas.closest('label')) grupavimas.closest('label').style.display = 'none';
 
+    // Kambario funkcija klientų versijoje IŠJUNGTA (mygtukas paslėptas CSS).
+    // Kontūras nerodomas net jei anksčiau buvo nusibraižytas — kitaip klientas
+    // jo nebeturėtų kaip pašalinti. Naršyklės atminties NEvalom: ją dalijasi ir
+    // vidinė programa (tas pats adresas), o ten kambarys turi likti.
+    if (typeof nustatytiKambariIsDuomenu === 'function') {
+        nustatytiKambariIsDuomenu(null, false);
+    }
+
     // --- 4. Dešinė pusė: vietoj PDF/brėžinio mygtukų — „Gauti pasiūlymą" ---
     document.querySelectorAll('#sidebar-right .action-btn').forEach(btn => {
         const oc = btn.getAttribute('onclick') || '';

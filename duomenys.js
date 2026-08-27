@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.40 (Bazinės kainos pagal kainininką)";
+const APP_VERSION = "V1.41 (Kambarys tik vidinėje programoje)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
