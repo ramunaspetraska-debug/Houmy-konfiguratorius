@@ -51,7 +51,7 @@ function dekoruotiMeniuBreziniais(kolekcijosRaktas) {
                 `<div class="menu-thumb" style="position:relative; width:${plotisProc}%; aspect-ratio:${mod.w}/${mod.h}; margin:0 auto;">${mod.svg}</div>` +
                 `<div style="width:100%; text-align:center; line-height:1.3;">` +
                 `<div>${vardas} <span class="menu-price">${kaina}€</span></div>` +
-                `<small style="color:#888; font-weight:normal; white-space:nowrap;">${mod.w}x${mod.h} cm</small></div>`;
+                `<small style="color:#888; font-weight:normal; white-space:nowrap;">${matmenuTekstas(mod)} cm</small></div>`;
         } else {
             const w = (mod.w * K).toFixed(1), h = (mod.h * K).toFixed(1);
             btn.innerHTML =
@@ -59,7 +59,7 @@ function dekoruotiMeniuBreziniais(kolekcijosRaktas) {
                 `<div class="menu-thumb" style="position:relative; width:${w}px; height:${h}px;">${mod.svg}</div></div>` +
                 `<div style="flex:1; min-width:0; text-align:left; line-height:1.4;">` +
                 `<div>${vardas}</div>` +
-                `<small style="color:#888; font-weight:normal; white-space:nowrap;">${mod.w}x${mod.h} cm</small>` +
+                `<small style="color:#888; font-weight:normal; white-space:nowrap;">${matmenuTekstas(mod)} cm</small>` +
                 `<div class="menu-price" style="margin-top:2px;">${kaina}€</div></div>`;
         }
     });

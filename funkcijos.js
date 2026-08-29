@@ -207,7 +207,7 @@ function updateLabels() {
         if(!label) return;
         const modBase = rawModels[m.dataset.collection]?.find(x => x.id === m.dataset.id);
         let expIcon = modBase && modBase.expandable ? ' <b style="color:#007bff; font-size:14px;">⇕</b>' : '';
-        label.innerHTML = `${getDisplayName({collection: m.dataset.collection, name: m.dataset.name}, isMixed)}${expIcon}<br><span class="dim-text">${m.dataset.w}x${m.dataset.h}</span>`;
+        label.innerHTML = `${getDisplayName({collection: m.dataset.collection, name: m.dataset.name}, isMixed)}${expIcon}<br><span class="dim-text">${modBase?.dim || (m.dataset.w + "x" + m.dataset.h)}</span>`;
     });
 }
 
@@ -913,12 +913,18 @@ function updateDimensions() {
         displayTexts.concat(kambarioInfoEilutes()).join('<br>');
 }
 
+// Matmenų užrašas meniu. Paprastai "plotis x gylis", bet netaisyklingos formos
+// moduliai (pvz. MUTO STKS trapecija) turi savo užrašą modulio lauke `dim`.
+function matmenuTekstas(mod) {
+    return mod.dim || (mod.w + "x" + mod.h);
+}
+
 function loadModel(modelKey) {
     const list = document.getElementById('module-list'); list.innerHTML = '';
     if(!furnitureModels[modelKey]) return;
     furnitureModels[modelKey].forEach(mod => {
         const btn = document.createElement('div'); btn.className = 'menu-item';
-        btn.innerHTML = `<span>${mod.name}${mod.expandable ? ' ⇕' : ''}<br><small>${mod.w}x${mod.h} cm</small></span> <span class="menu-price">${getModulePrice(modelKey, mod.id)}€</span>`;
+        btn.innerHTML = `<span>${mod.name}${mod.expandable ? ' ⇕' : ''}<br><small>${matmenuTekstas(mod)} cm</small></span> <span class="menu-price">${getModulePrice(modelKey, mod.id)}€</span>`;
         btn.onclick = () => addModuleToWorkspace(mod, modelKey);
         list.appendChild(btn);
     });

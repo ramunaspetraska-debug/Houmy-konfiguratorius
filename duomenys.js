@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.41 (Kambarys tik vidinėje programoje)";
+const APP_VERSION = "V1.42 (MUTO staliukai pagal brėžinius)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
@@ -280,15 +280,12 @@ mint: [
         { id: 'ch15', name: 'CH1,5', price: 692, prices: { gr2: 108, gr3: 167, gr4: 225, gr5: 287 }, w: 93, h: 151, svg: `<rect x="1" y="1" width="91" height="24" rx="11" fill="#fff" stroke="#111" stroke-width="1.5" /><rect x="1" y="24" width="91" height="126" rx="4" fill="#fff" stroke="#111" stroke-width="1.5" /><line x1="1" y1="100" x2="92" y2="100" stroke-dasharray="6,4" stroke="#888" stroke-width="1.5" />`},
         { id: 'pf1', name: 'PF1', price: 348, prices: { gr2: 56, gr3: 84, gr4: 114, gr5: 143 }, w: 73, h: 93, svg: `<rect x="1" y="1" width="71" height="91" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
         { id: 'pf2', name: 'PF2', price: 348, prices: { gr2: 56, gr3: 84, gr4: 114, gr5: 143 }, w: 93, h: 73, svg: `<rect x="1" y="1" width="91" height="71" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
-        { id: 'stk45', name: 'STK 45', price: 450, w: 45, h: 101, svg: `<rect x="1" y="1" width="43" height="99" rx="0" fill="#f4f5f7" stroke="#111" stroke-width="1.5" />`},
-                
-                { id: 'stk60', name: 'STK 60', price: 550, w: 60, h: 101, svg: `<rect x="1" y="1" width="58" height="99" rx="0" fill="#f4f5f7" stroke="#111" stroke-width="1.5" />`},
-                
-                { id: 'stk80', name: 'STK 80', price: 650, w: 80, h: 101, svg: `<rect x="1" y="1" width="78" height="99" rx="0" fill="#f4f5f7" stroke="#111" stroke-width="1.5" />`},
-                
-                { id: 'stk100', name: 'STK 100', price: 750, w: 100, h: 101, svg: `<rect x="1" y="1" width="98" height="99" rx="0" fill="#f4f5f7" stroke="#111" stroke-width="1.5" />`},
-                
-                { id: 'stkkamp', name: 'STK KAMP', price: 800, w: 71, h: 101, svg: `<polyline points="1,1 70,1 55,99 15,99 1,1" fill="#f4f5f7" stroke="#111" stroke-width="1.5" />`}
+        { id: 'stk45x21', name: 'STK 45x21', price: 390, w: 45, h: 85, svg: `<rect x="1" y="1" width="43" height="83" rx="0" fill="#f4f5f7" stroke="#111" stroke-width="1.5" />`},
+                { id: 'stk45x29', name: 'STK 45x29', price: 415, w: 45, h: 85, svg: `<rect x="1" y="1" width="43" height="83" rx="0" fill="#f4f5f7" stroke="#111" stroke-width="1.5" />`},
+                { id: 'stk85x21', name: 'STK 85x21', price: 615, w: 85, h: 85, svg: `<rect x="1" y="1" width="83" height="83" rx="0" fill="#f4f5f7" stroke="#111" stroke-width="1.5" />`},
+                { id: 'stk85x29', name: 'STK 85x29', price: 670, w: 85, h: 85, svg: `<rect x="1" y="1" width="83" height="83" rx="0" fill="#f4f5f7" stroke="#111" stroke-width="1.5" />`},
+                { id: 'stks21', name: 'STKS 21', price: 470, w: 60, h: 85, dim: '60/30x85', svg: `<polygon points="1,1 59,1 44.5,84 15.5,84" fill="#f4f5f7" stroke="#111" stroke-width="1.5" stroke-linejoin="round" />`},
+                { id: 'stks29', name: 'STKS 29', price: 500, w: 60, h: 85, dim: '60/30x85', svg: `<polygon points="1,1 59,1 44.5,84 15.5,84" fill="#f4f5f7" stroke="#111" stroke-width="1.5" stroke-linejoin="round" />`}
     ],
 stone: [
              // --- SĖDIMOSIOS DALYS (BE PORANKIŲ) ---
