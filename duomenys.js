@@ -45,7 +45,7 @@ const rawModels = {
                 // Pufai (PF)
                 { id: 'pf1', name: 'PF1', price: 462, prices: { gr2: 38, gr3: 75, gr4: 110, gr5: 147 }, w: 91, h: 110, svg: `<rect x="1" y="1" width="89" height="108" rx="3" fill="#fff" />`},
                 { id: 'pf2', name: 'PF2', price: 428, prices: { gr2: 35, gr3: 71, gr4: 104, gr5: 137 }, w: 91, h: 91, svg: `<rect x="1" y="1" width="89" height="89" rx="3" fill="#fff" />`},
-                // Pufai PF3 ir PF4 (81x81 ir 110x81)
+                // Pufai PF3 ir PF4 (81x81 ir 81x110)
                 { id: 'pf3', name: 'PF3', price: 408, prices: { gr2: 33, gr3: 64, gr4: 97, gr5: 128 }, w: 81, h: 81, svg: `<rect x="1" y="1" width="79" height="79" rx="3" fill="#fff" />`},
                 { id: 'pf4', name: 'PF4', price: 439, prices: { gr2: 36, gr3: 71, gr4: 107, gr5: 140 }, w: 81, h: 110, svg: `<rect x="1" y="1" width="79" height="108" rx="3" fill="#fff" />`}
             ],
