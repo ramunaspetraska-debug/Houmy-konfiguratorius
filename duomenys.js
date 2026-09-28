@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.44 (kainos pagal 2025-12 kainininką)";
+const APP_VERSION = "V1.45 (CLOUD porankių aukštis)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
@@ -64,12 +64,12 @@ const rawModels = {
                 { id: 'pf3', name: 'PF3', price: 471, prices: { gr2: 38, gr3: 73, gr4: 110, gr5: 145 }, w: 80, h: 100, svg: `<rect x="1" y="1" width="78" height="98" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
                 { id: 'pf4', name: 'PF4', price: 511, prices: { gr2: 41, gr3: 81, gr4: 120, gr5: 160 }, w: 90, h: 100, svg: `<rect x="1" y="1" width="88" height="98" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
                 { id: 'pf5', name: 'PF5', price: 589, prices: { gr2: 47, gr3: 91, gr4: 137, gr5: 182 }, w: 100, h: 100, svg: `<rect x="1" y="1" width="98" height="98" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
-                { id: 'al', name: 'A L', price: 159, prices: { gr2: 13, gr3: 24, gr4: 38, gr5: 50 }, w: 25, h: 100, svg: `<rect x="1" y="1" width="23" height="98" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
-                { id: 'ap', name: 'A P', price: 159, prices: { gr2: 13, gr3: 24, gr4: 38, gr5: 50 }, w: 25, h: 100, svg: `<rect x="1" y="1" width="23" height="98" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
-                { id: 'bl', name: 'B L', price: 180, prices: { gr2: 14, gr3: 29, gr4: 43, gr5: 56 }, w: 35, h: 100, svg: `<rect x="1" y="1" width="33" height="98" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
-                { id: 'bp', name: 'B P', price: 180, prices: { gr2: 14, gr3: 29, gr4: 43, gr5: 56 }, w: 35, h: 100, svg: `<rect x="1" y="1" width="33" height="98" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
-                { id: 'cl', name: 'C L', price: 180, prices: { gr2: 14, gr3: 29, gr4: 43, gr5: 56 }, w: 25, h: 100, svg: `<rect x="1" y="1" width="23" height="98" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
-                { id: 'cp', name: 'C P', price: 180, prices: { gr2: 14, gr3: 29, gr4: 43, gr5: 56 }, w: 25, h: 100, svg: `<rect x="1" y="1" width="23" height="98" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`}
+                { id: 'al', name: 'A L', price: 159, prices: { gr2: 13, gr3: 24, gr4: 38, gr5: 50 }, w: 25, h: 100, dim: '25x100, H 55', svg: `<rect x="1" y="1" width="23" height="98" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
+                { id: 'ap', name: 'A P', price: 159, prices: { gr2: 13, gr3: 24, gr4: 38, gr5: 50 }, w: 25, h: 100, dim: '25x100, H 55', svg: `<rect x="1" y="1" width="23" height="98" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
+                { id: 'bl', name: 'B L', price: 180, prices: { gr2: 14, gr3: 29, gr4: 43, gr5: 56 }, w: 35, h: 100, dim: '35x100, H 55', svg: `<rect x="1" y="1" width="33" height="98" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
+                { id: 'bp', name: 'B P', price: 180, prices: { gr2: 14, gr3: 29, gr4: 43, gr5: 56 }, w: 35, h: 100, dim: '35x100, H 55', svg: `<rect x="1" y="1" width="33" height="98" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
+                { id: 'cl', name: 'C L', price: 180, prices: { gr2: 14, gr3: 29, gr4: 43, gr5: 56 }, w: 25, h: 100, dim: '25x100, H 74', svg: `<rect x="1" y="1" width="23" height="98" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`},
+                { id: 'cp', name: 'C P', price: 180, prices: { gr2: 14, gr3: 29, gr4: 43, gr5: 56 }, w: 25, h: 100, dim: '25x100, H 74', svg: `<rect x="1" y="1" width="23" height="98" rx="6" fill="#fff" stroke="#111" stroke-width="1.5" />`}
             ],
     core: [
             // --- ES1,5 SERIJA (Standartiniai elementai, Sėdynė 100 cm) ---
