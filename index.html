@@ -45,7 +45,18 @@
       }
     </style>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Išorinės bibliotekos su kontroliniu kodu (integrity): jei kas nors pakeistų
+         failą CDN serveryje, naršyklė jo nevykdys. Keičiant versiją — perskaičiuoti kodą. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script type="importmap">
+    {
+      "integrity": {
+        "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js": "sha384-RJIsoe0CFvPanuqLw3NPVreeQfBNBS6DotHoCTfrxasRhbZXK3oIK/kWJLO/hCaU",
+        "https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js": "sha384-35iDGIZOr0cYhiPK1qFT/m2v7RKuqWHT/9GeUEBsbkIl1rA/ms7k3uYCGymJRiug",
+        "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js": "sha384-AgtBGZZ/u/7uqnj2oxrSf5J+QuQXF4sEG1w/6PUzbyR3RIG7mkXR2z8Tpdeqay0t"
+      }
+    }
+    </script>
 </head>
 <body>
 
