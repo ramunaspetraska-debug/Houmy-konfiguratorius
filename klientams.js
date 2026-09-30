@@ -221,6 +221,23 @@ async function siustiUzklausa(btn) {
     if (!pastas || !pastas.includes('@') || pastas.length < 5) {
         return alert('Įveskite teisingą el. pašto adresą.');
     }
+
+    // Spąstai robotams: nematomą laukelį užpildo tik automatinės programos.
+    // Joms parodom „sėkmę", bet nieko nesiunčiam.
+    const spastai = document.getElementById('uzklausa-svetaine');
+    if (spastai && spastai.value) {
+        document.getElementById('uzklausa-forma').style.display = 'none';
+        document.getElementById('uzklausa-sekme').style.display = 'flex';
+        return;
+    }
+
+    // Ne dažniau kaip kartą per minutę iš tos pačios naršyklės
+    // (apsauga nuo dvigubo paspaudimo ir paprasto kartojimo).
+    let paskutine = 0;
+    try { paskutine = parseInt(localStorage.getItem('houmyPaskutineUzklausa') || '0', 10); } catch (e) {}
+    if (Date.now() - paskutine < 60000) {
+        return alert('Užklausa ką tik išsiųsta. Jei norite siųsti dar vieną — palaukite minutę.');
+    }
     if (!window.houmyCloud || !window.houmyCloud.pasiruoses) {
         return alert('Nėra interneto ryšio — bandykite dar kartą.');
     }
@@ -252,6 +269,8 @@ async function siustiUzklausa(btn) {
             total: pasiulymas.finalTotal,
             proposalId: proposalId
         });
+
+        try { localStorage.setItem('houmyPaskutineUzklausa', String(Date.now())); } catch (e) {}
 
         // Kliento nuoroda į jo dėlionę (atsidaro per pagrindinį peržiūros puslapį)
         const perziurosNuoroda = new URL('./', location.href).href + '?proposal=' + proposalId;

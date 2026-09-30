@@ -34,6 +34,7 @@
          Skaityti per internetą NEGALIMA niekam (viduje — el. paštai!);
          Ramūnas jas mato Firebase konsolėje. Galima tik SUKURTI naują. */
       ".read": false,
+      ".indexOn": ["createdAt"],
       "$uid": {
         ".read": false,
         ".write": "!data.exists() && newData.exists()",
@@ -45,7 +46,7 @@
         "collection": { ".validate": "newData.isString() && newData.val().length < 50" },
         "total":      { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 1000000" },
         "proposalId": { ".validate": "newData.isString() && newData.val().length < 100" },
-        "createdAt":  { ".validate": "newData.isNumber()" },
+        "createdAt":  { ".validate": "newData.isNumber() && newData.val() == now" },
         "version":    { ".validate": "newData.isString() && newData.val().length < 100" },
         "$kita":      { ".validate": false }
       }
@@ -108,7 +109,7 @@
           "designer": { ".validate": "newData.isString() && newData.val().length < 300" },
           "$kita":    { ".validate": false }
         },
-        "createdAt": { ".validate": "newData.isNumber()" },
+        "createdAt": { ".validate": "newData.isNumber() && newData.val() == now" },
         "version":   { ".validate": "newData.isString() && newData.val().length < 100" },
         "$kita":     { ".validate": false }
       }

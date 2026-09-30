@@ -158,6 +158,8 @@
                 <input type="text" id="uzklausa-vardas" placeholder="Vardas" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
                 <input type="email" id="uzklausa-pastas" placeholder="El. paštas *" required style="padding:10px; border:1px solid #ccc; border-radius:4px;">
                 <input type="tel" id="uzklausa-telefonas" placeholder="Telefonas" style="padding:10px; border:1px solid #ccc; border-radius:4px;">
+                <!-- Spąstai robotams: žmogus šio laukelio nemato; jei užpildytas — užklausa nesiunčiama -->
+                <div aria-hidden="true" style="position:absolute; left:-10000px; top:auto; width:1px; height:1px; overflow:hidden;"><label for="uzklausa-svetaine">Palikite tuščią</label><input type="text" id="uzklausa-svetaine" name="svetaine" tabindex="-1" autocomplete="off"></div>
                 <textarea id="uzklausa-komentaras" placeholder="Komentaras (audinys, spalva, terminai...)" rows="3" style="padding:10px; border:1px solid #ccc; border-radius:4px; font-family:inherit; resize:vertical;"></textarea>
                 <div style="display:flex; justify-content:flex-end; gap:10px;">
                     <button onclick="document.getElementById('uzklausa-modal').style.display='none'" style="padding:10px; cursor:pointer; border:1px solid #ccc; border-radius:4px; background:#f4f4f4;">Atšaukti</button>

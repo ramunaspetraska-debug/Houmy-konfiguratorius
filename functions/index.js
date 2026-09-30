@@ -73,6 +73,53 @@ exports.uzklausoslaiskas = onValueCreated(
     async (event) => {
         const u = event.data.val() || {};
 
+        // --- Apsauga nuo šlamšto: ribojamas laiškų skaičius ---
+        // Užklausa duomenų bazėje lieka VISADA (matoma Firebase konsolėje);
+        // ribojamas tik laiškų siuntimas, kad robotas negalėtų užversti
+        // info@houmy.lt ir išnaudoti Gmail dienos limito (~500 laiškų).
+        const VALANDA = 60 * 60 * 1000;
+        const RIBA_VISO = 20;      // laiškų per valandą iš viso
+        const RIBA_ADRESUI = 3;    // laiškų per valandą iš to paties el. pašto
+        let skaiciusViso = 0, skaiciusAdresui = 0;
+        try {
+            const nuo = Date.now() - VALANDA;
+            const pastas = String(u.email || "").trim().toLowerCase();
+            const naujausios = await event.data.ref.parent
+                .orderByChild("createdAt").startAt(nuo).once("value");
+            naujausios.forEach(v => {
+                skaiciusViso++;
+                if (String((v.val() || {}).email || "").trim().toLowerCase() === pastas) skaiciusAdresui++;
+            });
+        } catch (klaida) {
+            console.warn("Nepavyko suskaičiuoti naujausių užklausų — laiškas siunčiamas:", klaida.message);
+        }
+
+        const transporteris = nodemailer.createTransport({
+            service: "gmail",
+            auth: { user: smtpPastas.value(), pass: smtpSlaptazodis.value() }
+        });
+
+        if (skaiciusViso > RIBA_VISO) {
+            // Vienas įspėjimas, kai riba viršijama pirmą kartą per valandą
+            if (skaiciusViso === RIBA_VISO + 1) {
+                await transporteris.sendMail({
+                    from: `"HOUMY konfigūratorius" <${smtpPastas.value()}>`,
+                    to: GAVEJAS,
+                    subject: "DĖMESIO: per valandą gauta daugiau nei " + RIBA_VISO + " užklausų",
+                    text: "Per paskutinę valandą konfigūratorius gavo daugiau nei " + RIBA_VISO +
+                        " užklausų. Tai gali būti automatinis šlamštas.\n\n" +
+                        "Tolesni pranešimai šią valandą NEsiunčiami, bet visos užklausos išsaugotos — " +
+                        "jas matysite Firebase konsolėje (houmy_uzklausos)."
+                });
+            }
+            console.warn("Laiškų riba viršyta (" + skaiciusViso + "/val.) — laiškas nesiųstas:", event.params.uzklausosId);
+            return;
+        }
+        if (skaiciusAdresui > RIBA_ADRESUI) {
+            console.warn("To paties adreso riba viršyta (" + skaiciusAdresui + "/val.) — laiškas nesiųstas:", event.params.uzklausosId);
+            return;
+        }
+
         const kolekcija = (u.collection || "").toUpperCase();
         const suma = (typeof u.total === "number") ? u.total + " €" : "—";
         const vardas = u.name || "nenurodytas";
@@ -118,14 +165,6 @@ exports.uzklausoslaiskas = onValueCreated(
             eilutes.map(e => e[0] + ": " + e[1]).join("\n") +
             (perziura ? "\n\nKliento variantas (peržiūra): " + perziura : "") +
             (redagavimas ? "\nRedagavimas pilnoje programoje: " + redagavimas : "");
-
-        const transporteris = nodemailer.createTransport({
-            service: "gmail",
-            auth: {
-                user: smtpPastas.value(),
-                pass: smtpSlaptazodis.value()
-            }
-        });
 
         await transporteris.sendMail({
             from: `"HOUMY konfigūratorius" <${smtpPastas.value()}>`,
