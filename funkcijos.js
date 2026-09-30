@@ -656,7 +656,10 @@ function updateOrderSummary() {
     orderList.innerHTML = Object.keys(counts).length ? Object.keys(counts).map(n => `<div class="order-item"><span><b>${counts[n].qty}x</b> ${escapeHtml(n)}</span><span>${counts[n].price * counts[n].qty} €</span></div>`).join('') : '<div style="color:#888; text-align:center; padding: 20px 0;">Sofa tuščia</div>'; 
     
     const chain = generateModuleChainText(modules, isMixed);
-    document.getElementById('module-chain-display').innerText = chain ? "Specifikacija: " + chain : "";
+    // Pasiūlymo peržiūroje (?proposal=) šio elemento nėra — be patikros pasukus
+    // telefoną nulūždavo perpiešimas ir dingdavo modulių užrašai.
+    const chainEl = document.getElementById('module-chain-display');
+    if (chainEl) chainEl.innerText = chain ? "Specifikacija: " + chain : "";
     
     totalPriceEl.innerText = total;
 }
