@@ -1773,12 +1773,21 @@ async function createClientProposalLink(btn) {
         return alert("Nėra ryšio su debesimi — patikrinkite interneto ryšį ir bandykite dar kartą.");
     }
 
+    // Komercinį pasiūlymą (su įmonės rekvizitais, nuolaidomis) gali sukurti tik
+    // prisijungęs administratorius — tai tikrina ir duomenų bazė. Taip niekas
+    // pašalinis negali sukurti „komercinio pasiūlymo" su savo kaina.
+    const esuAdmin = await window.houmyCloud.prisijungtiAdmin();
+    if (!esuAdmin) {
+        return alert("Nuorodą klientui gali sukurti tik prisijungęs administratorius (Google paskyra).");
+    }
+
     const originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = "⏳ Kuriama...";
 
     try {
         const pasiulymas = surinktiPasiulymoDuomenis();
+        pasiulymas.admin = true;
         const id = await window.houmyCloud.issaugotiPasiulyma(pasiulymas);
         const baseUrl = window.location.href.split('?')[0];
         const link = baseUrl + "?proposal=" + id;

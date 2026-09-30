@@ -283,7 +283,18 @@ function kainosPVM(finalTotal) {
         '<div style="font-size:22px; font-weight:bold; color:#111; border-top:2px solid #333; padding-top:6px;">Viso su PVM: ' + finalTotal + ' €</div>';
 }
 
+// Ar tai tikras komercinis pasiūlymas? Tik jei jį sukūrė prisijungęs
+// administratorius (laukas admin, kurį duomenų bazė priima tik iš
+// administratoriaus). Iki šios tvarkos sukurti pasiūlymai laikomi
+// komerciniais kaip anksčiau — jau išsiųstos nuorodos nepasikeičia, o
+// suklastoti senesnės datos nebeįmanoma (createdAt tikrina duomenų bazė).
+const KOMERCINIU_PASIULYMU_RIBA = 1790746310186; // 2026-09-30 05:31 UTC
+function yraKomercinis(p) {
+    return p.admin === true || (typeof p.createdAt === "number" && p.createdAt < KOMERCINIU_PASIULYMU_RIBA);
+}
+
 function atvaizduotiKlientoPasiulyma(p) {
+    const komercinis = yraKomercinis(p);
     // 1. Audinio grupė ir spalva — nustatom PRIEŠ piešiant, kad kainos/spalva sutaptų.
     const grSelect = document.getElementById("fabric-group-select");
     if (grSelect && p.fabricGroup) grSelect.value = String(p.fabricGroup);
@@ -313,7 +324,10 @@ function atvaizduotiKlientoPasiulyma(p) {
     });
 
     let nuolaidaHtml = "";
-    if (p.manualPriceVal > 0 && p.manualPriceVal < p.total) {
+    if (!komercinis) {
+        // Kliento paties sudėliotas variantas: kaina orientacinė, nuolaidų nerodom
+        nuolaidaHtml = '<div style="font-size:12px; color:#555; margin-bottom:6px;">Kaina orientacinė (pagal bazinę audinio grupę). Tikslią kainą nurodysime komerciniame pasiūlyme.</div>';
+    } else if (p.manualPriceVal > 0 && p.manualPriceVal < p.total) {
         nuolaidaHtml = '<div style="font-size:12px; color:#d9534f; margin-bottom:6px;">Pradinė kaina: <s>' + p.total + ' €</s> — pritaikyta speciali kaina</div>';
     } else if (p.discountVal > 0) {
         nuolaidaHtml = '<div style="font-size:12px; color:#d9534f; margin-bottom:6px;">Pradinė kaina: <s>' + p.total + ' €</s> — pritaikyta ' + p.discountVal + '% nuolaida</div>';
@@ -338,7 +352,7 @@ function atvaizduotiKlientoPasiulyma(p) {
     if (sidebar) {
         sidebar.innerHTML =
             '<div style="font-family:\'Montserrat\',sans-serif; font-weight:900; font-size:26px; color:#111; letter-spacing:1px;">HOUMY</div>' +
-            '<div style="font-size:13px; color:#007bff; font-weight:bold; margin:2px 0 12px 0;">KOMERCINIS PASIŪLYMAS</div>' +
+            '<div style="font-size:13px; color:#007bff; font-weight:bold; margin:2px 0 12px 0;">' + (komercinis ? 'KOMERCINIS PASIŪLYMAS' : 'SUDĖLIOTAS VARIANTAS') + '</div>' +
             (klientoInfo ? '<div style="font-size:13px; color:#333; line-height:1.5; margin-bottom:10px;">' + klientoInfo + '</div>' : "") +
             (audinys ? '<div style="font-size:13px; color:#333; line-height:1.5; margin-bottom:10px; border-top:1px solid #eee; padding-top:8px;">' + audinys + '</div>' : "") +
             '<div style="font-size:13px; font-weight:bold; color:#333; margin-bottom:4px;">Sudėtis:</div>' +

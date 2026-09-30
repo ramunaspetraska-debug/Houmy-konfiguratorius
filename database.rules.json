@@ -111,6 +111,9 @@
         },
         "createdAt": { ".validate": "newData.isNumber() && newData.val() == now" },
         "version":   { ".validate": "newData.isString() && newData.val().length < 100" },
+        /* admin == true: pasiūlymą sukūrė prisijungęs administratorius —
+           tik tokie rodomi kaip „Komercinis pasiūlymas" */
+        "admin":     { ".validate": "newData.isBoolean() && newData.val() == true && auth != null && auth.token.email_verified == true && (auth.token.email == 'ramunaspetraska@gmail.com' || auth.token.email == 'info@houmy.lt' || auth.token.email == 'info@praktiskibaldai.lt' || auth.token.email == 'ciupaite.ingrida@gmail.com')" },
         "$kita":     { ".validate": false }
       }
     }
