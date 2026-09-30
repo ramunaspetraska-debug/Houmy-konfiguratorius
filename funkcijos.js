@@ -398,6 +398,10 @@ function restoreState(data, centerView = false) {
         const zIndeksas = parseInt(d.z) || 1;
         Object.assign(el.dataset,{id:modBase.id, name:modBase.name, price:modBase.price, collection:d.c, w:modBase.w, h:modBase.h, angle:kampas, isExpanded: d.exp === 'true' ? 'true' : 'false'});
         if (JUNGCIU_SEKA.includes(d.j) && d.j) el.dataset.jungtys = d.j;
+        // Miegamos vietos duomenys (anksčiau atkuriant jų nebūdavo, todėl po
+        // perkrovimo, „Atšaukti" ar pasiūlymo nuorodoje „Lova" rodydavo 0).
+        if (modBase.expandable) { el.dataset.sleepw = modBase.sleepW; el.dataset.sleeph = modBase.sleepH; }
+        if (modBase.isChaise) { el.dataset.isChaise = 'true'; el.dataset.sleepw = modBase.sleepW; el.dataset.sleeph = modBase.sleepH; }
 
         let leftVal = (typeof d.l === 'string' && d.l.includes('px')) ? parseFloat(d.l) : parseFloat(d.l) * scale;
         let topVal = (typeof d.t === 'string' && d.t.includes('px')) ? parseFloat(d.t) : parseFloat(d.t) * scale;
