@@ -239,3 +239,69 @@ exports.senuUzklausuValymas = onSchedule(
         console.log("Ištrinta senų užklausų: " + uzklausu + ", jų variantų: " + pasiulymu);
     }
 );
+
+// ============================================================================
+// technologijuPatikra — kiekvieno mėnesio 1 d. 09:00 (Vilniaus laiku) patikrina
+// naudojamų technologijų versijas, palaikymo datas ir žinomas saugumo spragas
+// (sąrašas ir taisyklės — technologijos.js). Ataskaita įrašoma į
+// houmy_technologijos (rodoma admin skydelyje „🔧 Technologijos"), o laiškas
+// į info@houmy.lt siunčiamas TIK kai reikia ką nors daryti arba kai pati
+// patikra nepavyko.
+// ============================================================================
+exports.technologijuPatikra = onSchedule(
+    {
+        schedule: "0 9 1 * *",
+        timeZone: "Europe/Vilnius",
+        region: "europe-west1",
+        secrets: [smtpPastas, smtpSlaptazodis],
+        memory: "256MiB",
+        maxInstances: 1
+    },
+    async () => {
+        // Įkeliama tik čia, kad nelėtintų laiškų funkcijos paleidimo
+        const { patikrinti, laiskoTurinys } = require("./technologijos");
+        const { initializeApp, getApps } = require("firebase-admin/app");
+        const { getDatabaseWithUrl } = require("firebase-admin/database");
+        if (!getApps().length) initializeApp();
+        const db = getDatabaseWithUrl(DB_BAZE);
+        const transporteris = nodemailer.createTransport({
+            service: "gmail",
+            auth: { user: smtpPastas.value(), pass: smtpSlaptazodis.value() }
+        });
+
+        let ataskaita;
+        try {
+            ataskaita = await patikrinti();
+        } catch (klaida) {
+            console.error("Technologijų patikra nepavyko:", klaida);
+            await db.ref("houmy_technologijos").set({ tikrinta: Date.now(), klaida: String(klaida && klaida.message || klaida).slice(0, 500) });
+            await transporteris.sendMail({
+                from: `"HOUMY konfigūratorius" <${smtpPastas.value()}>`,
+                to: GAVEJAS,
+                subject: "HOUMY konfigūratorius: mėnesinė technologijų patikra nepavyko",
+                text: "Automatinė technologijų patikra šį mėnesį nepavyko:\n\n" + (klaida && klaida.message || klaida) +
+                    "\n\nTai nereiškia, kad konfigūratorius neveikia — tik kad šį kartą nepavyko patikrinti versijų. " +
+                    "Jei laiškas kartojasi kelis mėnesius — perduokite jį programuotojui (ar Claude)."
+            });
+            return;
+        }
+
+        ataskaita.laiskasIssiustas = false;
+        await db.ref("houmy_technologijos").set(ataskaita);
+
+        if (ataskaita.reikiaVeiksmu > 0) {
+            const l = laiskoTurinys(ataskaita);
+            await transporteris.sendMail({
+                from: `"HOUMY konfigūratorius" <${smtpPastas.value()}>`,
+                to: GAVEJAS,
+                subject: l.tema,
+                text: l.tekstas,
+                html: l.html
+            });
+            await db.ref("houmy_technologijos/laiskasIssiustas").set(true);
+            console.log("Technologijų patikra: reikia veiksmų (" + ataskaita.reikiaVeiksmu + ") — laiškas išsiųstas.");
+        } else {
+            console.log("Technologijų patikra: viskas tvarkoje, laiškas nesiųstas.");
+        }
+    }
+);

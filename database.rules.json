@@ -135,6 +135,14 @@
         "kas":    { ".validate": "newData.isString() && newData.val().length < 120" },
         "$kita":  { ".validate": false }
       }
+    },
+
+    "houmy_technologijos": {
+      /* Mėnesinės technologijų patikros ataskaita (admin skydelis „🔧 Technologijos").
+         Skaityti — tik administratoriams. Rašo TIK serverio funkcija
+         technologijuPatikra (ji taisyklių nepaiso), per internetą — niekas. */
+      ".read": "auth != null && auth.token.email_verified == true && (auth.token.email == 'ramunaspetraska@gmail.com' || auth.token.email == 'info@houmy.lt' || auth.token.email == 'info@praktiskibaldai.lt' || auth.token.email == 'ciupaite.ingrida@gmail.com')",
+      ".write": false
     }
   }
 }
