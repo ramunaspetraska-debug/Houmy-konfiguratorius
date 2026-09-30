@@ -404,7 +404,11 @@ function restoreState(data, centerView = false) {
         leftVal = Number.isFinite(leftVal) ? leftVal : 0;
         topVal = Number.isFinite(topVal) ? topVal : 0;
 
-        el.style.cssText=`width:${modBase.w*scale}px; height:${modBase.h*scale}px; left:${leftVal}px; top:${topVal}px; z-index:${zIndeksas}; transform:rotate(${kampas}deg)`;
+        // Išskleistas modulis atkuriamas išskleisto dydžio (anksčiau — suskleisto,
+        // todėl išskleistas brėžinys būdavo suspaustas ir matmenys klaidingi).
+        const issk = d.exp === 'true' && modBase.expandable;
+        const plotis = issk ? modBase.expW : modBase.w, gylis = issk ? modBase.expH : modBase.h;
+        el.style.cssText=`width:${plotis*scale}px; height:${gylis*scale}px; left:${leftVal}px; top:${topVal}px; z-index:${zIndeksas}; transform:rotate(${kampas}deg)`;
         el.innerHTML= (d.exp === 'true' && modBase.expandable ? modBase.svgExpanded : modBase.svg) + `<span class="label" style="transform:rotate(${-kampas}deg)"></span>`;
         attachEvents(el); canvasArea.appendChild(el);
         atnaujintiJungtiesZymas(el);
@@ -2575,7 +2579,9 @@ if (sharedStateNew || sharedStateOld) {
             if(modBase.expandable) { el.dataset.sleepw = modBase.sleepW; el.dataset.sleeph = modBase.sleepH; }
             if(modBase.isChaise) { el.dataset.isChaise = 'true'; el.dataset.sleepw = modBase.sleepW; el.dataset.sleeph = modBase.sleepH; }
 
-            el.style.cssText = `width:${modBase.w*scale}px; height:${modBase.h*scale}px; left:${d.x*scale}px; top:${d.y*scale}px; z-index:${zIndexCounter++}; transform:rotate(${d.a}deg)`;
+            const issk = d.e === 1 && modBase.expandable;
+            const plotis = issk ? modBase.expW : modBase.w, gylis = issk ? modBase.expH : modBase.h;
+            el.style.cssText = `width:${plotis*scale}px; height:${gylis*scale}px; left:${d.x*scale}px; top:${d.y*scale}px; z-index:${zIndexCounter++}; transform:rotate(${d.a}deg)`;
             el.innerHTML = (d.e === 1 && modBase.expandable ? modBase.svgExpanded : modBase.svg) + `<span class="label" style="transform:rotate(${-d.a}deg)"></span>`;
 
             attachEvents(el);
