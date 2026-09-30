@@ -178,3 +178,64 @@ exports.uzklausoslaiskas = onValueCreated(
         console.log("Užklausos pranešimas išsiųstas:", event.params.uzklausosId);
     }
 );
+
+// ============================================================================
+// senuUzklausuValymas — kasdien 03:30 (Vilniaus laiku) ištrina klientų
+// užklausas, senesnes nei 12 mėnesių, kartu su tų klientų sudėliotais
+// variantais (houmy_proposals, į kuriuos rodo užklausa).
+//
+// Taip asmens duomenys (vardas, el. paštas, telefonas) nesaugomi ilgiau,
+// nei reikia (BDAR). Administratoriaus sukurti komerciniai pasiūlymai
+// (admin: true) NETRINAMI — į juos veda klientams išsiųstos nuorodos.
+// ============================================================================
+const { onSchedule } = require("firebase-functions/v2/scheduler");
+
+const SAUGOJIMO_TERMINAS_MS = 365 * 24 * 60 * 60 * 1000; // 12 mėnesių
+
+exports.senuUzklausuValymas = onSchedule(
+    {
+        schedule: "30 3 * * *",
+        timeZone: "Europe/Vilnius",
+        region: "europe-west1",
+        memory: "256MiB",
+        maxInstances: 1
+    },
+    async () => {
+        // Įkeliama tik čia, kad nelėtintų laiškų funkcijos paleidimo
+        const { initializeApp, getApps } = require("firebase-admin/app");
+        const { getDatabaseWithUrl } = require("firebase-admin/database");
+        if (!getApps().length) initializeApp();
+        const db = getDatabaseWithUrl(DB_BAZE);
+
+        const riba = Date.now() - SAUGOJIMO_TERMINAS_MS;
+        const senos = await db.ref("houmy_uzklausos")
+            .orderByChild("createdAt").endAt(riba).once("value");
+
+        const trynimas = {};
+        let uzklausu = 0, pasiulymu = 0;
+        const darbai = [];
+        senos.forEach(v => {
+            const u = v.val() || {};
+            if (typeof u.createdAt !== "number" || u.createdAt > riba) return;
+            trynimas["houmy_uzklausos/" + v.key] = null;
+            uzklausu++;
+            if (u.proposalId && /^[A-Za-z0-9_-]{1,100}$/.test(u.proposalId)) {
+                darbai.push(db.ref("houmy_proposals/" + u.proposalId).once("value").then(p => {
+                    const pv = p.val();
+                    if (pv && pv.admin !== true) {
+                        trynimas["houmy_proposals/" + u.proposalId] = null;
+                        pasiulymu++;
+                    }
+                }));
+            }
+        });
+        await Promise.all(darbai);
+
+        if (uzklausu === 0) {
+            console.log("Senesnių nei 12 mėn. užklausų nėra — nieko netrinta.");
+            return;
+        }
+        await db.ref().update(trynimas);
+        console.log("Ištrinta senų užklausų: " + uzklausu + ", jų variantų: " + pasiulymu);
+    }
+);
