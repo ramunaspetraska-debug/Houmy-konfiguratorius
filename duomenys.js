@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.48 (kampinė lova, porankių pavadinimai)";
+const APP_VERSION = "V1.49 (atnaujintos bibliotekos ir saugumas)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
