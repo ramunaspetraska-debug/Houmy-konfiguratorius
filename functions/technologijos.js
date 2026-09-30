@@ -125,7 +125,8 @@ async function patikrinti(bandymui = {}) {
             versija: versijos[t.id] || null, naujausia: null,
             palaikomaIki: null, isjungiama: null,
             saltinis: t.npm ? "https://www.npmjs.com/package/" + t.npm : NODE_SALTINIS,
-            busena: "zalia", pastabos: [], laiskas: false
+            busena: "zalia", pastabos: [], laiskas: false,
+            kaDaryti: null, skubumas: null, techninis: []
         };
         const busenos = [];
 
@@ -134,28 +135,33 @@ async function patikrinti(bandymui = {}) {
             e.naujausia = Object.keys(NODE_PALAIKYMAS).sort((a, b) => b - a)[0];
             if (!p) {
                 busenos.push("geltona");
-                e.pastabos.push("Nežinomos šios versijos palaikymo datos — atnaujinti NODE_PALAIKYMAS sąrašą.");
+                e.pastabos.push("Nežinomos šios versijos palaikymo datos.");
+                e.kaDaryti = "Papildyti NODE_PALAIKYMAS sąrašą (functions/technologijos.js).";
             } else {
                 e.palaikomaIki = p.palaikomaIki;
                 e.isjungiama = p.isjungiama;
                 const d = dienuIki(p.palaikomaIki, dabar);
                 if (d < 0) {
                     busenos.push("raudona"); e.laiskas = true;
-                    e.pastabos.push("Google palaikymas baigėsi " + p.palaikomaIki + ". Nuo " + p.isjungiama +
-                        " funkcijų nebeleis keisti, vėliau gali išjungti — užklausų laiškai nustotų veikti. Perkelti į naujesnę Node.js versiją.");
+                    e.pastabos.push("Google šios versijos nebepalaiko nuo " + p.palaikomaIki + ". Nuo " + p.isjungiama +
+                        " serverio funkcijos gali būti išjungtos — tada nustotų ateiti klientų užklausų laiškai.");
+                    e.skubumas = "skubiai";
                 } else if (d <= 90) {
                     busenos.push("raudona"); e.laiskas = true;
-                    e.pastabos.push("Iki palaikymo pabaigos liko " + d + " d. — perkelti į naujesnę Node.js versiją.");
+                    e.pastabos.push("Google palaikymas baigiasi " + p.palaikomaIki + " (liko " + d + " d.). Vėliau serverio funkcijos gali būti išjungtos.");
+                    e.skubumas = "iki " + p.palaikomaIki;
                 } else if (d <= 180) {
                     busenos.push("geltona");
-                    e.pastabos.push("Iki palaikymo pabaigos liko " + d + " d. — suplanuoti perkėlimą.");
+                    e.pastabos.push("Google palaikymas baigiasi " + p.palaikomaIki + " (liko " + d + " d.) — verta suplanuoti.");
                 }
+                if (busenos.length) e.kaDaryti = "Perkelti serverio funkcijas į Node.js " + e.naujausia + ".";
             }
-            if (Number(e.naujausia) > Number(e.versija) && !e.laiskas) {
-                e.pastabos.push("Google jau siūlo ir Node.js " + e.naujausia + " (neskubu — dabartinė palaikoma iki " + (e.palaikomaIki || "?") + ").");
+            if (Number(e.naujausia) > Number(e.versija) && !busenos.length) {
+                e.pastabos.push("Google jau siūlo ir Node.js " + e.naujausia + " — neskubu, dabartinė palaikoma iki " + (e.palaikomaIki || "?") + ".");
             }
         } else {
             e.naujausia = naujausios[t.id];
+            const savos = spragos[t.npm] || [];
             if (!e.versija) {
                 busenos.push("geltona");
                 e.pastabos.push("Nepavyko nustatyti naudojamos versijos.");
@@ -165,17 +171,19 @@ async function patikrinti(bandymui = {}) {
                 e.pastabos.push("Nepavyko sužinoti naujausios versijos (npm registras nepasiekiamas).");
             } else if (e.versija && pagrindine(e.naujausia) > pagrindine(e.versija)) {
                 busenos.push("geltona");
-                e.pastabos.push("Išleista nauja pagrindinė versija " + e.naujausia +
-                    " — verta atnaujinti per artimiausius mėnesius (gali reikėti kodo pakeitimų ir patikrinimo).");
+                if (!savos.length) e.pastabos.push("Išleista nauja versija " + e.naujausia + " — verta atnaujinti per kelis mėnesius (gali reikėti pakeisti kodą).");
+                e.kaDaryti = "Atnaujinti iki " + e.naujausia + " ir patikrinti, ar viskas veikia.";
             } else if (e.versija && e.naujausia !== e.versija) {
-                e.pastabos.push("Yra smulkus atnaujinimas " + e.naujausia + " (neskubu).");
+                e.pastabos.push("Yra smulkus atnaujinimas " + e.naujausia + " — neskubu.");
             }
-            const savos = spragos[t.npm] || [];
             if (savos.length) {
-                busenos.push(savos.some(s => SUNKIOS.includes(s.severity)) ? "raudona" : "geltona");
+                const rimtu = savos.filter(x => SUNKIOS.includes(x.severity)).length;
+                busenos.push(rimtu ? "raudona" : "geltona");
                 e.laiskas = true;
-                e.pastabos.push("Žinomos saugumo spragos šioje versijoje:");
-                e.pastabos.push(...spraguAprasas(savos));
+                e.pastabos.push("Šioje versijoje žinomos saugumo spragos: " + savos.length + " (iš jų rimtų: " + rimtu + ").");
+                e.kaDaryti = "Atnaujinti iki " + (e.naujausia || "naujausios versijos") + ".";
+                e.skubumas = rimtu ? "per 1–2 savaites" : "per mėnesį";
+                e.techninis = spraguAprasas(savos);
             }
             if (t.pastaba) e.pastabos.push(t.pastaba);
         }
@@ -189,17 +197,23 @@ async function patikrinti(bandymui = {}) {
         id: "kitos", pavadinimas: "Kitos serverio bibliotekos", kur: "serveris",
         paskirtis: "Bibliotekos, kurias įsideda pagrindinės (tiesiogiai jų nenaudojame)",
         versija: null, naujausia: null, palaikomaIki: null, isjungiama: null, saltinis: null,
-        busena: "zalia", pastabos: [], laiskas: false
+        busena: "zalia", pastabos: [], laiskas: false,
+        kaDaryti: null, skubumas: null, techninis: []
     };
     if (netiesiogines.length) {
-        const visos = netiesiogines.flatMap(([vardas, s]) => s.map(x => ({ ...x, vardas })));
-        const rimtos = visos.some(s => SUNKIOS.includes(s.severity));
-        kitos.busena = rimtos ? "raudona" : "geltona";
-        kitos.laiskas = rimtos;
-        kitos.pastabos.push(rimtos
-            ? "Rimta spraga — patikrinti, ar yra pataisytos pagrindinių bibliotekų versijos."
-            : "Nerimtos spragos. Pataiso bibliotekų gamintojai — dažniausiai užtenka laukti ir kartu su kitais atnaujinimais paleisti „npm update\".");
-        kitos.pastabos.push(...visos.map(s => s.vardas + " — " + s.severity + ": " + s.title + " (" + s.url + ")"));
+        const visos = netiesiogines.flatMap(([vardas, x]) => x.map(y => ({ ...y, vardas })));
+        const rimtu = visos.filter(x => SUNKIOS.includes(x.severity)).length;
+        kitos.busena = rimtu ? "raudona" : "geltona";
+        kitos.laiskas = rimtu > 0;
+        if (rimtu) {
+            kitos.pastabos.push("Papildomose bibliotekose rastos saugumo spragos: " + visos.length + " (iš jų rimtų: " + rimtu + ").");
+            kitos.kaDaryti = "Patikrinti, ar išleistos pataisytos Firebase bibliotekų versijos, ir atnaujinti.";
+            kitos.skubumas = "per 1–2 savaites";
+        } else {
+            kitos.pastabos.push("Papildomose bibliotekose rasta nerimtų spragų: " + visos.length +
+                ". Jas pataisys pačių bibliotekų gamintojai — jūsų veiksmų nereikia.");
+        }
+        kitos.techninis = visos.map(x => x.vardas + " — " + x.severity + ": " + x.title + " (" + x.url + ")");
     }
     eilutes.push(kitos);
 
@@ -217,29 +231,47 @@ function saugu(str) {
 
 const ZENKLAS = { zalia: "🟢", geltona: "🟡", raudona: "🔴" };
 
-// Laiško apie reikalingus veiksmus turinys
+// Laiškas apie reikalingus veiksmus: trumpai ir paprastai — kas, kodėl, ką
+// daryti, iki kada. Techninis spragų sąrašas laiške NErodomas (jis admin
+// skydelyje), kad laiškas būtų suprantamas ne programuotojui.
 function laiskoTurinys(ataskaita) {
     const reikia = ataskaita.eilutes.filter(e => e.laiskas);
-    const tema = "HOUMY konfigūratorius: reikia atnaujinti technologijas (" + reikia.length + ")";
+    const tema = "HOUMY konfigūratorius: reikia atnaujinti – " + reikia.map(e => e.pavadinimas).join(", ");
+    const versijos = e => e.versija ? " (dabar " + e.versija + (e.naujausia ? ", naujausia " + e.naujausia : "") + ")" : "";
+    const kaDaryti = e => e.kaDaryti.replace(/\.$/, "") + versijos(e) + ".";
+
     const tekstas =
-        "Mėnesinė HOUMY konfigūratoriaus technologijų patikra rado dalykų, kuriuos reikia sutvarkyti:\n\n" +
-        reikia.map(e => ZENKLAS[e.busena] + " " + e.pavadinimas + " (naudojama " + (e.versija || "?") + ")\n   " +
-            e.pastabos.join("\n   ")).join("\n\n") +
-        "\n\nPerduokite šį laišką programuotojui (ar Claude) — jis žinos, ką daryti.\n" +
-        "Visą sąrašą matysite konfigūratoriaus administravimo skydelyje → „🔧 Technologijos\".";
-    const html =
-        `<div lang="lt" translate="no" class="notranslate" style="font-family:Arial,sans-serif; font-size:14px; color:#222; line-height:1.5;">` +
-        `<h2 style="margin:0 0 8px 0;">Reikia atnaujinti technologijas</h2>` +
-        `<p>Mėnesinė HOUMY konfigūratoriaus patikra rado dalykų, kuriuos reikia sutvarkyti:</p>` +
+        "Automatinė mėnesio patikra rado, ką reikia atnaujinti konfigūratoriuje.\n" +
+        "Konfigūratorius veikia — tai priminimas, kad jis ir toliau veiktų saugiai.\n\n" +
         reikia.map(e =>
-            `<div style="margin:12px 0; padding:10px 12px; border:1px solid #ddd; border-radius:6px;">` +
-            `<b>${ZENKLAS[e.busena]} ${saugu(e.pavadinimas)}</b> <span style="color:#666;">(naudojama ${saugu(e.versija || "?")}` +
-            (e.naujausia ? `, naujausia ${saugu(e.naujausia)}` : "") + `)</span>` +
-            `<ul style="margin:6px 0 0 0; padding-left:18px;">` + e.pastabos.map(p => `<li>${saugu(p)}</li>`).join("") + `</ul></div>`
+            ZENKLAS[e.busena] + " " + e.pavadinimas + " — " + e.paskirtis + "\n" +
+            "   Kodėl: " + e.pastabos.join(" ") + "\n" +
+            (e.kaDaryti ? "   Ką daryti: " + kaDaryti(e) + "\n" : "") +
+            (e.skubumas ? "   Iki kada: " + e.skubumas + "\n" : "")
+        ).join("\n") +
+        "\nKĄ JUMS DARYTI: persiųskite šį laišką Claude (arba programuotojui) ir parašykite „atnaujink\". Daugiau nieko.\n\n" +
+        "Techninės detalės — konfigūratoriaus administravimo skydelyje → „🔧 Technologijos\".\n" +
+        "Šis laiškas siunčiamas automatiškai kiekvieno mėnesio 1 d., tik kai reikia ką nors daryti.";
+
+    const eilute = (pavadinimas, reiksme) =>
+        `<tr><td style="padding:3px 12px 3px 0; color:#666; vertical-align:top; white-space:nowrap;">${pavadinimas}</td><td style="padding:3px 0;">${reiksme}</td></tr>`;
+    const html =
+        `<div lang="lt" translate="no" class="notranslate" style="font-family:Arial,sans-serif; font-size:14px; color:#222; line-height:1.5; max-width:640px;">` +
+        `<h2 style="margin:0 0 6px 0;">Reikia atnaujinti konfigūratoriaus programas</h2>` +
+        `<p style="margin:0 0 14px 0;">Automatinė mėnesio patikra rado, ką reikia atnaujinti. <b>Konfigūratorius veikia</b> — tai priminimas, kad jis ir toliau veiktų saugiai.</p>` +
+        reikia.map(e =>
+            `<div style="margin:0 0 12px 0; padding:12px 14px; border:1px solid #ddd; border-left:4px solid ${e.busena === "raudona" ? "#dc3545" : "#f0ad4e"}; border-radius:6px;">` +
+            `<div style="font-size:15px; margin-bottom:6px;"><b>${ZENKLAS[e.busena]} ${saugu(e.pavadinimas)}</b> <span style="color:#666;">— ${saugu(e.paskirtis)}</span></div>` +
+            `<table style="border-collapse:collapse; font-size:14px;">` +
+            eilute("Kodėl:", saugu(e.pastabos.join(" "))) +
+            (e.kaDaryti ? eilute("Ką daryti:", saugu(kaDaryti(e))) : "") +
+            (e.skubumas ? eilute("Iki kada:", "<b>" + saugu(e.skubumas) + "</b>") : "") +
+            `</table></div>`
         ).join("") +
-        `<p>Perduokite šį laišką programuotojui (ar Claude) — jis žinos, ką daryti.</p>` +
-        `<p style="font-size:12px; color:#888;">Visą sąrašą matysite konfigūratoriaus administravimo skydelyje → „🔧 Technologijos". ` +
-        `Šį laišką siunčia automatinė patikra kiekvieno mėnesio 1 d., tik kai reikia ką nors daryti.</p></div>`;
+        `<div style="margin:16px 0; padding:12px 14px; background:#eef5ff; border:1px solid #b8daff; border-radius:6px;">` +
+        `<b>Ką jums daryti:</b> persiųskite šį laišką Claude (arba programuotojui) ir parašykite „atnaujink". Daugiau nieko.</div>` +
+        `<p style="font-size:12px; color:#888; margin:0;">Techninės detalės — konfigūratoriaus administravimo skydelyje → „🔧 Technologijos". ` +
+        `Šis laiškas siunčiamas automatiškai kiekvieno mėnesio 1 d., tik kai reikia ką nors daryti.</p></div>`;
     return { tema, tekstas, html };
 }
 

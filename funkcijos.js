@@ -1418,7 +1418,11 @@ async function showTechnologijos() {
             turinys += `<p style="color:#dc3545; font-size:13px;">Paskutinė patikra nepavyko: ${escapeHtml(ataskaita.klaida)}</p>`;
         }
         (ataskaita.eilutes || []).forEach(e => {
-            const pastabos = (e.pastabos || []).map(p => `<li>${escapeHtml(p)}</li>`).join('');
+            let pastabos = (e.pastabos || []).map(p => `<li>${escapeHtml(p)}</li>`).join('');
+            if (e.kaDaryti) pastabos += `<li><b>Ką daryti:</b> ${escapeHtml(e.kaDaryti)}${e.skubumas ? ` <b>Iki kada:</b> ${escapeHtml(e.skubumas)}` : ''}</li>`;
+            const techninis = (e.techninis || []).length
+                ? `<details style="margin-top:4px;"><summary style="cursor:pointer; color:#666;">Techninės detalės (${e.techninis.length})</summary><ul style="margin:4px 0 0 0; padding-left:18px; color:#666; font-size:11px; word-break:break-word;">${e.techninis.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul></details>`
+                : '';
             const versijos = e.versija ? `Naudojama: <b>${escapeHtml(e.versija)}</b>` + (e.naujausia ? ` · naujausia: ${escapeHtml(e.naujausia)}` : '') : '';
             const palaikymas = e.palaikomaIki ? ` · palaikoma iki: <b>${escapeHtml(e.palaikomaIki)}</b>` + (e.isjungiama ? ` (išjungiama ${escapeHtml(e.isjungiama)})` : '') : '';
             turinys += `<div style="background:${spalva[e.busena] || '#f5f5f5'}; border:1px solid #ddd; border-radius:6px; padding:8px 10px; margin-bottom:8px; font-size:12px;">
@@ -1426,6 +1430,7 @@ async function showTechnologijos() {
                 <div style="color:#666;">${escapeHtml(e.paskirtis || '')}</div>
                 ${versijos || palaikymas ? `<div style="margin-top:3px;">${versijos}${palaikymas}</div>` : ''}
                 ${pastabos ? `<ul style="margin:4px 0 0 0; padding-left:18px; color:#444; word-break:break-word;">${pastabos}</ul>` : ''}
+                ${techninis}
             </div>`;
         });
         turinys += '<p style="font-size:11px; color:#888; margin:6px 0 0 0;">🟢 viskas gerai · 🟡 verta suplanuoti atnaujinimą · 🔴 reikia veikti dabar</p>';
