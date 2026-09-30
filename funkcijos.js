@@ -1390,6 +1390,57 @@ async function showPriceHistory() {
     document.body.appendChild(overlay);
 }
 
+// Naudojamų technologijų būklė: versijos, palaikymo datos, saugumo spragos.
+// Duomenis kas mėnesį surenka serverio funkcija technologijuPatikra
+// (functions/technologijos.js) — čia tik parodoma paskutinė ataskaita.
+async function showTechnologijos() {
+    let ataskaita = null, klaida = '';
+    try {
+        if (!window.houmyCloud || !window.houmyCloud.gautiTechnologijuAtaskaita) throw new Error('debesies ryšys neužkrautas');
+        ataskaita = await window.houmyCloud.gautiTechnologijuAtaskaita();
+    } catch (e) {
+        console.warn('Technologijų ataskaitos gauti nepavyko:', e);
+        klaida = 'Nepavyko gauti ataskaitos iš debesies. Patikrinkite interneto ryšį ir bandykite dar kartą.';
+    }
+
+    const zenklas = { zalia: '🟢', geltona: '🟡', raudona: '🔴' };
+    const spalva = { zalia: '#e9f7ef', geltona: '#fff8e1', raudona: '#fdecea' };
+    const data = t => { const d = new Date(t); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); };
+
+    let turinys = '';
+    if (klaida) {
+        turinys = `<p style="color:#dc3545;">${escapeHtml(klaida)}</p>`;
+    } else if (!ataskaita) {
+        turinys = '<p style="color:#888; text-align:center;">Patikra dar nevykdyta. Ji vyksta automatiškai kiekvieno mėnesio 1 d.</p>';
+    } else {
+        turinys = `<p style="font-size:12px; color:#555; margin:0 0 10px 0;">Paskutinė patikra: <b>${escapeHtml(data(ataskaita.tikrinta))}</b> · vyksta automatiškai kiekvieno mėnesio 1 d. Jei reikia ką nors daryti — laiškas ateina į info@houmy.lt.</p>`;
+        if (ataskaita.klaida) {
+            turinys += `<p style="color:#dc3545; font-size:13px;">Paskutinė patikra nepavyko: ${escapeHtml(ataskaita.klaida)}</p>`;
+        }
+        (ataskaita.eilutes || []).forEach(e => {
+            const pastabos = (e.pastabos || []).map(p => `<li>${escapeHtml(p)}</li>`).join('');
+            const versijos = e.versija ? `Naudojama: <b>${escapeHtml(e.versija)}</b>` + (e.naujausia ? ` · naujausia: ${escapeHtml(e.naujausia)}` : '') : '';
+            const palaikymas = e.palaikomaIki ? ` · palaikoma iki: <b>${escapeHtml(e.palaikomaIki)}</b>` + (e.isjungiama ? ` (išjungiama ${escapeHtml(e.isjungiama)})` : '') : '';
+            turinys += `<div style="background:${spalva[e.busena] || '#f5f5f5'}; border:1px solid #ddd; border-radius:6px; padding:8px 10px; margin-bottom:8px; font-size:12px;">
+                <div style="font-size:13px;"><b>${zenklas[e.busena] || '⚪'} ${escapeHtml(e.pavadinimas)}</b> <span style="color:#888;">· ${escapeHtml(e.kur || '')}</span></div>
+                <div style="color:#666;">${escapeHtml(e.paskirtis || '')}</div>
+                ${versijos || palaikymas ? `<div style="margin-top:3px;">${versijos}${palaikymas}</div>` : ''}
+                ${pastabos ? `<ul style="margin:4px 0 0 0; padding-left:18px; color:#444; word-break:break-word;">${pastabos}</ul>` : ''}
+            </div>`;
+        });
+        turinys += '<p style="font-size:11px; color:#888; margin:6px 0 0 0;">🟢 viskas gerai · 🟡 verta suplanuoti atnaujinimą · 🔴 reikia veikti dabar</p>';
+    }
+
+    let overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; display:flex; justify-content:center; align-items:center;';
+    overlay.innerHTML = `<div style="background:white; padding:20px; border-radius:8px; width:640px; max-width:94vw; max-height:88vh; overflow-y:auto; box-shadow:0 5px 15px rgba(0,0,0,0.3); font-family:sans-serif;">
+        <h3 style="margin-top:0; border-bottom:2px solid #eee; padding-bottom:10px;">Naudojamos technologijos</h3>
+        <div style="margin-bottom:15px;">${turinys}</div>
+        <button onclick="this.parentNode.parentNode.remove()" style="padding:10px 12px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer; width:100%; font-weight:bold;">Uždaryti</button>
+    </div>`;
+    document.body.appendChild(overlay);
+}
+
 function syncAdminGrid() {
     document.querySelectorAll('.admin-price-input').forEach(input => {
         if (input.value === input.dataset.orig) return;
@@ -1512,6 +1563,7 @@ function atidarytiAdminPaneli() {
             📤 Importuoti <input type="file" accept=".json" style="display:none" onchange="importPrices(event)">
         </label>
         <button onclick="showPriceHistory()" style="flex:1; padding: 8px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; min-width:80px;">🕰 Istorija</button>
+        <button onclick="showTechnologijos()" style="flex:1; padding: 8px; background: #343a40; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; min-width:80px;">🔧 Technologijos</button>
     `;
     container.appendChild(toolbar);
 

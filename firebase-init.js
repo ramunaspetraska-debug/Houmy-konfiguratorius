@@ -169,6 +169,13 @@ async function gautiKainuIstorijaDebesyje(kiek) {
     return sarasas.sort((a, b) => (b.laikas || 0) - (a.laikas || 0));
 }
 
+// Mėnesinės technologijų patikros ataskaita (rašo serverio funkcija
+// technologijuPatikra; skaityti gali tik administratoriai). null — dar nebuvo patikros.
+async function gautiTechnologijuAtaskaitaDebesyje() {
+    const snap = await get(ref(db, "houmy_technologijos"));
+    return snap.exists() ? snap.val() : null;
+}
+
 // Įrašo TIK pasiūlymo tekstus (terminas, pristatymas, papildoma informacija).
 // Kainų neliečia — todėl net iš seno lango sugeneruotas PDF kainų nepakeis.
 async function issaugotiTekstusDebesyje() {
@@ -220,6 +227,7 @@ window.houmyCloud = {
     issaugotiTekstus: issaugotiTekstusDebesyje,
     irasytiKainuIstorija: irasytiKainuIstorijaDebesyje,
     gautiKainuIstorija: gautiKainuIstorijaDebesyje,
+    gautiTechnologijuAtaskaita: gautiTechnologijuAtaskaitaDebesyje,
     issaugotiPasiulyma: issaugotiPasiulymaDebesyje,
     gautiPasiulyma: gautiPasiulymaDebesyje,
     issaugotiUzklausa: issaugotiUzklausaDebesyje,
