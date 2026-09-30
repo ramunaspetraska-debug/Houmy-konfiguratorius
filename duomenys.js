@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.49 (atnaujintos bibliotekos ir saugumas)";
+const APP_VERSION = "V1.50 (technologijų stebėsena)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
