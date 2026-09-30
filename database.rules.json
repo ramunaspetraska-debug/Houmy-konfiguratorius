@@ -57,8 +57,33 @@
         ".read": true,
         ".write": "!data.exists() && newData.exists()",
         ".validate": "newData.hasChildren(['modules', 'breakdown', 'total', 'finalTotal', 'createdAt'])",
-        "modules":        { ".validate": "newData.hasChildren()" },
-        "breakdown":      { ".validate": "newData.hasChildren()" },
+        "modules": {
+          ".validate": "newData.hasChildren()",
+          "$m": {
+            "id":  { ".validate": "newData.isString() && newData.val().length < 40" },
+            "n":   { ".validate": "newData.isString() && newData.val().length < 60 && !newData.val().contains('<') && !newData.val().contains('>')" },
+            "c":   { ".validate": "newData.isString() && newData.val().length < 20" },
+            "p":   { ".validate": "(newData.isString() && newData.val().length < 12) || newData.isNumber()" },
+            "w":   { ".validate": "(newData.isString() && newData.val().length < 12) || newData.isNumber()" },
+            "h":   { ".validate": "(newData.isString() && newData.val().length < 12) || newData.isNumber()" },
+            "a":   { ".validate": "(newData.isString() && newData.val().length < 12) || newData.isNumber()" },
+            "z":   { ".validate": "(newData.isString() && newData.val().length < 12) || newData.isNumber()" },
+            "l":   { ".validate": "newData.isNumber()" },
+            "t":   { ".validate": "newData.isNumber()" },
+            "exp": { ".validate": "(newData.isString() && newData.val().length < 6) || newData.isBoolean()" },
+            "j":   { ".validate": "newData.isString() && newData.val().length < 3" },
+            "$kita": { ".validate": false }
+          }
+        },
+        "breakdown": {
+          ".validate": "newData.hasChildren()",
+          "$b": {
+            "name": { ".validate": "newData.isString() && newData.val().length < 100 && !newData.val().contains('<') && !newData.val().contains('>')" },
+            "qty":  { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 1000" },
+            "unit": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 1000000" },
+            "$kita": { ".validate": false }
+          }
+        },
         "total":          { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 1000000" },
         "finalTotal":     { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 1000000" },
         "discountVal":    { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },

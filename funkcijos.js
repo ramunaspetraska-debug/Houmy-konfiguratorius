@@ -207,7 +207,7 @@ function updateLabels() {
         if(!label) return;
         const modBase = rawModels[m.dataset.collection]?.find(x => x.id === m.dataset.id);
         let expIcon = modBase && modBase.expandable ? ' <b style="color:#007bff; font-size:14px;">⇕</b>' : '';
-        label.innerHTML = `${getDisplayName({collection: m.dataset.collection, name: m.dataset.name}, isMixed)}${expIcon}<br><span class="dim-text">${modBase?.dim || (m.dataset.w + "x" + m.dataset.h)}</span>`;
+        label.innerHTML = `${escapeHtml(getDisplayName({collection: m.dataset.collection, name: m.dataset.name}, isMixed))}${expIcon}<br><span class="dim-text">${modBase?.dim || (m.dataset.w + "x" + m.dataset.h)}</span>`;
     });
 }
 
@@ -390,14 +390,22 @@ function restoreState(data, centerView = false) {
         let modBase = furnitureModels[d.c]?.find(x=>x.id===d.id);
         if (!modBase) return;
         const el=document.createElement('div'); el.className='canvas-module';
-        Object.assign(el.dataset,{id:d.id, name:d.n, price:d.p, collection:d.c, w:d.w, h:d.h, angle:d.a, isExpanded: d.exp || 'false'});
-        if (d.j) el.dataset.jungtys = d.j;
+        // SAUGUMAS: pavadinimas, kaina ir matmenys imami iš programos (modBase),
+        // ne iš atkuriamų duomenų — pasiūlymų (?proposal=) duomenis gali įrašyti
+        // bet kas, todėl juose gali būti įterpto kodo. Skaitinės reikšmės
+        // priverstinai paverčiamos skaičiais.
+        const kampas = parseInt(d.a) || 0;
+        const zIndeksas = parseInt(d.z) || 1;
+        Object.assign(el.dataset,{id:modBase.id, name:modBase.name, price:modBase.price, collection:d.c, w:modBase.w, h:modBase.h, angle:kampas, isExpanded: d.exp === 'true' ? 'true' : 'false'});
+        if (JUNGCIU_SEKA.includes(d.j) && d.j) el.dataset.jungtys = d.j;
 
         let leftVal = (typeof d.l === 'string' && d.l.includes('px')) ? parseFloat(d.l) : parseFloat(d.l) * scale;
         let topVal = (typeof d.t === 'string' && d.t.includes('px')) ? parseFloat(d.t) : parseFloat(d.t) * scale;
+        leftVal = Number.isFinite(leftVal) ? leftVal : 0;
+        topVal = Number.isFinite(topVal) ? topVal : 0;
 
-        el.style.cssText=`width:${d.w*scale}px; height:${d.h*scale}px; left:${leftVal}px; top:${topVal}px; z-index:${d.z}; transform:rotate(${d.a}deg)`;
-        el.innerHTML= (d.exp === 'true' && modBase.expandable ? modBase.svgExpanded : modBase.svg) + `<span class="label" style="transform:rotate(${-d.a}deg)"></span>`;
+        el.style.cssText=`width:${modBase.w*scale}px; height:${modBase.h*scale}px; left:${leftVal}px; top:${topVal}px; z-index:${zIndeksas}; transform:rotate(${kampas}deg)`;
+        el.innerHTML= (d.exp === 'true' && modBase.expandable ? modBase.svgExpanded : modBase.svg) + `<span class="label" style="transform:rotate(${-kampas}deg)"></span>`;
         attachEvents(el); canvasArea.appendChild(el);
         atnaujintiJungtiesZymas(el);
     });
@@ -637,7 +645,7 @@ function updateOrderSummary() {
         if(!counts[dName]) counts[dName] = { qty: 0, price: price };
         counts[dName].qty++; total += price;
     });
-    orderList.innerHTML = Object.keys(counts).length ? Object.keys(counts).map(n => `<div class="order-item"><span><b>${counts[n].qty}x</b> ${n}</span><span>${counts[n].price * counts[n].qty} €</span></div>`).join('') : '<div style="color:#888; text-align:center; padding: 20px 0;">Sofa tuščia</div>'; 
+    orderList.innerHTML = Object.keys(counts).length ? Object.keys(counts).map(n => `<div class="order-item"><span><b>${counts[n].qty}x</b> ${escapeHtml(n)}</span><span>${counts[n].price * counts[n].qty} €</span></div>`).join('') : '<div style="color:#888; text-align:center; padding: 20px 0;">Sofa tuščia</div>'; 
     
     const chain = generateModuleChainText(modules, isMixed);
     document.getElementById('module-chain-display').innerText = chain ? "Specifikacija: " + chain : "";
