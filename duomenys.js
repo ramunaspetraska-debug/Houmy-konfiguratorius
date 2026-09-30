@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.46 (STONE porankių aukštis)";
+const APP_VERSION = "V1.47 (saugumas ir patikimumas)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
