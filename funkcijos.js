@@ -1472,7 +1472,7 @@ function applyDynamicBulk(multiplier) {
         }
     }); 
     syncAdminGrid();
-    alert(`Pakeista kainų: ${count}. (Nepamirškite išsaugoti nustatymų!)`); 
+    alert(`Pakeista kainų: ${count} (kolekcija ${(document.getElementById('admin-col-select')||{}).value || ''}). Kitos kolekcijos nepakeistos. Nepamirškite išsaugoti!`); 
 }
 
 function openAdmin() {
@@ -1523,10 +1523,10 @@ function atidarytiAdminPaneli() {
     let bulkWrap = document.createElement('div');
     bulkWrap.style.cssText = "background: #fff3cd; padding: 12px; border-radius: 8px; border: 1px solid #ffeeba; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;";
     bulkWrap.innerHTML = `
-        <strong style="font-size: 13px; color: #856404;">Masinis keitimas:</strong>
+        <strong style="font-size: 13px; color: #856404;">Masinis keitimas <span style="font-weight:normal;">(tik atidarytai kolekcijai)</span>:</strong>
         <input type="number" id="dyn-bulk-percent" placeholder="%" style="width: 60px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;">
         <select id="dyn-bulk-group" style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; flex: 1; min-width: 130px; cursor:pointer;">
-            <option value="all">Visoms grupėms</option>
+            <option value="all">Visoms šios kolekcijos grupėms</option>
             <option value="gr1">Tik I Grupei (Bazinei)</option>
             <option value="gr2">Tik II Grupei</option>
             <option value="gr3">Tik III Grupei</option>
