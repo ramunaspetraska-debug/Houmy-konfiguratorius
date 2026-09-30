@@ -116,6 +116,25 @@
         "admin":     { ".validate": "newData.isBoolean() && newData.val() == true && auth != null && auth.token.email_verified == true && (auth.token.email == 'ramunaspetraska@gmail.com' || auth.token.email == 'info@houmy.lt' || auth.token.email == 'info@praktiskibaldai.lt' || auth.token.email == 'ciupaite.ingrida@gmail.com')" },
         "$kita":     { ".validate": false }
       }
+    },
+
+    "houmy_kainu_istorija": {
+      /* Kainų keitimo istorija (admin panelė). Skaityti ir rašyti — tik
+         administratoriams. Įrašus galima tik PRIDĖTI: pakeisti ar ištrinti
+         per programą negalima, kad istorija liktų patikima. */
+      ".read": "auth != null && auth.token.email_verified == true && (auth.token.email == 'ramunaspetraska@gmail.com' || auth.token.email == 'info@houmy.lt' || auth.token.email == 'info@praktiskibaldai.lt' || auth.token.email == 'ciupaite.ingrida@gmail.com')",
+      ".indexOn": ["laikas"],
+      "$id": {
+        ".write": "!data.exists() && newData.exists() && auth != null && auth.token.email_verified == true && (auth.token.email == 'ramunaspetraska@gmail.com' || auth.token.email == 'info@houmy.lt' || auth.token.email == 'info@praktiskibaldai.lt' || auth.token.email == 'ciupaite.ingrida@gmail.com')",
+        ".validate": "newData.hasChildren([\"laikas\", \"raktas\"])",
+        "laikas": { ".validate": "newData.isNumber() && newData.val() == now" },
+        "data":   { ".validate": "newData.isString() && newData.val().length < 30" },
+        "raktas": { ".validate": "newData.isString() && newData.val().length < 80" },
+        "buvo":   { ".validate": "newData.isNumber() || (newData.isString() && newData.val().length < 30)" },
+        "tapo":   { ".validate": "newData.isNumber() || (newData.isString() && newData.val().length < 30)" },
+        "kas":    { ".validate": "newData.isString() && newData.val().length < 120" },
+        "$kita":  { ".validate": false }
+      }
     }
   }
 }

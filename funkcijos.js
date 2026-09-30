@@ -1322,8 +1322,19 @@ function importPrices(event) {
     reader.readAsText(file);
 }
 
-function showPriceHistory() {
-    let history = JSON.parse(localStorage.getItem('houmyPriceHistory') || '[]');
+// Kainų keitimo istorija. Pirmiausia rodoma bendra istorija iš debesies
+// (visų administratorių pakeitimai, su žyma kas keitė); nepavykus — šios
+// naršyklės atsarginė istorija.
+async function showPriceHistory() {
+    let history = null, saltinis = '';
+    if (window.houmyCloud && window.houmyCloud.gautiKainuIstorija) {
+        try { history = await window.houmyCloud.gautiKainuIstorija(300); saltinis = 'debesis'; }
+        catch (e) { console.warn('Kainų istorijos iš debesies gauti nepavyko:', e); }
+    }
+    if (!history) {
+        history = JSON.parse(localStorage.getItem('houmyPriceHistory') || '[]');
+        saltinis = 'vietine';
+    }
     let histHtml = '';
 
     if (history.length === 0) {
@@ -1331,8 +1342,8 @@ function showPriceHistory() {
     } else {
         let grouped = {};
         history.forEach(h => {
-            let parts = h.date.split(' ');
-            let day = parts[0]; 
+            let parts = String(h.date || '').split(' ');
+            let day = parts[0] || '?';
             let time = parts[1] || '';
             if (!grouped[day]) grouped[day] = [];
             grouped[day].push({ ...h, time: time });
@@ -1340,40 +1351,38 @@ function showPriceHistory() {
 
         for (let day in grouped) {
             histHtml += `<div style="margin-bottom: 12px;">
-                <div style="background: #eef5ff; color: #007bff; padding: 6px 10px; border-radius: 4px; font-weight: bold; font-size: 13px; border: 1px solid #b8daff;">🗓️ ${day}</div>
+                <div style="background: #eef5ff; color: #007bff; padding: 6px 10px; border-radius: 4px; font-weight: bold; font-size: 13px; border: 1px solid #b8daff;">🗓️ ${escapeHtml(day)}</div>
                 <div style="padding: 6px 10px; border-left: 2px solid #b8daff; margin-left: 10px; background: #fafafa;">`;
-            
+
             grouped[day].forEach(change => {
-                let cleanName = change.item.replace(/_/g, ' '); 
+                let cleanName = String(change.item || '').replace(/_/g, ' ');
+                let kas = change.kas ? ` <span style="color:#888; font-size:11px;">· ${escapeHtml(change.kas)}</span>` : '';
                 histHtml += `<div style="font-size: 12px; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px dashed #eee;">
-                    <span style="color:#888; font-size:11px;">[${change.time}]</span> 
-                    <strong style="color:#333;">${cleanName}</strong><br>
-                    Kaina: <span style="color:#dc3545; text-decoration:line-through;">${change.old}€</span> ➔ <span style="color:#28a745; font-weight:bold;">${change.new}€</span>
+                    <span style="color:#888; font-size:11px;">[${escapeHtml(change.time)}]</span>
+                    <strong style="color:#333;">${escapeHtml(cleanName)}</strong>${kas}<br>
+                    Kaina: <span style="color:#dc3545; text-decoration:line-through;">${escapeHtml(change.old)}€</span> ➔ <span style="color:#28a745; font-weight:bold;">${escapeHtml(change.new)}€</span>
                 </div>`;
             });
-            
+
             histHtml += `</div></div>`;
         }
     }
 
+    const pastaba = saltinis === 'debesis'
+        ? 'Rodomi visų administratorių pakeitimai (bendra istorija).'
+        : 'Debesies istorija nepasiekiama — rodoma tik šios naršyklės istorija.';
+
     let overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; display:flex; justify-content:center; align-items:center;';
     overlay.innerHTML = `<div style="background:white; padding:20px; border-radius:8px; width:450px; max-height:85vh; overflow-y:auto; box-shadow:0 5px 15px rgba(0,0,0,0.3); font-family:sans-serif;">
-        <h3 style="margin-top:0; border-bottom:2px solid #eee; padding-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-            Kainų keitimo istorija
-            <button onclick="if(confirm('Ar tikrai norite išvalyti istoriją?')) { localStorage.removeItem('houmyPriceHistory'); this.parentNode.parentNode.parentNode.remove(); showPriceHistory(); }" style="font-size:11px; padding:4px 8px; background:#dc3545; color:white; border:none; border-radius:3px; cursor:pointer;">Išvalyti</button>
-        </h3>
+        <h3 style="margin-top:0; border-bottom:2px solid #eee; padding-bottom:10px;">Kainų keitimo istorija</h3>
+        <p style="font-size:11px; color:#888; margin:-4px 0 10px 0;">${pastaba}</p>
         <div style="margin-bottom:15px; max-height: 60vh; overflow-y: auto; padding-right: 5px;">${histHtml}</div>
         <button onclick="this.parentNode.parentNode.remove()" style="padding:10px 12px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer; width:100%; font-weight:bold;">Uždaryti</button>
     </div>`;
     document.body.appendChild(overlay);
 }
 
-// Perkelia į tempAdminPrices TIK tuos laukelius, kuriuos žmogus pakeitė
-// (lygina su reikšme, kurią laukelis rodė atidarius). Anksčiau buvo
-// perkeliami visi matomi laukeliai, todėl išsaugojus į debesį patekdavo
-// visos atidarytos kolekcijos kainos, net nekeistos, ir kodo kainos
-// nustodavo veikti.
 function syncAdminGrid() {
     document.querySelectorAll('.admin-price-input').forEach(input => {
         if (input.value === input.dataset.orig) return;
@@ -1586,7 +1595,14 @@ async function saveAdminSettings() {
         return;
     }
 
-    // Pavyko — atnaujinam vietinę kopiją ir istoriją
+    // Pavyko — istorija į debesį (matys visi administratoriai; nepavykus
+    // kainos vis tiek jau išsaugotos, todėl tik pranešam konsolėje)
+    if (window.houmyCloud.irasytiKainuIstorija) {
+        try { await window.houmyCloud.irasytiKainuIstorija(changes); }
+        catch (e) { console.warn("Kainų istorijos įrašyti į debesį nepavyko:", e); }
+    }
+
+    // Atnaujinam vietinę kopiją ir vietinę istoriją (atsarginė)
     appSettings.customPrices = tempAdminPrices;
     localStorage.setItem('houmySettings', JSON.stringify(appSettings));
     let history = JSON.parse(localStorage.getItem('houmyPriceHistory') || '[]');

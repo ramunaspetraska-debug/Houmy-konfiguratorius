@@ -16,7 +16,7 @@
 // ============================================================================
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-import { getDatabase, ref, get, set, update, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+import { getDatabase, ref, get, set, update, push, serverTimestamp, query, orderByChild, limitToLast } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 
 // Firebase projekto konfigūracija (tai NĖRA slaptažodžiai — šie duomenys
@@ -136,6 +136,39 @@ async function issaugotiKainuPakeitimusDebesyje(pakeitimai, ankstesnes) {
     await update(ref(db, SETTINGS_KELIAS), irasas);
 }
 
+// Kainų keitimo istorija debesyje (houmy_kainu_istorija): matoma visiems
+// administratoriams, su žyma, kas keitė. Įrašus galima tik pridėti.
+const ISTORIJOS_KELIAS = "houmy_kainu_istorija";
+
+async function irasytiKainuIstorijaDebesyje(pakeitimai) {
+    if (!pakeitimai || !pakeitimai.length) return;
+    const kas = (auth.currentUser && auth.currentUser.email) || "";
+    const irasas = {};
+    pakeitimai.forEach(c => {
+        const raktas = push(ref(db, ISTORIJOS_KELIAS)).key;
+        irasas[raktas] = {
+            laikas: serverTimestamp(),
+            data: String(c.date || ""),
+            raktas: String(c.item || ""),
+            buvo: (typeof c.old === "number") ? c.old : String(c.old),
+            tapo: (typeof c.new === "number") ? c.new : String(c.new),
+            kas: kas
+        };
+    });
+    await update(ref(db, ISTORIJOS_KELIAS), irasas);
+}
+
+// Grąžina naujausius istorijos įrašus (naujausi pirmi) programos formatu.
+async function gautiKainuIstorijaDebesyje(kiek) {
+    const snap = await get(query(ref(db, ISTORIJOS_KELIAS), orderByChild("laikas"), limitToLast(kiek || 300)));
+    const sarasas = [];
+    snap.forEach(v => {
+        const x = v.val() || {};
+        sarasas.push({ date: x.data, item: x.raktas, old: x.buvo, new: x.tapo, kas: x.kas, laikas: x.laikas });
+    });
+    return sarasas.sort((a, b) => (b.laikas || 0) - (a.laikas || 0));
+}
+
 // Įrašo TIK pasiūlymo tekstus (terminas, pristatymas, papildoma informacija).
 // Kainų neliečia — todėl net iš seno lango sugeneruotas PDF kainų nepakeis.
 async function issaugotiTekstusDebesyje() {
@@ -185,6 +218,8 @@ window.houmyCloud = {
     issaugotiNustatymus: issaugotiNustatymusDebesyje,   // VISKAS iš karto — tik kainų importui
     issaugotiKainuPakeitimus: issaugotiKainuPakeitimusDebesyje,
     issaugotiTekstus: issaugotiTekstusDebesyje,
+    irasytiKainuIstorija: irasytiKainuIstorijaDebesyje,
+    gautiKainuIstorija: gautiKainuIstorijaDebesyje,
     issaugotiPasiulyma: issaugotiPasiulymaDebesyje,
     gautiPasiulyma: gautiPasiulymaDebesyje,
     issaugotiUzklausa: issaugotiUzklausaDebesyje,
