@@ -1369,11 +1369,18 @@ function showPriceHistory() {
     document.body.appendChild(overlay);
 }
 
+// Perkelia į tempAdminPrices TIK tuos laukelius, kuriuos žmogus pakeitė
+// (lygina su reikšme, kurią laukelis rodė atidarius). Anksčiau buvo
+// perkeliami visi matomi laukeliai, todėl išsaugojus į debesį patekdavo
+// visos atidarytos kolekcijos kainos, net nekeistos, ir kodo kainos
+// nustodavo veikti.
 function syncAdminGrid() {
     document.querySelectorAll('.admin-price-input').forEach(input => {
+        if (input.value === input.dataset.orig) return;
         let val = parseInt(input.value);
         if (val > 0) tempAdminPrices[input.dataset.pkey] = val;
         else delete tempAdminPrices[input.dataset.pkey];
+        input.dataset.orig = input.value;
     });
 }
 
@@ -1411,11 +1418,11 @@ function renderAdminGrid(key) {
         
         grid += `<div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr; gap:10px; align-items:center; background:#f9f9f9; padding:8px; border-radius:4px; border:1px solid #eee; min-width: 700px;">
             <div style="font-size:13px; font-weight:500;">${mod.name} <small style="color:#888; display:block;">${mod.w}x${mod.h} cm</small></div>
-            <input type="number" data-pkey="${pKey}" class="admin-price-input" value="${p1}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
-            <input type="number" data-pkey="${pKey}_gr2" class="admin-price-input" value="${p2}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
-            <input type="number" data-pkey="${pKey}_gr3" class="admin-price-input" value="${p3}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
-            <input type="number" data-pkey="${pKey}_gr4" class="admin-price-input" value="${p4}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
-            <input type="number" data-pkey="${pKey}_gr5" class="admin-price-input" value="${p5}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
+            <input type="number" data-pkey="${pKey}" data-orig="${p1}" class="admin-price-input" value="${p1}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
+            <input type="number" data-pkey="${pKey}_gr2" data-orig="${p2}" class="admin-price-input" value="${p2}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
+            <input type="number" data-pkey="${pKey}_gr3" data-orig="${p3}" class="admin-price-input" value="${p3}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
+            <input type="number" data-pkey="${pKey}_gr4" data-orig="${p4}" class="admin-price-input" value="${p4}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
+            <input type="number" data-pkey="${pKey}_gr5" data-orig="${p5}" class="admin-price-input" value="${p5}" style="width:100%; padding:6px; text-align:center; border:1px solid #ccc; border-radius:3px;">
         </div>`; 
     }); 
     grid += `</div>`; 
@@ -1532,45 +1539,62 @@ function atidarytiAdminPaneli() {
 }
 function closeAdmin() { document.getElementById('admin-modal').style.display = 'none'; }
 
-function saveAdminSettings() { 
+async function saveAdminSettings() { 
     syncAdminGrid(); 
-    
-    let history = JSON.parse(localStorage.getItem('houmyPriceHistory') || '[]');
+
     let d = new Date();
     let dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
     let timeStr = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
     let now = dateStr + ' ' + timeStr;
-    
+
+    // Surenkam TIK pakeistas kainas (null = grąžinti numatytąją kodo kainą)
     let changes = [];
+    let pakeitimai = {};
     let allKeys = new Set([...Object.keys(tempAdminPrices), ...Object.keys(appSettings.customPrices)]);
-            
     allKeys.forEach(k => {
         let oldV = appSettings.customPrices[k];
         let newV = tempAdminPrices[k];
         if (oldV !== newV) {
-            let oText = oldV === undefined ? "Standartinė" : oldV;
-            let nText = newV === undefined ? "Standartinė" : newV;
-            changes.push({ date: now, item: k, old: oText, new: nText });
+            pakeitimai[k] = (newV === undefined) ? null : newV;
+            changes.push({ date: now, item: k, old: oldV === undefined ? "Standartinė" : oldV, new: newV === undefined ? "Standartinė" : newV });
         }
     });
 
-    if (changes.length > 0) {
-        history = [...changes, ...history].slice(0, 100);
-        localStorage.setItem('houmyPriceHistory', JSON.stringify(history));
+    if (changes.length === 0) {
+        alert("Kainų pakeitimų nėra — nieko įrašyti nereikia.");
+        return;
+    }
+    if (!window.houmyCloud || !window.houmyCloud.issaugotiKainuPakeitimus) {
+        alert("Debesies ryšys neužkrautas — kainos NEišsaugotos. Perkraukite puslapį ir bandykite dar kartą.");
+        return;
     }
 
+    try {
+        // Įrašomos tik pakeistos kainos; jei jas kol kas pakeitė kitas
+        // kompiuteris — neįrašoma nieko (apsauga nuo seno lango).
+        await window.houmyCloud.issaugotiKainuPakeitimus(pakeitimai, appSettings.customPrices);
+    } catch (e) {
+        if (e && e.kodas === "KONFLIKTAS") {
+            alert("Jūsų pakeitimai NEišsaugoti.\n\nKol dirbote, šias kainas pakeitė kitas kompiuteris:\n" +
+                e.raktai.slice(0, 12).join(", ") + (e.raktai.length > 12 ? " ..." : "") +
+                "\n\nPuslapis bus perkrautas su naujausiomis kainomis — tada pakeiskite dar kartą.");
+            location.reload();
+            return;
+        }
+        console.error("Debesies įrašymo klaida:", e);
+        alert("Kainos NEišsaugotos — nepavyko įrašyti į debesį. Patikrinkite interneto ryšį ir paspauskite Išsaugoti dar kartą.");
+        return;
+    }
+
+    // Pavyko — atnaujinam vietinę kopiją ir istoriją
     appSettings.customPrices = tempAdminPrices;
     localStorage.setItem('houmySettings', JSON.stringify(appSettings));
-    // NAUJA: kainos įrašomos ir į debesį (Firebase), kad jas matytų visi kompiuteriai
-    if (window.houmyCloud) {
-        window.houmyCloud.issaugotiNustatymus()
-            .then(() => { alert("Nustatymai išsaugoti ir įkelti į debesį — juos matys visi kompiuteriai!"); })
-            .catch((e) => { console.error("Debesies įrašymo klaida:", e); alert("DĖMESIO: nustatymai išsaugoti tik ŠIAME kompiuteryje — įkelti į debesį nepavyko (patikrinkite interneto ryšį ir paspauskite Išsaugoti dar kartą)."); })
-            .finally(() => location.reload());
-    } else {
-        alert("Nustatymai išsaugoti tik ŠIAME kompiuteryje — debesies ryšys neužkrautas.");
-        location.reload();
-    }
+    let history = JSON.parse(localStorage.getItem('houmyPriceHistory') || '[]');
+    history = [...changes, ...history].slice(0, 100);
+    localStorage.setItem('houmyPriceHistory', JSON.stringify(history));
+
+    alert("Išsaugota pakeistų kainų: " + changes.length + ". Jas matys visi kompiuteriai.");
+    location.reload();
 }
 
 // ----------------------------------------------
@@ -1789,7 +1813,7 @@ async function generatePDFWithDetails() {
     // buvo pasiekiamas užsikrovus IR jame jau yra duomenų (kad netyčia neįrašytume senų
     // kainų į tuščią debesį anksčiau, nei admin pirmą kartą išsaugos tikras kainas).
     if (window.houmyCloud && window.houmyCloud.pasiruoses && window.houmyCloud.debesyjeYraDuomenu) {
-        window.houmyCloud.issaugotiNustatymus().catch(() => {});
+        window.houmyCloud.issaugotiTekstus().catch(() => {});
     }
     document.getElementById('client-modal').style.display = 'none'; 
     selectModule(null); 

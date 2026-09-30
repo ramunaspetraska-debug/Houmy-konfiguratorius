@@ -16,7 +16,7 @@
 // ============================================================================
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-import { getDatabase, ref, get, set, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+import { getDatabase, ref, get, set, update, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 
 // Firebase projekto konfigūracija (tai NĖRA slaptažodžiai — šie duomenys
@@ -105,6 +105,48 @@ async function issaugotiNustatymusDebesyje() {
     });
 }
 
+// Įrašo TIK pakeistas kainas (admin panelė).
+//   pakeitimai    — { raktas: nauja kaina arba null (grąžinti numatytąją) }
+//   ankstesnes    — kainos, kurias šis langas matė atidarytas (appSettings.customPrices)
+// Apsauga nuo seno lango: prieš įrašant patikrinama, ar debesyje keičiamų
+// kainų niekas kitas nepakeitė nuo šio lango atidarymo. Jei pakeitė —
+// neįrašoma nieko ir išmetama klaida su kodu "KONFLIKTAS" bei raktų sąrašu.
+// Kitų (nekeistų) kainų šis įrašymas visai neliečia.
+async function issaugotiKainuPakeitimusDebesyje(pakeitimai, ankstesnes) {
+    const raktai = Object.keys(pakeitimai);
+    if (!raktai.length) return;
+    const snap = await get(ref(db, SETTINGS_KELIAS + "/customPrices"));
+    const debesyje = snap.exists() ? snap.val() : {};
+    const konfliktai = raktai.filter(k => {
+        const buvo = (ankstesnes && ankstesnes[k] !== undefined) ? ankstesnes[k] : null;
+        const dabar = debesyje[k] !== undefined ? debesyje[k] : null;
+        return buvo !== dabar;
+    });
+    if (konfliktai.length) {
+        const klaida = new Error("Kainas kol kas pakeitė kitas kompiuteris");
+        klaida.kodas = "KONFLIKTAS";
+        klaida.raktai = konfliktai;
+        throw klaida;
+    }
+    const irasas = {
+        updatedAt: serverTimestamp(),
+        appVersion: (typeof APP_VERSION !== "undefined") ? APP_VERSION : ""
+    };
+    raktai.forEach(k => { irasas["customPrices/" + k] = pakeitimai[k]; });
+    await update(ref(db, SETTINGS_KELIAS), irasas);
+}
+
+// Įrašo TIK pasiūlymo tekstus (terminas, pristatymas, papildoma informacija).
+// Kainų neliečia — todėl net iš seno lango sugeneruotas PDF kainų nepakeis.
+async function issaugotiTekstusDebesyje() {
+    const dalis = paimtiSinchronizuojamus(appSettings);
+    await update(ref(db, SETTINGS_KELIAS), {
+        prodTerm: dalis.prodTerm,
+        deliveryNote: dalis.deliveryNote,
+        additionalInfo: dalis.additionalInfo
+    });
+}
+
 // Įrašo naują kliento pasiūlymą į debesį (houmy_proposals/<autoID>).
 // Grąžina sugeneruotą <autoID>, kurį naudosim nuorodai ?proposal=<autoID>.
 async function issaugotiPasiulymaDebesyje(pasiulymas) {
@@ -140,7 +182,9 @@ window.houmyCloud = {
     pasiruoses: false,          // ar užsikrovus pavyko pasiekti debesį
     debesyjeYraDuomenu: false,  // ar debesyje jau yra išsaugoti nustatymai
     vartotojas: null,           // prisijungusio administratoriaus el. paštas
-    issaugotiNustatymus: issaugotiNustatymusDebesyje,
+    issaugotiNustatymus: issaugotiNustatymusDebesyje,   // VISKAS iš karto — tik kainų importui
+    issaugotiKainuPakeitimus: issaugotiKainuPakeitimusDebesyje,
+    issaugotiTekstus: issaugotiTekstusDebesyje,
     issaugotiPasiulyma: issaugotiPasiulymaDebesyje,
     gautiPasiulyma: gautiPasiulymaDebesyje,
     issaugotiUzklausa: issaugotiUzklausaDebesyje,
