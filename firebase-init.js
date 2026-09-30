@@ -313,6 +313,10 @@ function atvaizduotiKlientoPasiulyma(p) {
 
     // 3. Sudarom švarų kliento skydelį dešinėje (perrašom visą turinį — dingsta
     //    spalvų paletė, mygtukai ir admin elementai).
+    // Matmenys perskaičiuojami ČIA pat: restoreState juos atnaujina tik po
+    // 50 ms, todėl anksčiau būdavo paimami seni — „0 x 0 cm" arba kito,
+    // anksčiau toje naršyklėje dėlioto baldo matmenys.
+    if (typeof updateDimensions === "function") updateDimensions();
     const dims = (document.getElementById("dimension-display") || {}).innerHTML || "";
     const grupesTekstas = grSelect ? grSelect.options[grSelect.selectedIndex].text : "";
 
