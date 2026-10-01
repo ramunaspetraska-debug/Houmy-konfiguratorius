@@ -22,7 +22,7 @@ const smtpSlaptazodis = defineSecret("SMTP_SLAPTAZODIS");
 // Kam siunčiami pranešimai apie naujas užklausas
 const GAVEJAS = "info@houmy.lt";
 // Kliento dėlionės peržiūros adresas
-const PERZIUROS_BAZE = "https://ramunaspetraska-debug.github.io/Houmy-konfiguratorius/";
+const PERZIUROS_BAZE = "https://konfiguratorius.houmy.lt/";
 // Duomenų bazės adresas (pasiūlymo moduliams nuskaityti)
 const DB_BAZE = "https://houmy-konfiguratorius-eu.europe-west1.firebasedatabase.app";
 

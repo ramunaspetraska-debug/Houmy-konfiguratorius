@@ -10,7 +10,7 @@
 // iš package.json / package-lock.json, naršyklės — iš gyvos svetainės failų.
 // ============================================================================
 
-const SVETAINE = "https://ramunaspetraska-debug.github.io/Houmy-konfiguratorius/";
+const SVETAINE = "https://konfiguratorius.houmy.lt/";
 const DIENA = 24 * 60 * 60 * 1000;
 
 // Google Cloud Functions Node.js palaikymas.
