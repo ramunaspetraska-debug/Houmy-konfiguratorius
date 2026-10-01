@@ -89,6 +89,7 @@ const canvasArea = document.getElementById('canvas-area'), orderList = document.
 let zIndexCounter = 1, selectedModule = null, historyStack = [];
 
 let isGlobalDragging = false, dragStartX = 0, dragStartY = 0, dragGroup = [], dragInitials = [], draggedModule = null;
+let dragPajudejo = false; // ar tempiamas modulis tikrai pajudėjo (tik tada saugoma istorijoje)
 let cachedOtherRects = [], initialDraggedRect = null;
 
 let isPanning = false, panStartX = 0, panStartY = 0;
@@ -297,6 +298,28 @@ function centerWorkspaceToModules() {
     document.getElementById('workspace').style.backgroundPosition = `${currentPanX}px ${currentPanY}px`;
 }
 
+// Randa darbo lauko problemas be jokių pranešimų:
+//   { persidengia: ar yra užlipusių modulių, atsiskyre: ar yra atskirų baldų/modulių }
+// Vidinė programa jas rodo per validateWorkspace (patvirtinimo langas),
+// klientų puslapis — kaip pastabą užklausos formoje.
+function rastiDarboProblemas() {
+    const modules = Array.from(document.querySelectorAll('.canvas-module'));
+    const rezultatas = { persidengia: false, atsiskyre: false };
+    if (modules.length <= 1) return rezultatas;
+    const tol = 2;
+    for (let i = 0; i < modules.length && !rezultatas.persidengia; i++) {
+        for (let j = i + 1; j < modules.length; j++) {
+            const r1 = modules[i].getBoundingClientRect(), r2 = modules[j].getBoundingClientRect();
+            if (!(r1.right - tol <= r2.left + tol || r1.left + tol >= r2.right - tol ||
+                  r1.bottom - tol <= r2.top + tol || r1.top + tol >= r2.bottom - tol)) {
+                rezultatas.persidengia = true; break;
+            }
+        }
+    }
+    rezultatas.atsiskyre = getConnectedGroup(modules[0]).length < modules.length;
+    return rezultatas;
+}
+
 function validateWorkspace() {
     const modules = Array.from(document.querySelectorAll('.canvas-module'));
     if (modules.length <= 1) return true;
@@ -360,30 +383,51 @@ function validateWorkspace() {
 }
 
 let saveStateTimeout = null;
-function saveState() { 
-    const s = Array.from(document.querySelectorAll('.canvas-module')).map(m=>({
+// Dabartinė darbo lauko būsena (tekstu) — tas pats formatas visur
+function dabartineBusena() {
+    return JSON.stringify(Array.from(document.querySelectorAll('.canvas-module')).map(m=>({
         id:m.dataset.id, n:m.dataset.name, p:m.dataset.price, c:m.dataset.collection, w:m.dataset.w, h:m.dataset.h,
         l: (parseFloat(m.style.left) || 0) / scale,
         t: (parseFloat(m.style.top) || 0) / scale,
         a:m.dataset.angle, z:m.style.zIndex, exp: m.dataset.isExpanded,
         j: m.dataset.jungtys || ''
-    }));
-    const stateStr = JSON.stringify(s);
-    
-    historyStack.push(stateStr); 
-    if(historyStack.length > 20) historyStack.shift(); 
-    
+    })));
+}
+// Įrašo būseną į naršyklės atmintį (po 500 ms; jei atmintis neleidžiama — tyliai)
+function issaugotiBusenaAtmintyje(stateStr) {
     if(saveStateTimeout) clearTimeout(saveStateTimeout);
     saveStateTimeout = setTimeout(() => {
-        localStorage.setItem('sofaState', stateStr); 
+        try { localStorage.setItem('sofaState', stateStr); } catch (e) {}
     }, 500);
-    
+}
+function saveState() {
+    const stateStr = dabartineBusena();
+
+    historyStack.push(stateStr);
+    if(historyStack.length > 20) historyStack.shift();
+
+    issaugotiBusenaAtmintyje(stateStr);
     updateOrderSummary(); updateLabels();
 }
 
-function undo() { if(historyStack.length>1){ historyStack.pop(); restoreState(JSON.parse(historyStack[historyStack.length-1]), false); } }
+// „Atšaukti" istorija pradedama iš naujo nuo dabartinės būsenos (po puslapio
+// užkrovimo, projekto iš archyvo ar nuorodos) — kad atšaukimas negrąžintų
+// ankstesnio, visai kito projekto, o pirmą veiksmą būtų galima atšaukti.
+function pradetiIstorijaIsNaujo() {
+    historyStack = [dabartineBusena()];
+}
+
+function undo() {
+    if(historyStack.length>1){
+        historyStack.pop();
+        const ankstesne = historyStack[historyStack.length-1];
+        restoreState(JSON.parse(ankstesne), false);
+        issaugotiBusenaAtmintyje(ankstesne); // kad perkrovus atšauktas veiksmas negrįžtų
+    }
+}
 
 function restoreState(data, centerView = false) {
+    selectModule(null); // senas pažymėtas modulis išimamas iš lauko — jo nebelieka
     canvasArea.innerHTML='';
     piestiKambari(); // kambario kontūras gyvena tame pačiame lauke — atkuriam po valymo
     data.forEach(d=>{
@@ -396,6 +440,8 @@ function restoreState(data, centerView = false) {
         // priverstinai paverčiamos skaičiais.
         const kampas = parseInt(d.a) || 0;
         const zIndeksas = parseInt(d.z) || 1;
+        // Nauji/tempiami moduliai turi atsidurti VIRŠ atkurtų (ne po jais)
+        if (zIndeksas >= zIndexCounter) zIndexCounter = zIndeksas + 1;
         Object.assign(el.dataset,{id:modBase.id, name:modBase.name, price:modBase.price, collection:d.c, w:modBase.w, h:modBase.h, angle:kampas, isExpanded: d.exp === 'true' ? 'true' : 'false'});
         if (JUNGCIU_SEKA.includes(d.j) && d.j) el.dataset.jungtys = d.j;
         // Miegamos vietos duomenys (anksčiau atkuriant jų nebūdavo, todėl po
@@ -938,6 +984,13 @@ function matmenuTekstas(mod) {
     return mod.dim || (mod.w + "x" + mod.h);
 }
 
+// Gavus naujas kainas iš debesies (be puslapio perkrovimo; kviečia
+// firebase-init.js) — perpiešiamas modulių meniu, sąmata ir užrašai.
+function atnaujintiKainuRodyma() {
+    try { loadModel(modelSelect.value); } catch (e) { console.warn(e); }
+    updateOrderSummary(); updateLabels();
+}
+
 function loadModel(modelKey) {
     const list = document.getElementById('module-list'); list.innerHTML = '';
     if(!furnitureModels[modelKey]) return;
@@ -961,6 +1014,9 @@ function selectModule(modEl) {
 function startPan(e) {
     if (e.target.id === 'workspace' || e.target.id === 'canvas-wrapper' || e.target.id === 'canvas-area') {
         selectModule(null);
+        // Įterptame houmy.lt lange telefone vienas pirštas tuščioje vietoje slenka
+        // PUSLAPĮ (kitaip klientas „įstrigtų"); brėžinys stumdomas dviem pirštais.
+        if (window.HOUMY_VIENAS_PIRSTAS_SLENKA && e.type === 'touchstart' && e.touches.length === 1) return;
         isPanning = true;
         panStartX = getEventX(e);
         panStartY = getEventY(e);
@@ -982,6 +1038,46 @@ workspaceArea.addEventListener('wheel', (e) => {
     }
     e.preventDefault(); 
 }, { passive: false });
+
+// --- Dviem pirštais (telefone): suspaudus/išskėtus — priartinimas, slenkant — stumdymas ---
+let pirstuAtstumas = null, pirstuVidurys = null;
+function dviejuPirstuDuomenys(e) {
+    const a = e.touches[0], b = e.touches[1];
+    return {
+        atstumas: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+        x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2
+    };
+}
+workspaceArea.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2 && !isGlobalDragging) {
+        const d = dviejuPirstuDuomenys(e);
+        pirstuAtstumas = d.atstumas; pirstuVidurys = d;
+        isPanning = false; // vieno piršto stumdymas nutraukiamas
+    }
+}, { passive: true });
+workspaceArea.addEventListener('touchmove', (e) => {
+    if (e.touches.length !== 2 || pirstuAtstumas === null) return;
+    const d = dviejuPirstuDuomenys(e);
+    // stumdymas pagal pirštų vidurio judesį
+    currentPanX += d.x - pirstuVidurys.x;
+    currentPanY += d.y - pirstuVidurys.y;
+    document.getElementById('canvas-wrapper').style.transform = `translate(${currentPanX}px, ${currentPanY}px)`;
+    workspaceArea.style.backgroundPosition = `${currentPanX}px ${currentPanY}px`;
+    pirstuVidurys = d;
+    // priartinimas pagal atstumo pokytį (žingsniais, kad nedrebėtų)
+    const santykis = d.atstumas / pirstuAtstumas;
+    if (Math.abs(santykis - 1) > 0.04) {
+        changeZoom(scale * (santykis - 1), { clientX: d.x, clientY: d.y });
+        pirstuAtstumas = d.atstumas;
+    }
+    if (e.cancelable) e.preventDefault();
+}, { passive: false });
+workspaceArea.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2 && pirstuAtstumas !== null) {
+        pirstuAtstumas = null; pirstuVidurys = null;
+        setTimeout(() => { updateDimensions(); }, 50);
+    }
+});
 
 function getEventX(e) { return e.type.includes('touch') ? e.touches[0].clientX : e.clientX; }
 function getEventY(e) { return e.type.includes('touch') ? e.touches[0].clientY : e.clientY; }
@@ -1059,26 +1155,28 @@ function globalDragOrPan(e) {
         const dx = getEventX(e) - dragStartX, dy = getEventY(e) - dragStartY;
         dragGroup.forEach((m, i) => { m.style.left = (dragInitials[i].left + dx) + 'px'; m.style.top = (dragInitials[i].top + dy) + 'px'; });
 
-        const snapThreshold = 15; let snapDx = 0, snapDy = 0, snappedX = false, snappedY = false; 
-        
+        if (dx !== 0 || dy !== 0) dragPajudejo = true;
+        const snapThreshold = 15; let snapDx = 0, snapDy = 0, snappedX = false, snappedY = false;
+
         let dRect = {
             left: initialDraggedRect.left + dx, right: initialDraggedRect.right + dx,
             top: initialDraggedRect.top + dy, bottom: initialDraggedRect.bottom + dy
         };
-        
+
+        // Pritraukiama prie ARTIMIAUSIO krašto (anksčiau — prie pirmo pasitaikiusio,
+        // todėl kartais likdavo ~10 cm tarpas ir sofa „skildavo" į du baldus).
+        let geriausiasX = snapThreshold, geriausiasY = snapThreshold;
+        const tikrintiX = (skirtumas) => { if (Math.abs(skirtumas) < geriausiasX) { geriausiasX = Math.abs(skirtumas); snapDx = skirtumas; snappedX = true; } };
+        const tikrintiY = (skirtumas) => { if (Math.abs(skirtumas) < geriausiasY) { geriausiasY = Math.abs(skirtumas); snapDy = skirtumas; snappedY = true; } };
         cachedOtherRects.forEach(oRect => {
-            if (!snappedX) {
-                if (Math.abs(dRect.right - oRect.left) < snapThreshold) { snapDx = oRect.left - dRect.right; snappedX = true; }
-                else if (Math.abs(dRect.left - oRect.right) < snapThreshold) { snapDx = oRect.right - dRect.left; snappedX = true; }
-                else if (Math.abs(dRect.left - oRect.left) < snapThreshold) { snapDx = oRect.left - dRect.left; snappedX = true; }
-                else if (Math.abs(dRect.right - oRect.right) < snapThreshold) { snapDx = oRect.right - dRect.right; snappedX = true; }
-            }
-            if (!snappedY) {
-                if (Math.abs(dRect.bottom - oRect.top) < snapThreshold) { snapDy = oRect.top - dRect.bottom; snappedY = true; }
-                else if (Math.abs(dRect.top - oRect.bottom) < snapThreshold) { snapDy = oRect.bottom - dRect.top; snappedY = true; }
-                else if (Math.abs(dRect.top - oRect.top) < snapThreshold) { snapDy = oRect.top - dRect.top; snappedY = true; }
-                else if (Math.abs(dRect.bottom - oRect.bottom) < snapThreshold) { snapDy = oRect.bottom - dRect.bottom; snappedY = true; }
-            }
+            tikrintiX(oRect.left - dRect.right);
+            tikrintiX(oRect.right - dRect.left);
+            tikrintiX(oRect.left - dRect.left);
+            tikrintiX(oRect.right - dRect.right);
+            tikrintiY(oRect.top - dRect.bottom);
+            tikrintiY(oRect.bottom - dRect.top);
+            tikrintiY(oRect.top - dRect.top);
+            tikrintiY(oRect.bottom - dRect.bottom);
         });
         
         if (snappedX || snappedY) { dragGroup.forEach((m, i) => { m.style.left = (dragInitials[i].left + dx + snapDx) + 'px'; m.style.top = (dragInitials[i].top + dy + snapDy) + 'px'; }); }
@@ -1097,9 +1195,12 @@ function globalStopDragOrPan() {
     if (isGlobalDragging) {
         isGlobalDragging = false; 
         dragGroup.forEach(m => m.classList.remove('dragging')); 
-        draggedModule = null; 
+        draggedModule = null;
         cachedOtherRects = [];
-        saveState(); 
+        // Išsaugoma tik jei modulis tikrai pajudėjo (paprastas paspaudimas
+        // nebeužpildo „Atšaukti" istorijos vienodomis būsenomis)
+        if (dragPajudejo) saveState();
+        dragPajudejo = false;
     }
     if (isPanning) {
         isPanning = false;
@@ -1218,7 +1319,10 @@ document.addEventListener('keydown', (e) => {
             if (d.sleepw) { el.dataset.sleepw = d.sleepw; el.dataset.sleeph = d.sleeph; }
             if (d.jungtys) el.dataset.jungtys = d.jungtys;
 
-            el.style.cssText = `width:${d.w*scale}px; height:${d.h*scale}px; left:${pLeft}px; top:${pTop}px; z-index:${zIndexCounter++}; transform:rotate(${d.angle}deg)`;
+            // Išskleistas modulis įklijuojamas išskleisto dydžio (anksčiau — suspaustas)
+            const isskl = d.isExpanded === 'true' && modBase.expandable;
+            const plotis = isskl ? modBase.expW : d.w, gylis = isskl ? modBase.expH : d.h;
+            el.style.cssText = `width:${plotis*scale}px; height:${gylis*scale}px; left:${pLeft}px; top:${pTop}px; z-index:${zIndexCounter++}; transform:rotate(${d.angle}deg)`;
             el.innerHTML = (d.isExpanded === 'true' && modBase.expandable ? modBase.svgExpanded : modBase.svg) + `<span class="label" style="transform:rotate(${-d.angle}deg)"></span>`;
 
             attachEvents(el); canvasArea.appendChild(el); atnaujintiJungtiesZymas(el); newlyPasted.push(el);
@@ -1385,6 +1489,49 @@ async function showPriceHistory() {
         <h3 style="margin-top:0; border-bottom:2px solid #eee; padding-bottom:10px;">Kainų keitimo istorija</h3>
         <p style="font-size:11px; color:#888; margin:-4px 0 10px 0;">${pastaba}</p>
         <div style="margin-bottom:15px; max-height: 60vh; overflow-y: auto; padding-right: 5px;">${histHtml}</div>
+        <button onclick="this.parentNode.parentNode.remove()" style="padding:10px 12px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer; width:100%; font-weight:bold;">Uždaryti</button>
+    </div>`;
+    document.body.appendChild(overlay);
+}
+
+// Klientų užklausos iš houmy.lt (naujausios pirmos) su laiško būsena — kad būtų
+// matyti ir tos, apie kurias laiškas neišėjo (ribos, Gmail klaida).
+async function showUzklausos() {
+    let sarasas = null, klaida = '';
+    try {
+        if (!window.houmyCloud || !window.houmyCloud.gautiUzklausas) throw new Error('debesies ryšys neužkrautas');
+        sarasas = await window.houmyCloud.gautiUzklausas(100);
+    } catch (e) {
+        console.warn('Užklausų gauti nepavyko:', e);
+        klaida = 'Nepavyko gauti užklausų. Patikrinkite interneto ryšį ir ar esate prisijungę administratoriaus paskyra.';
+    }
+    const data = t => { if (!t) return ''; const d = new Date(t); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); };
+    const busena = u => {
+        if (u.laiskas === 'issiustas') return '<span style="color:#1e7e34;">✔ laiškas išsiųstas</span>';
+        if (u.laiskas === 'suvestineje') return '<span style="color:#1e7e34;">✔ išsiųsta suvestinėje</span>';
+        if (u.laiskas === 'sulaikytas') return '<span style="color:#a71d2a;">⚠ laiškas sulaikytas (per daug užklausų)</span>';
+        if (u.laiskas === 'klaida') return '<span style="color:#a71d2a;">⚠ laiško išsiųsti nepavyko</span>';
+        return '<span style="color:#888;">—</span>';
+    };
+    const pagrindas = location.href.split('?')[0];
+    let turinys = '';
+    if (klaida) turinys = `<p style="color:#dc3545;">${escapeHtml(klaida)}</p>`;
+    else if (!sarasas || !sarasas.length) turinys = '<p style="color:#888; text-align:center;">Užklausų nėra.</p>';
+    else sarasas.forEach(u => {
+        const nuoroda = u.proposalId ? `<a href="${escapeHtml(pagrindas + '?proposal=' + encodeURIComponent(u.proposalId))}" target="_blank" rel="noopener">peržiūrėti variantą</a>` : '';
+        turinys += `<div style="border:1px solid #ddd; border-radius:6px; padding:8px 10px; margin-bottom:8px; font-size:12px; line-height:1.5;">
+            <div><b>${escapeHtml(u.name || 'Be vardo')}</b> · ${escapeHtml((u.collection || '').toUpperCase())} · ${typeof u.total === 'number' ? u.total + ' €' : ''} <span style="color:#888;">· ${escapeHtml(data(u.createdAt))}</span></div>
+            <div><a href="mailto:${escapeHtml(u.email || '')}">${escapeHtml(u.email || '')}</a>${u.phone ? ` · <a href="tel:${escapeHtml(u.phone)}">${escapeHtml(u.phone)}</a>` : ''} ${nuoroda ? '· ' + nuoroda : ''}</div>
+            ${u.comment ? `<div style="color:#444; white-space:pre-wrap; word-break:break-word;">${escapeHtml(u.comment)}</div>` : ''}
+            <div style="font-size:11px;">${busena(u)}${u.kopija ? ' · klientas paprašė nuorodos el. paštu' + (u.kopijosLaiskas === 'issiustas' ? ' (išsiųsta)' : '') : ''}</div>
+        </div>`;
+    });
+    let overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; display:flex; justify-content:center; align-items:center;';
+    overlay.innerHTML = `<div style="background:white; padding:20px; border-radius:8px; width:640px; max-width:94vw; max-height:88vh; overflow-y:auto; box-shadow:0 5px 15px rgba(0,0,0,0.3); font-family:sans-serif;">
+        <h3 style="margin-top:0; border-bottom:2px solid #eee; padding-bottom:10px;">Klientų užklausos</h3>
+        <p style="font-size:11px; color:#888; margin:-4px 0 10px 0;">Rodomos 100 naujausių. Užklausos automatiškai ištrinamos po 12 mėnesių.</p>
+        <div style="margin-bottom:15px;">${turinys}</div>
         <button onclick="this.parentNode.parentNode.remove()" style="padding:10px 12px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer; width:100%; font-weight:bold;">Uždaryti</button>
     </div>`;
     document.body.appendChild(overlay);
@@ -1569,6 +1716,7 @@ function atidarytiAdminPaneli() {
         </label>
         <button onclick="showPriceHistory()" style="flex:1; padding: 8px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; min-width:80px;">🕰 Istorija</button>
         <button onclick="showTechnologijos()" style="flex:1; padding: 8px; background: #343a40; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; min-width:80px;">🔧 Technologijos</button>
+        <button onclick="showUzklausos()" style="flex:1; padding: 8px; background: #0056b3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; min-width:80px;">📨 Užklausos</button>
     `;
     container.appendChild(toolbar);
 
@@ -1766,6 +1914,10 @@ function loadFromArchive(name) {
         loadModel(entry.modules[0].c);
         nustatytiKambariIsDuomenu(entry.kambarys, true); // kambarys išsaugomas kartu su projektu
         restoreState(entry.modules, true);
+        // Naujas projektas — nauja „Atšaukti" istorija (negrįš į ankstesnį projektą),
+        // ir jis tampa dabartiniu (išlieka perkrovus puslapį)
+        pradetiIstorijaIsNaujo();
+        issaugotiBusenaAtmintyje(historyStack[0]);
         document.getElementById('archive-modal').style.display = 'none';
     } 
 }
@@ -1789,6 +1941,17 @@ function openClientModal() {
 
 // Surenka dabartinį pasiūlymą į objektą, kurį galima įrašyti į debesį (kliento nuorodai).
 // Kainų suvestinė skaičiuojama TA PAČIA logika kaip PDF, kad klientas matytų tą patį.
+// Galutinė kaina pagal nuolaidą arba sutartą kainą (vienoda visur: PDF,
+// nuoroda klientui). Nuolaida ribojama 0–100 %; sutarta kaina, jei įvesta,
+// taikoma visada (ir tada, kai ji didesnė už kainininko).
+function galutineKaina(total, nuolaidosLaukas, sutartosLaukas) {
+    const nuolaida = Math.min(100, Math.max(0, parseInt(nuolaidosLaukas) || 0));
+    const sutarta = Math.max(0, parseInt(sutartosLaukas) || 0);
+    if (sutarta > 0) return { finalTotal: sutarta, nuolaida: 0, sutarta: sutarta };
+    if (nuolaida > 0) return { finalTotal: total - Math.round(total * (nuolaida / 100)), nuolaida: nuolaida, sutarta: 0 };
+    return { finalTotal: total, nuolaida: 0, sutarta: 0 };
+}
+
 function surinktiPasiulymoDuomenis() {
     const moduleEls = Array.from(document.querySelectorAll('.canvas-module'));
 
@@ -1813,11 +1976,10 @@ function surinktiPasiulymoDuomenis() {
     });
     const breakdown = Object.keys(counts).map(name => ({ name: name, qty: counts[name].qty, unit: counts[name].unit }));
 
-    const discountVal = parseInt(document.getElementById('client-discount').value) || 0;
-    const manualPriceVal = parseInt(document.getElementById('client-manual-price').value) || 0;
-    let finalTotal = total;
-    if (manualPriceVal > 0 && manualPriceVal < total) finalTotal = manualPriceVal;
-    else if (discountVal > 0) finalTotal = total - Math.round(total * (discountVal / 100));
+    const kaina = galutineKaina(total, document.getElementById('client-discount').value, document.getElementById('client-manual-price').value);
+    const discountVal = kaina.nuolaida;
+    const manualPriceVal = kaina.sutarta;
+    const finalTotal = kaina.finalTotal;
 
     const grSelect = document.getElementById('fabric-group-select');
 
@@ -1938,7 +2100,7 @@ async function generatePDFWithDetails() {
             baseW = parseFloat(m.dataset.w) * scale, baseH = parseFloat(m.dataset.h) * scale, 
             curW = parseFloat(m.style.width), curH = parseFloat(m.style.height), 
             cx = parseFloat(m.style.left) + curW / 2, cy = parseFloat(m.style.top) + curH / 2, 
-            dx = baseW / 2, dy = baseH / 2; 
+            dx = curW / 2, dy = curH / 2; // tikras (ir išskleisto) modulio dydis 
         [ {x: -dx, y: -dy}, {x: dx, y: -dy}, {x: dx, y: dy}, {x: -dx, y: dy} ].forEach(c => { 
             let rx = cx + c.x * Math.cos(angle) - c.y * Math.sin(angle), 
                 ry = cy + c.x * Math.sin(angle) + c.y * Math.cos(angle); 
@@ -1986,29 +2148,39 @@ async function generatePDFWithDetails() {
     let _wrapH = parseFloat(tmpWrapper.style.height) || 0;
     let _h2cScale = (_wrapW * 2 > 12000 || _wrapH * 2 > 12000) ? 1 : 2;
     
-    await new Promise(r => setTimeout(r, 500));
-    
-    const canvas = await html2canvas(tmpWrapper, { 
-        scale: _h2cScale, 
-        backgroundColor: "#ffffff", 
-        useCORS: true
-    });
-    
-    tmpWrapper.style.transform = originalTransform;
-    tmpWrapper.style.width = originalWidth;
-    tmpWrapper.style.height = originalHeight;
-    document.getElementById('workspace').style.backgroundPosition = `${currentPanX}px ${currentPanY}px`;
-    
-    modules.forEach(m => {
-        let orig = originalPositions.get(m);
-        m.style.left = orig.left;
-        m.style.top = orig.top;
-    });
-    if (_atstatytiKambariPdf) _atstatytiKambariPdf();
-    updateDimensions();
+    // Nuotrauka daroma su apsauga: kad ir kas nutiktų (pvz. neįsikėlė html2canvas),
+    // moduliai ir kambarys grąžinami į vietą — kitaip liktų pastumti ir būtų išsaugoti.
+    let canvas = null;
+    try {
+        await new Promise(r => setTimeout(r, 500));
+        canvas = await html2canvas(tmpWrapper, {
+            scale: _h2cScale,
+            backgroundColor: "#ffffff",
+            useCORS: true
+        });
+    } catch (klaida) {
+        console.error("Brėžinio nuotraukos klaida:", klaida);
+    } finally {
+        tmpWrapper.style.transform = originalTransform;
+        tmpWrapper.style.width = originalWidth;
+        tmpWrapper.style.height = originalHeight;
+        document.getElementById('workspace').style.backgroundPosition = `${currentPanX}px ${currentPanY}px`;
 
-    document.getElementById('zoom-controls').style.display = 'flex';
-    document.getElementById('dimension-display').style.display = 'block';
+        modules.forEach(m => {
+            let orig = originalPositions.get(m);
+            m.style.left = orig.left;
+            m.style.top = orig.top;
+        });
+        if (_atstatytiKambariPdf) _atstatytiKambariPdf();
+        updateDimensions();
+
+        document.getElementById('zoom-controls').style.display = 'flex';
+        document.getElementById('dimension-display').style.display = 'block';
+    }
+    if (!canvas) {
+        alert("Nepavyko paruošti PDF (brėžinio nuotraukos). Perkraukite puslapį ir bandykite dar kartą.");
+        return;
+    }
 
     const imgData = canvas.toDataURL('image/jpeg', 0.95);
     const pdfSofaImg = document.getElementById('pdf-sofa-img');
@@ -2039,17 +2211,21 @@ async function generatePDFWithDetails() {
         document.getElementById('pdf-dimensions').style.display = 'none';
     }
     
-    let finalTotal = total; 
+    const _kaina = galutineKaina(total, discountVal, manualPriceVal);
+    discountVal = _kaina.nuolaida;
+    manualPriceVal = _kaina.sutarta;
+    let finalTotal = _kaina.finalTotal;
     let discountInfoText = '';
 
     if (manualPriceVal > 0 && manualPriceVal < total) {
-        finalTotal = manualPriceVal;
         let diff = total - manualPriceVal;
-        document.getElementById('pdf-discount-text').style.display = 'block'; 
-        document.getElementById('pdf-discount-text').innerText = `Pradinė kaina: ${total} €`; 
+        document.getElementById('pdf-discount-text').style.display = 'block';
+        document.getElementById('pdf-discount-text').innerText = `Pradinė kaina: ${total} €`;
         discountInfoText = `• <b style="color:#d9534f;">Pritaikyta speciali kaina (sutaupote ${diff} €)</b>`;
-    } else if (discountVal > 0) { 
-        finalTotal = total - Math.round(total * (discountVal / 100)); 
+    } else if (manualPriceVal > 0) {
+        // Sutarta kaina lygi arba didesnė už kainininko — rodoma be „sutaupote"
+        document.getElementById('pdf-discount-text').style.display = 'none';
+    } else if (discountVal > 0) {
         document.getElementById('pdf-discount-text').style.display = 'block'; 
         document.getElementById('pdf-discount-text').innerText = `Pradinė kaina: ${total} €`; 
         discountInfoText = `• <b style="color:#d9534f;">Pritaikyta ${discountVal}% nuolaida</b>`;
@@ -2066,8 +2242,8 @@ async function generatePDFWithDetails() {
         <div style="font-size:16px; font-weight:bold; color:#111; border-top: 2px solid #333; padding-top: 4px;">Viso su PVM: ${finalTotal} €</div>
     `;
     
-    let addInfoHtml = appSettings.additionalInfo ? `• ${appSettings.additionalInfo}<br>` : ''; 
-    document.getElementById('pdf-terms').innerHTML = `<b style="color:#111;">Pasiūlymo sąlygos:</b><br>• Preliminarus gamybos terminas: <b>${appSettings.prodTerm}</b><br>• Pristatymas: <b>${appSettings.deliveryNote}</b><br>${addInfoHtml}${discountInfoText}`; 
+    let addInfoHtml = appSettings.additionalInfo ? `• ${escapeHtml(appSettings.additionalInfo)}<br>` : '';
+    document.getElementById('pdf-terms').innerHTML = `<b style="color:#111;">Pasiūlymo sąlygos:</b><br>• Preliminarus gamybos terminas: <b>${escapeHtml(appSettings.prodTerm)}</b><br>• Pristatymas: <b>${escapeHtml(appSettings.deliveryNote)}</b><br>${addInfoHtml}${discountInfoText}`; 
     
     const today = new Date(); 
     document.getElementById('pdf-date').innerText = `Data: ${today.getFullYear()}-${String(today.getMonth()+1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`; 
@@ -2228,7 +2404,7 @@ async function executeExportBlueprint() {
             baseW = parseFloat(m.dataset.w) * scale, baseH = parseFloat(m.dataset.h) * scale, 
             curW = parseFloat(m.style.width), curH = parseFloat(m.style.height), 
             cx = parseFloat(m.style.left) + curW / 2, cy = parseFloat(m.style.top) + curH / 2, 
-            dx = baseW / 2, dy = baseH / 2; 
+            dx = curW / 2, dy = curH / 2; // tikras (ir išskleisto) modulio dydis 
         [ {x: -dx, y: -dy}, {x: dx, y: -dy}, {x: dx, y: dy}, {x: -dx, y: dy} ].forEach(c => { 
             let rx = cx + c.x * Math.cos(angle) - c.y * Math.sin(angle), 
                 ry = cy + c.x * Math.sin(angle) + c.y * Math.cos(angle); 
@@ -2274,29 +2450,38 @@ async function executeExportBlueprint() {
     let _wrapH = parseFloat(tmpWrapper.style.height) || 0;
     let _h2cScale = (_wrapW * 2 > 12000 || _wrapH * 2 > 12000) ? 1 : 2;
 
-    await new Promise(r => setTimeout(r, 500)); 
-    
-    const canvas = await html2canvas(tmpWrapper, { 
-        scale: _h2cScale, 
-        backgroundColor: "#ffffff", 
-        useCORS: true
-    }); 
-    
-    tmpWrapper.style.transform = originalTransform;
-    tmpWrapper.style.width = originalWidth;
-    tmpWrapper.style.height = originalHeight;
-    document.getElementById('workspace').style.backgroundPosition = `${currentPanX}px ${currentPanY}px`;
-    
-    modules.forEach(m => {
-        let orig = originalPositions.get(m);
-        m.style.left = orig.left;
-        m.style.top = orig.top;
-    });
-    if (_atstatytiKambariBp) _atstatytiKambariBp();
-    updateDimensions();
+    // Nuotrauka su apsauga — moduliai ir kambarys visada grąžinami į vietą
+    let canvas = null;
+    try {
+        await new Promise(r => setTimeout(r, 500));
+        canvas = await html2canvas(tmpWrapper, {
+            scale: _h2cScale,
+            backgroundColor: "#ffffff",
+            useCORS: true
+        });
+    } catch (klaida) {
+        console.error("Brėžinio nuotraukos klaida:", klaida);
+    } finally {
+        tmpWrapper.style.transform = originalTransform;
+        tmpWrapper.style.width = originalWidth;
+        tmpWrapper.style.height = originalHeight;
+        document.getElementById('workspace').style.backgroundPosition = `${currentPanX}px ${currentPanY}px`;
 
-    document.getElementById('zoom-controls').style.display = 'flex';
-    document.getElementById('dimension-display').style.display = 'block';
+        modules.forEach(m => {
+            let orig = originalPositions.get(m);
+            m.style.left = orig.left;
+            m.style.top = orig.top;
+        });
+        if (_atstatytiKambariBp) _atstatytiKambariBp();
+        updateDimensions();
+
+        document.getElementById('zoom-controls').style.display = 'flex';
+        document.getElementById('dimension-display').style.display = 'block';
+    }
+    if (!canvas) {
+        alert("Nepavyko paruošti brėžinio (nuotraukos). Perkraukite puslapį ir bandykite dar kartą.");
+        return;
+    }
 
     const imgData = canvas.toDataURL('image/jpeg', 0.95);
 
@@ -2391,7 +2576,10 @@ function shareConfiguration() {
     const encodedState = btoa(compressedString);
     const baseUrl = window.location.href.split('?')[0];
     const kambarioDalis = kambarys ? `&k=${kambarys.w},${kambarys.h},${kambarys.x},${kambarys.y}` : '';
-    const shareUrl = `${baseUrl}?s=${encodeURIComponent(encodedState)}${kambarioDalis}`;
+    // Audinio grupė keliauja kartu — kitaip gavėjas matytų I grupės kainas
+    const grupe = document.getElementById('fabric-group-select').value || '1';
+    const grupesDalis = grupe !== '1' ? `&g=${grupe}` : '';
+    const shareUrl = `${baseUrl}?s=${encodeURIComponent(encodedState)}${kambarioDalis}${grupesDalis}`;
 
     navigator.clipboard.writeText(shareUrl).then(() => {
         const btn = document.getElementById('share-btn');
@@ -2636,7 +2824,8 @@ if (sharedStateNew || sharedStateOld) {
                 if (parts[1]) {
                     parts[1].split('!').forEach(mod => {
                         const [i, x, y, a, e, j] = mod.split(',');
-                        parsedState.push({ c: c, i: i, x: parseInt(x), y: parseInt(y), a: parseInt(a), e: parseInt(e), j: JUNGCIU_SEKA[parseInt(j) || 0] || '' });
+                        // Sugadinta/nukirpta nuoroda nebeduoda „NaN x NaN" — trūkstami skaičiai = 0
+                        parsedState.push({ c: c, i: i, x: parseInt(x) || 0, y: parseInt(y) || 0, a: parseInt(a) || 0, e: parseInt(e) || 0, j: JUNGCIU_SEKA[parseInt(j) || 0] || '' });
                     });
                 }
             });
@@ -2662,6 +2851,28 @@ if (sharedStateNew || sharedStateOld) {
             collectionLabel.style.cssText = "font-weight: bold; padding: 8px; background: #eef5ff; border: 1px solid #b8daff; border-radius: 4px; margin-bottom: 12px; text-transform: uppercase; text-align: center; color: #007bff; font-size: 13px;";
             collectionLabel.innerText = uniqueCollections[0] + " KOLEKCIJA";
             modelSelect.parentNode.insertBefore(collectionLabel, modelSelect);
+        }
+
+        // Audinio grupė iš nuorodos (?g=2..5)
+        const gParam = urlParams.get('g');
+        if (['1', '2', '3', '4', '5'].includes(gParam)) document.getElementById('fabric-group-select').value = gParam;
+
+        // Gavėjo ankstesnis (neišsaugotas) darbas neprarandamas: vidinėje programoje
+        // jis automatiškai įdedamas į archyvą prieš atidarant nuorodą.
+        if (!window.HOUMY_KLIENTO_REZIMAS) {
+            try {
+                const ankstesnis = JSON.parse(localStorage.getItem('sofaState') || '[]');
+                if (Array.isArray(ankstesnis) && ankstesnis.length > 0) {
+                    const archyvas = getArchive();
+                    const dabar = new Date();
+                    const pavadinimas = nextAvailableName(archyvas, `Automatiškai išsaugota ${dabar.getFullYear()}-${String(dabar.getMonth()+1).padStart(2,'0')}-${String(dabar.getDate()).padStart(2,'0')} ${String(dabar.getHours()).padStart(2,'0')}:${String(dabar.getMinutes()).padStart(2,'0')}`);
+                    const jauYra = Object.keys(archyvas).some(n => JSON.stringify(getArchiveEntry(archyvas, n).modules) === JSON.stringify(ankstesnis));
+                    if (!jauYra) {
+                        archyvas[pavadinimas] = { modules: ankstesnis, group: null, kambarys: null, savedAt: Date.now() };
+                        localStorage.setItem('houmyArchive', JSON.stringify(archyvas));
+                    }
+                }
+            } catch (e) { console.warn('Ankstesnio darbo išsaugoti nepavyko:', e); }
         }
 
         loadModel(modelSelect.value);
@@ -2702,9 +2913,17 @@ if (sharedStateNew || sharedStateOld) {
             atnaujintiJungtiesZymas(el);
         });
         
-        updateOrderSummary(); updateLabels(); 
+        updateOrderSummary(); updateLabels();
         setTimeout(() => { updateDimensions(); centerWorkspaceToModules(); }, 50);
         saveState();
+
+        // Iš adreso pašalinam nuorodos duomenis (paliekam tik ?kolekcija=): perkrovus
+        // puslapį lieka ir po atidarymo padaryti pakeitimai, o ne vėl pradinė nuoroda.
+        try {
+            const svarus = new URL(location.href);
+            ['s', 'share', 'k', 'g'].forEach(p => svarus.searchParams.delete(p));
+            history.replaceState(null, '', svarus.pathname + svarus.search + svarus.hash);
+        } catch (e) {}
 
     } catch (e) {
         console.error("Failed to load shared state", e);
@@ -2720,14 +2939,18 @@ if (sharedStateNew || sharedStateOld) {
     modelSelect.parentNode.insertBefore(collectionLabel, modelSelect);
     
     loadModel(requestedModel);
-    
-    const saved = localStorage.getItem('sofaState');
-    if(saved) {
-        restoreState(JSON.parse(saved), true);
-    }
-    
+
+    // Atmintis gali būti neleidžiama (įterptas langas) ar sugadinta — tada pradedam tuščiu lapu
+    try {
+        const saved = localStorage.getItem('sofaState');
+        if(saved) {
+            restoreState(JSON.parse(saved), true);
+        }
+    } catch (e) { console.warn('Išsaugotos dėlionės atkurti nepavyko:', e); }
+
 } else {
-    const saved = localStorage.getItem('sofaState');
+    let saved = null;
+    try { saved = localStorage.getItem('sofaState'); } catch (e) {}
     if(saved) {
         try {
             let parsedState = JSON.parse(saved);
@@ -2751,6 +2974,8 @@ if (sharedStateNew || sharedStateOld) {
         loadModel(modelSelect.value);
     }
 }
+// „Atšaukti" istorija prasideda nuo to, kas atidaryta (pirmą veiksmą galima atšaukti)
+pradetiIstorijaIsNaujo();
 
 // --- MOBILIOSIOS VERSIJOS UI OPTIMIZAVIMAS ---
 function optimizeMobileLayout() {
@@ -2839,7 +3064,7 @@ async function _captureCanvasSofaImage() {
             baseW = parseFloat(m.dataset.w) * scale, baseH = parseFloat(m.dataset.h) * scale,
             curW = parseFloat(m.style.width), curH = parseFloat(m.style.height),
             cx = parseFloat(m.style.left) + curW / 2, cy = parseFloat(m.style.top) + curH / 2,
-            dx = baseW / 2, dy = baseH / 2;
+            dx = curW / 2, dy = curH / 2; // tikras (ir išskleisto) modulio dydis
         [ {x:-dx,y:-dy}, {x:dx,y:-dy}, {x:dx,y:dy}, {x:-dx,y:dy} ].forEach(c => {
             let rx = cx + c.x*Math.cos(angle) - c.y*Math.sin(angle),
                 ry = cy + c.x*Math.sin(angle) + c.y*Math.cos(angle);
