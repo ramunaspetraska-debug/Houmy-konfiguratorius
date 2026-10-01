@@ -1,23 +1,33 @@
 {
-  /* HOUMY konfigūratoriaus duomenų bazės taisyklės (sugriežtinta versija).
+  /* HOUMY konfigūratoriaus duomenų bazės taisyklės.
 
-     houmy_settings  — kainos ir bendri nustatymai:
-       - skaityti gali visi (programa jas parsisiunčia užsikrovusi);
-       - rašyti galima, bet TIK teisingos struktūros duomenis (žr. validacijas) —
-         pašaliniai negali įrašyti bet ko / sugadinti struktūros.
+     ADMINISTRATORIAI: sąrašas laikomas pačioje duomenų bazėje
+     (houmy_admins/<el. paštas, kuriame taškai pakeisti kableliais>: true),
+     NE kode — todėl el. paštai nematomi viešai. Sąrašą keičia tik projekto
+     savininkas (Firebase konsolė / CLI), per internetą jo nei skaityti, nei
+     keisti negalima. Visur žemiau „administratorius" reiškia:
+       prisijungęs per Google, el. paštas patvirtintas ir yra houmy_admins sąraše.
 
-     houmy_proposals — klientų pasiūlymai:
-       - VISO sąrašo skaityti NEGALIMA (niekas negali „atsisiųsti visų pasiūlymų");
-       - pavienį pasiūlymą perskaityti gali tik žinantis jo ID (nuoroda klientui);
-       - pasiūlymą galima TIK SUKURTI — jau įrašyto pakeisti ar ištrinti
-         per programą/internetą nebegalima (apsauga nuo klastojimo). */
+     houmy_settings      — kainos ir tekstai: skaito visi, rašo administratoriai.
+     houmy_proposals     — pasiūlymai/kliento variantai: galima tik SUKURTI;
+                           perskaityti — tik žinant ID (nuoroda). Laisvą tekstą
+                           (klientas, terminai, audinys) gali įrašyti tik administratorius.
+     houmy_uzklausos     — klientų užklausos: galima tik SUKURTI (kartu su pasiūlymu);
+                           skaito tik administratoriai.
+     houmy_kainu_istorija, houmy_technologijos, houmy_kopijos — tik administratoriams. */
   "rules": {
     ".read": false,
     ".write": false,
 
+    "houmy_admins": {
+      "$k": {
+        ".read": "auth != null && auth.token.email_verified == true && $k == auth.token.email.toLowerCase().replace('.', ',')"
+      }
+    },
+
     "houmy_settings": {
       ".read": true,
-      ".write": "newData.exists() && auth != null && auth.token.email_verified == true && (auth.token.email == 'ramunaspetraska@gmail.com' || auth.token.email == 'info@houmy.lt' || auth.token.email == 'info@praktiskibaldai.lt' || auth.token.email == 'ciupaite.ingrida@gmail.com')",
+      ".write": "newData.exists() && auth != null && auth.token.email_verified == true && root.child('houmy_admins').child(auth.token.email.toLowerCase().replace('.', ',')).val() == true",
       "prodTerm":       { ".validate": "newData.isString() && newData.val().length < 500" },
       "deliveryNote":   { ".validate": "newData.isString() && newData.val().length < 1000" },
       "additionalInfo": { ".validate": "newData.isString() && newData.val().length < 2000" },
@@ -30,22 +40,23 @@
     },
 
     "houmy_uzklausos": {
-      /* Klientų užklausos iš viešo konfigūratoriaus (houmy.lt).
-         Skaityti per internetą NEGALIMA niekam (viduje — el. paštai!);
-         Ramūnas jas mato Firebase konsolėje. Galima tik SUKURTI naują. */
-      ".read": false,
+      /* Klientų užklausos iš viešo konfigūratoriaus (houmy.lt). Skaityti gali tik
+         administratoriai (admin skydelis „Užklausos"). Galima tik SUKURTI naują,
+         ir tik su EGZISTUOJANČIU (tuo pačiu metu įrašomu) pasiūlymu.
+         Laiško būsenos laukus įrašo serverio funkcija (ji taisyklių nepaiso). */
+      ".read": "auth != null && auth.token.email_verified == true && root.child('houmy_admins').child(auth.token.email.toLowerCase().replace('.', ',')).val() == true",
       ".indexOn": ["createdAt"],
       "$uid": {
-        ".read": false,
         ".write": "!data.exists() && newData.exists()",
-        ".validate": "newData.hasChildren(['email', 'proposalId', 'createdAt'])",
-        "email":      { ".validate": "newData.isString() && newData.val().length > 4 && newData.val().length < 200 && newData.val().contains('@')" },
-        "name":       { ".validate": "newData.isString() && newData.val().length < 200" },
-        "phone":      { ".validate": "newData.isString() && newData.val().length < 50" },
-        "comment":    { ".validate": "newData.isString() && newData.val().length < 2000" },
+        ".validate": "$uid.matches(/^-[A-Za-z0-9_-]{19}$/) && newData.hasChildren(['email', 'proposalId', 'createdAt'])",
+        "email":      { ".validate": "newData.isString() && newData.val().length <= 100 && newData.val().matches(/^[^@\\s,;<>]+@[^@\\s,;<>]+[.][^@\\s,;<>]+$/)" },
+        "name":       { ".validate": "newData.isString() && newData.val().length <= 150" },
+        "phone":      { ".validate": "newData.isString() && newData.val().length <= 30" },
+        "comment":    { ".validate": "newData.isString() && newData.val().length <= 1500" },
         "collection": { ".validate": "newData.isString() && newData.val().length < 50" },
         "total":      { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 1000000" },
-        "proposalId": { ".validate": "newData.isString() && newData.val().length < 100" },
+        "proposalId": { ".validate": "newData.isString() && newData.val().matches(/^-[A-Za-z0-9_-]{19}$/) && newData.parent().parent().parent().child('houmy_proposals').child(newData.val()).exists()" },
+        "kopija":     { ".validate": "newData.isBoolean()" },
         "createdAt":  { ".validate": "newData.isNumber() && newData.val() == now" },
         "version":    { ".validate": "newData.isString() && newData.val().length < 100" },
         "$kita":      { ".validate": false }
@@ -54,13 +65,15 @@
 
     "houmy_proposals": {
       ".read": false,
+      ".indexOn": ["createdAt"],
       "$pid": {
         ".read": true,
         ".write": "!data.exists() && newData.exists()",
-        ".validate": "newData.hasChildren(['modules', 'breakdown', 'total', 'finalTotal', 'createdAt'])",
+        ".validate": "$pid.matches(/^-[A-Za-z0-9_-]{19}$/) && newData.hasChildren(['modules', 'breakdown', 'total', 'finalTotal', 'createdAt'])",
         "modules": {
           ".validate": "newData.hasChildren()",
           "$m": {
+            ".validate": "$m.matches(/^[0-9]{1,3}$/) && newData.hasChildren(['id', 'c'])",
             "id":  { ".validate": "newData.isString() && newData.val().length < 40" },
             "n":   { ".validate": "newData.isString() && newData.val().length < 60 && !newData.val().contains('<') && !newData.val().contains('>')" },
             "c":   { ".validate": "newData.isString() && newData.val().length < 20" },
@@ -79,6 +92,7 @@
         "breakdown": {
           ".validate": "newData.hasChildren()",
           "$b": {
+            ".validate": "$b.matches(/^[0-9]{1,3}$/) && newData.hasChildren(['name', 'qty', 'unit'])",
             "name": { ".validate": "newData.isString() && newData.val().length < 100 && !newData.val().contains('<') && !newData.val().contains('>')" },
             "qty":  { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 1000" },
             "unit": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 1000000" },
@@ -91,11 +105,14 @@
         "manualPriceVal": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 1000000" },
         "fabricGroup":    { ".validate": "newData.isString() && newData.val().length < 10" },
         "fabricColor":    { ".validate": "newData.isString() && newData.val().length < 30" },
-        "fabricName":     { ".validate": "newData.isString() && newData.val().length < 300" },
-        "term":           { ".validate": "newData.isString() && newData.val().length < 500" },
-        "delivery":       { ".validate": "newData.isString() && newData.val().length < 1000" },
-        "additionalInfo": { ".validate": "newData.isString() && newData.val().length < 2000" },
+        /* Laisvas tekstas — TIK administratoriaus pasiūlymuose (kitaip bet kas galėtų
+           sukurti „HOUMY" puslapį su savo tekstu, pvz. netikrais mokėjimo rekvizitais) */
+        "fabricName":     { ".validate": "newData.isString() && newData.val().length < 300 && newData.parent().child('admin').val() == true" },
+        "term":           { ".validate": "newData.isString() && newData.val().length < 500 && newData.parent().child('admin').val() == true" },
+        "delivery":       { ".validate": "newData.isString() && newData.val().length < 1000 && newData.parent().child('admin').val() == true" },
+        "additionalInfo": { ".validate": "newData.isString() && newData.val().length < 2000 && newData.parent().child('admin').val() == true" },
         "kambarys": {
+          ".validate": "newData.hasChildren(['w', 'h'])",
           "w": { ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 5000" },
           "h": { ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 5000" },
           "x": { ".validate": "newData.isNumber() && newData.val() > -100000 && newData.val() < 100000" },
@@ -103,6 +120,7 @@
           "$kita": { ".validate": false }
         },
         "client": {
+          ".validate": "newData.hasChildren() && newData.parent().child('admin').val() == true",
           "name":     { ".validate": "newData.isString() && newData.val().length < 300" },
           "address":  { ".validate": "newData.isString() && newData.val().length < 500" },
           "project":  { ".validate": "newData.isString() && newData.val().length < 300" },
@@ -111,37 +129,42 @@
         },
         "createdAt": { ".validate": "newData.isNumber() && newData.val() == now" },
         "version":   { ".validate": "newData.isString() && newData.val().length < 100" },
-        /* admin == true: pasiūlymą sukūrė prisijungęs administratorius —
-           tik tokie rodomi kaip „Komercinis pasiūlymas" */
-        "admin":     { ".validate": "newData.isBoolean() && newData.val() == true && auth != null && auth.token.email_verified == true && (auth.token.email == 'ramunaspetraska@gmail.com' || auth.token.email == 'info@houmy.lt' || auth.token.email == 'info@praktiskibaldai.lt' || auth.token.email == 'ciupaite.ingrida@gmail.com')" },
+        /* admin == true: pasiūlymą sukūrė administratorius — tik toks rodomas
+           kaip „Komercinis pasiūlymas" ir tik jame leidžiamas laisvas tekstas */
+        "admin":     { ".validate": "newData.isBoolean() && newData.val() == true && auth != null && auth.token.email_verified == true && root.child('houmy_admins').child(auth.token.email.toLowerCase().replace('.', ',')).val() == true" },
         "$kita":     { ".validate": false }
       }
     },
 
     "houmy_kainu_istorija": {
-      /* Kainų keitimo istorija (admin panelė). Skaityti ir rašyti — tik
-         administratoriams. Įrašus galima tik PRIDĖTI: pakeisti ar ištrinti
-         per programą negalima, kad istorija liktų patikima. */
-      ".read": "auth != null && auth.token.email_verified == true && (auth.token.email == 'ramunaspetraska@gmail.com' || auth.token.email == 'info@houmy.lt' || auth.token.email == 'info@praktiskibaldai.lt' || auth.token.email == 'ciupaite.ingrida@gmail.com')",
+      /* Kainų keitimo istorija (admin skydelis). Įrašus galima tik PRIDĖTI;
+         laukas „kas" turi sutapti su prisijungusio administratoriaus el. paštu. */
+      ".read": "auth != null && auth.token.email_verified == true && root.child('houmy_admins').child(auth.token.email.toLowerCase().replace('.', ',')).val() == true",
       ".indexOn": ["laikas"],
       "$id": {
-        ".write": "!data.exists() && newData.exists() && auth != null && auth.token.email_verified == true && (auth.token.email == 'ramunaspetraska@gmail.com' || auth.token.email == 'info@houmy.lt' || auth.token.email == 'info@praktiskibaldai.lt' || auth.token.email == 'ciupaite.ingrida@gmail.com')",
-        ".validate": "newData.hasChildren([\"laikas\", \"raktas\"])",
+        ".write": "!data.exists() && newData.exists() && auth != null && auth.token.email_verified == true && root.child('houmy_admins').child(auth.token.email.toLowerCase().replace('.', ',')).val() == true",
+        ".validate": "newData.hasChildren(['laikas', 'raktas', 'kas'])",
         "laikas": { ".validate": "newData.isNumber() && newData.val() == now" },
         "data":   { ".validate": "newData.isString() && newData.val().length < 30" },
         "raktas": { ".validate": "newData.isString() && newData.val().length < 80" },
         "buvo":   { ".validate": "newData.isNumber() || (newData.isString() && newData.val().length < 30)" },
         "tapo":   { ".validate": "newData.isNumber() || (newData.isString() && newData.val().length < 30)" },
-        "kas":    { ".validate": "newData.isString() && newData.val().length < 120" },
+        "kas":    { ".validate": "newData.isString() && newData.val() == auth.token.email" },
         "$kita":  { ".validate": false }
       }
     },
 
     "houmy_technologijos": {
       /* Mėnesinės technologijų patikros ataskaita (admin skydelis „🔧 Technologijos").
-         Skaityti — tik administratoriams. Rašo TIK serverio funkcija
-         technologijuPatikra (ji taisyklių nepaiso), per internetą — niekas. */
-      ".read": "auth != null && auth.token.email_verified == true && (auth.token.email == 'ramunaspetraska@gmail.com' || auth.token.email == 'info@houmy.lt' || auth.token.email == 'info@praktiskibaldai.lt' || auth.token.email == 'ciupaite.ingrida@gmail.com')",
+         Rašo TIK serverio funkcija technologijuPatikra. */
+      ".read": "auth != null && auth.token.email_verified == true && root.child('houmy_admins').child(auth.token.email.toLowerCase().replace('.', ',')).val() == true",
+      ".write": false
+    },
+
+    "houmy_kopijos": {
+      /* Automatinės kainų ir nustatymų atsarginės kopijos (kasdien, jei kas pasikeitė;
+         saugomos 90 naujausių). Rašo TIK serverio funkcija senuUzklausuValymas. */
+      ".read": "auth != null && auth.token.email_verified == true && root.child('houmy_admins').child(auth.token.email.toLowerCase().replace('.', ',')).val() == true",
       ".write": false
     }
   }
