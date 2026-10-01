@@ -5,8 +5,8 @@
 // Veikimo principas:
 //  1. Užsikrovus puslapiui, iš debesies (Realtime Database, kelias
 //     "houmy_settings") parsisiunčiami bendri nustatymai.
-//  2. Jei jie skiriasi nuo vietinių (localStorage) — vietiniai atnaujinami
-//     ir puslapis vieną kartą perkraunamas, kad visur atsirastų naujos kainos.
+//  2. Jei jie skiriasi nuo vietinių (localStorage) — pritaikomi iškart
+//     (be puslapio perkrovimo) ir įsimenami naršyklėje.
 //  3. Admin panelėje paspaudus „Išsaugoti" nustatymai įrašomi ir į debesį
 //     (kviečiama iš funkcijos.js per window.houmyCloud.issaugotiNustatymus).
 //
@@ -17,7 +17,9 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import { getDatabase, ref, get, set, update, push, serverTimestamp, query, orderByChild, limitToLast } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+// Prisijungimo (Auth) biblioteka kraunama TIK kai jos reikia (administratoriui) —
+// klientų puslapis jos nesisiunčia: greičiau ir be nereikalingų Google užklausų.
+const AUTH_URL = "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
 // Firebase projekto konfigūracija (tai NĖRA slaptažodžiai — šie duomenys
 // skirti būti viešame kliento kode; prieigą riboja duomenų bazės taisyklės).
@@ -33,25 +35,52 @@ const firebaseConfig = {
 
 const fbApp = initializeApp(firebaseConfig);
 const db = getDatabase(fbApp);
-const auth = getAuth(fbApp);
 const SETTINGS_KELIAS = "houmy_settings";
 const PASIULYMU_KELIAS = "houmy_proposals";
 
-// Administratorių sąrašas: tik šios Google paskyros gali atidaryti admin
-// panelę ir įrašyti kainas į debesį (tą patį sąrašą saugo ir duomenų bazės
-// taisyklės — apsauga veikia serverio pusėje, ne tik naršyklėje).
-const ADMIN_PASTAI = ["ramunaspetraska@gmail.com", "info@houmy.lt", "info@praktiskibaldai.lt", "ciupaite.ingrida@gmail.com"];
+// Kliento puslapis (klientams.html) prisijungimo nenaudoja visai.
+const KLIENTO_REZIMAS = window.HOUMY_KLIENTO_REZIMAS === true;
+
+let authModulis = null, auth = null;
+async function gautiAuth() {
+    if (!auth) {
+        authModulis = await import(AUTH_URL);
+        auth = authModulis.getAuth(fbApp);
+        if (auth.authStateReady) await auth.authStateReady();
+    }
+    return auth;
+}
+
+// Administratorių sąrašas laikomas duomenų bazėje (houmy_admins), NE kode —
+// el. paštai nematomi viešai. Raktas: el. paštas mažosiomis, taškai -> kableliai.
+// Perskaityti galima tik SAVO įrašą, todėl pašalinis nieko nesužino.
+function adminRaktas(pastas) {
+    return String(pastas || "").toLowerCase().split(".").join(",");
+}
+async function arAdministratorius(vartotojas) {
+    if (!vartotojas || !vartotojas.email || !vartotojas.emailVerified) return false;
+    try {
+        const snap = await get(ref(db, "houmy_admins/" + adminRaktas(vartotojas.email)));
+        return snap.val() === true;
+    } catch (e) {
+        return false; // ne administratorius — taisyklės neleidžia net perskaityti
+    }
+}
 
 // Prisijungimas per Google iškylantį langą. Grąžina true, jei prisijungė
 // administratorius; kitaip — false (su paaiškinimu vartotojui).
 async function prisijungtiAdmin() {
-    const esamas = auth.currentUser;
-    if (esamas && ADMIN_PASTAI.includes((esamas.email || "").toLowerCase())) return true;
+    let a;
+    try { a = await gautiAuth(); } catch (e) {
+        alert("Nepavyko įkelti prisijungimo — patikrinkite interneto ryšį ir bandykite dar kartą.");
+        return false;
+    }
+    if (a.currentUser && await arAdministratorius(a.currentUser)) return true;
     try {
-        const rezultatas = await signInWithPopup(auth, new GoogleAuthProvider());
+        const rezultatas = await authModulis.signInWithPopup(a, new authModulis.GoogleAuthProvider());
         const pastas = (rezultatas.user.email || "").toLowerCase();
-        if (!ADMIN_PASTAI.includes(pastas)) {
-            await signOut(auth);
+        if (!await arAdministratorius(rezultatas.user)) {
+            await authModulis.signOut(a);
             alert("Paskyra " + pastas + " neturi administratoriaus teisių.");
             return false;
         }
@@ -142,7 +171,7 @@ const ISTORIJOS_KELIAS = "houmy_kainu_istorija";
 
 async function irasytiKainuIstorijaDebesyje(pakeitimai) {
     if (!pakeitimai || !pakeitimai.length) return;
-    const kas = (auth.currentUser && auth.currentUser.email) || "";
+    const kas = (auth && auth.currentUser && auth.currentUser.email) || "";
     const irasas = {};
     pakeitimai.forEach(c => {
         const raktas = push(ref(db, ISTORIJOS_KELIAS)).key;
@@ -205,23 +234,34 @@ async function gautiPasiulymaDebesyje(id) {
     return snap.exists() ? snap.val() : null;
 }
 
-// Įrašo kliento užklausą iš viešo konfigūratoriaus (houmy_uzklausos/<autoID>).
-// Užklausų skaityti per internetą negalima — jas mato tik Ramūnas Firebase konsolėje.
-async function issaugotiUzklausaDebesyje(uzklausa) {
-    const nauja = push(ref(db, "houmy_uzklausos"));
-    await set(nauja, {
-        ...uzklausa,
-        createdAt: serverTimestamp(),
-        version: (typeof APP_VERSION !== "undefined") ? APP_VERSION : ""
+// Įrašo kliento užklausą KARTU su jo sudėliotu variantu — vienu veiksmu
+// (arba įrašomi abu, arba nė vienas: nebelieka „pamestų" variantų be užklausos).
+// Grąžina pasiūlymo ID (nuorodai ?proposal=<ID>).
+async function issaugotiUzklausaSuPasiulymuDebesyje(pasiulymas, uzklausa) {
+    const versija = (typeof APP_VERSION !== "undefined") ? APP_VERSION : "";
+    const pasiulymoId = push(ref(db, PASIULYMU_KELIAS)).key;
+    const uzklausosId = push(ref(db, "houmy_uzklausos")).key;
+    await update(ref(db), {
+        [PASIULYMU_KELIAS + "/" + pasiulymoId]: { ...pasiulymas, createdAt: serverTimestamp(), version: versija },
+        ["houmy_uzklausos/" + uzklausosId]: { ...uzklausa, proposalId: pasiulymoId, createdAt: serverTimestamp(), version: versija }
     });
-    return nauja.key;
+    return pasiulymoId;
+}
+
+// Naujausios klientų užklausos (admin skydelis „📨 Užklausos"; skaityti gali
+// tik administratoriai). Naujausios pirmos.
+async function gautiUzklausasDebesyje(kiek) {
+    const snap = await get(query(ref(db, "houmy_uzklausos"), orderByChild("createdAt"), limitToLast(kiek || 100)));
+    const sarasas = [];
+    snap.forEach(v => { sarasas.push({ id: v.key, ...(v.val() || {}) }); });
+    return sarasas.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 }
 
 // Viešas „tiltas" į paprastus (ne modulinius) skriptus — funkcijos.js
 window.houmyCloud = {
     pasiruoses: false,          // ar užsikrovus pavyko pasiekti debesį
     debesyjeYraDuomenu: false,  // ar debesyje jau yra išsaugoti nustatymai
-    vartotojas: null,           // prisijungusio administratoriaus el. paštas
+    vartotojas: null,           // prisijungusio vartotojo el. paštas (tik vidinėje programoje)
     issaugotiNustatymus: issaugotiNustatymusDebesyje,   // VISKAS iš karto — tik kainų importui
     issaugotiKainuPakeitimus: issaugotiKainuPakeitimusDebesyje,
     issaugotiTekstus: issaugotiTekstusDebesyje,
@@ -230,14 +270,32 @@ window.houmyCloud = {
     gautiTechnologijuAtaskaita: gautiTechnologijuAtaskaitaDebesyje,
     issaugotiPasiulyma: issaugotiPasiulymaDebesyje,
     gautiPasiulyma: gautiPasiulymaDebesyje,
-    issaugotiUzklausa: issaugotiUzklausaDebesyje,
+    issaugotiUzklausaSuPasiulymu: issaugotiUzklausaSuPasiulymuDebesyje,
+    gautiUzklausas: gautiUzklausasDebesyje,
     prisijungtiAdmin: prisijungtiAdmin
 };
 
-// Sekame prisijungimo būseną (išlieka tarp apsilankymų toje pačioje naršyklėje)
-onAuthStateChanged(auth, (u) => {
-    window.houmyCloud.vartotojas = u ? (u.email || "") : null;
-});
+// Vidinėje programoje sekame prisijungimo būseną (išlieka tarp apsilankymų).
+if (!KLIENTO_REZIMAS) {
+    gautiAuth().then(a => authModulis.onAuthStateChanged(a, (u) => {
+        window.houmyCloud.vartotojas = u ? (u.email || "") : null;
+    })).catch(e => console.warn("Prisijungimo biblioteka neįkelta:", e));
+}
+
+// Pritaiko debesies kainas/tekstus ŠIAME lange iškart — be puslapio perkrovimo
+// (anksčiau kiekvienas naujas lankytojas po 2–3 s gaudavo perkrovimą).
+//   irIsiminti — ar įrašyti ir į naršyklės atmintį (pasiūlymo peržiūroje — ne).
+function pritaikytiNustatymusVietoje(isDebesies, irIsiminti) {
+    appSettings = { ...appSettings, ...isDebesies };
+    if (irIsiminti) {
+        try {
+            const buve = localStorage.getItem("houmySettings");
+            if (buve) localStorage.setItem("houmySettingsAtsargine", buve);
+            localStorage.setItem("houmySettings", JSON.stringify(appSettings));
+        } catch (e) { /* naršyklė neleidžia atminties (pvz. įterptame lange) — kainos vis tiek pritaikytos */ }
+    }
+    if (typeof atnaujintiKainuRodyma === "function") atnaujintiKainuRodyma();
+}
 
 // Ar dabar atidaromas kliento pasiūlymas (?proposal=<id>)? Tokiu atveju
 // kainų sinchronizacijos NEvykdom (klientui rodom įrašytus pasiūlymo duomenis,
@@ -261,28 +319,12 @@ const yraPasiulymoParametras = new URLSearchParams(window.location.search).has("
         const vietiniai = paimtiSinchronizuojamus(appSettings);
 
         if (stabilusJson(isDebesies) === stabilusJson(vietiniai)) {
-            sessionStorage.removeItem("houmyCloudReload");
             console.log("HOUMY debesis: kainos ir nustatymai sutampa su vietiniais.");
             return;
         }
-
-        // Debesies duomenys skiriasi — pritaikom juos vietoje (debesis yra „tiesa").
-        // Prieš perrašant, ankstesni vietiniai nustatymai išsaugomi kaip atsarginė kopija.
-        const buve = localStorage.getItem("houmySettings");
-        if (buve) localStorage.setItem("houmySettingsAtsargine", buve);
-        const atnaujinti = { ...appSettings, ...isDebesies };
-        localStorage.setItem("houmySettings", JSON.stringify(atnaujinti));
-
-        // Apsauga nuo begalinio perkrovimų ciklo: jei ką tik perkrovėm ir
-        // duomenys vis tiek „skiriasi" — sustojam ir tik pranešam konsolėje.
-        const paskutinis = parseInt(sessionStorage.getItem("houmyCloudReload") || "0", 10);
-        if (Date.now() - paskutinis < 15000) {
-            console.error("HOUMY debesis: nustatymai pritaikyti, bet perkrovimas ką tik įvyko — kartotinis perkrovimas stabdomas.");
-            return;
-        }
-        sessionStorage.setItem("houmyCloudReload", String(Date.now()));
-        console.log("HOUMY debesis: rastos naujesnės kainos/nustatymai — puslapis perkraunamas.");
-        location.reload();
+        // Debesies duomenys skiriasi — pritaikom iškart (debesis yra „tiesa").
+        pritaikytiNustatymusVietoje(isDebesies, true);
+        console.log("HOUMY debesis: pritaikytos naujausios kainos ir nustatymai.");
     } catch (klaida) {
         console.warn("HOUMY debesis nepasiekiamas — naudojami vietiniai nustatymai.", klaida);
     }
@@ -363,8 +405,19 @@ function atvaizduotiKlientoPasiulyma(p) {
     const dims = (document.getElementById("dimension-display") || {}).innerHTML || "";
     const grupesTekstas = grSelect ? grSelect.options[grSelect.selectedIndex].text : "";
 
+    // Kliento paties sudėliotame variante kaina perskaičiuojama pagal DABAR
+    // galiojančias kainas — įrašyta suma ir sąrašas nenaudojami, todėl niekas
+    // negali sukurti „HOUMY" puslapio su savo kaina ar tekstu.
+    let breakdown = p.breakdown || [];
+    let galutine = p.finalTotal;
+    if (!komercinis && typeof surinktiPasiulymoDuomenis === "function") {
+        const perskaiciuota = surinktiPasiulymoDuomenis();
+        breakdown = perskaiciuota.breakdown;
+        galutine = perskaiciuota.total;
+    }
+
     let eilutes = "";
-    (p.breakdown || []).forEach(it => {
+    breakdown.forEach(it => {
         eilutes += '<tr><td style="padding:6px 4px; border-bottom:1px solid #eee;">' + saugusTekstas(it.name) + '</td>' +
             '<td style="padding:6px 4px; border-bottom:1px solid #eee; text-align:center;">' + saugusTekstas(it.qty) + ' vnt.</td>' +
             '<td style="padding:6px 4px; border-bottom:1px solid #eee; text-align:right;"><b>' + saugusTekstas(it.unit * it.qty) + ' €</b></td></tr>';
@@ -381,19 +434,19 @@ function atvaizduotiKlientoPasiulyma(p) {
     }
 
     let klientoInfo = "";
-    if (p.client) {
+    if (komercinis && p.client) {
         if (p.client.name) klientoInfo += '<div><b>Klientas:</b> ' + saugusTekstas(p.client.name) + '</div>';
         if (p.client.project) klientoInfo += '<div><b>Projektas:</b> ' + saugusTekstas(p.client.project) + '</div>';
         if (p.client.designer) klientoInfo += '<div><b>Dizaineris:</b> ' + saugusTekstas(p.client.designer) + '</div>';
     }
     let audinys = "";
-    if (p.fabricName) audinys += '<div><b>Audinys:</b> ' + saugusTekstas(p.fabricName) + '</div>';
+    if (komercinis && p.fabricName) audinys += '<div><b>Audinys:</b> ' + saugusTekstas(p.fabricName) + '</div>';
     if (grupesTekstas) audinys += '<div><b>Audinio grupė:</b> ' + saugusTekstas(grupesTekstas) + '</div>';
 
     let terminai = "";
-    if (p.term) terminai += '<div style="margin-top:4px;">• Gamybos terminas: <b>' + saugusTekstas(p.term) + '</b></div>';
-    if (p.delivery) terminai += '<div>• ' + saugusTekstas(p.delivery) + '</div>';
-    if (p.additionalInfo) terminai += '<div style="margin-top:4px; color:#555;">' + saugusTekstas(p.additionalInfo) + '</div>';
+    if (komercinis && p.term) terminai += '<div style="margin-top:4px;">• Gamybos terminas: <b>' + saugusTekstas(p.term) + '</b></div>';
+    if (komercinis && p.delivery) terminai += '<div>• ' + saugusTekstas(p.delivery) + '</div>';
+    if (komercinis && p.additionalInfo) terminai += '<div style="margin-top:4px; color:#555;">' + saugusTekstas(p.additionalInfo) + '</div>';
 
     const sidebar = document.getElementById("sidebar-right");
     if (sidebar) {
@@ -405,7 +458,7 @@ function atvaizduotiKlientoPasiulyma(p) {
             '<div style="font-size:13px; font-weight:bold; color:#333; margin-bottom:4px;">Sudėtis:</div>' +
             '<table style="width:100%; border-collapse:collapse; font-size:13px; margin-bottom:10px;"><tbody>' + eilutes + '</tbody></table>' +
             (dims ? '<div style="font-size:12px; color:#555; margin-bottom:10px;">' + dims + '</div>' : "") +
-            '<div style="border-top:2px solid #333; padding-top:8px;">' + nuolaidaHtml + kainosPVM(p.finalTotal) + '</div>' +
+            '<div style="border-top:2px solid #333; padding-top:8px;">' + nuolaidaHtml + kainosPVM(galutine) + '</div>' +
             (terminai ? '<div style="font-size:12px; color:#333; line-height:1.5; margin-top:12px; border-top:1px solid #eee; padding-top:8px;">' + terminai + '</div>' : "") +
             '<div style="font-size:11px; color:#999; margin-top:16px; border-top:1px solid #eee; padding-top:8px;">MB Praktiški baldai · Savanorių pr. 290, Kaunas<br>+370 675 04607 · info@houmy.lt</div>';
     }
@@ -419,6 +472,14 @@ function atvaizduotiKlientoPasiulyma(p) {
         if (!p) {
             rodytiPasiulymoPranesima("Pasiūlymas nerastas arba nebegalioja.");
             return;
+        }
+        // Kliento sudėliotam variantui kaina skaičiuojama pagal dabartines kainas —
+        // parsisiunčiam jas (tik šiam langui, naršyklės atminties neliečiam).
+        if (!yraKomercinis(p)) {
+            try {
+                const nust = await get(ref(db, SETTINGS_KELIAS));
+                if (nust.exists()) pritaikytiNustatymusVietoje(paimtiSinchronizuojamus(nust.val()), false);
+            } catch (e) { console.warn("Kainų gauti nepavyko — rodomos numatytosios.", e); }
         }
         atvaizduotiKlientoPasiulyma(p);
         // Palaukiam, kol restoreState (setTimeout 50ms) atnaujins matmenis, ir atskleidžiam.

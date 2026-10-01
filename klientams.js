@@ -47,6 +47,7 @@
             if (typeof updateLabels === 'function') updateLabels();
             if (typeof updateDimensions === 'function') updateDimensions();
             if (typeof saveState === 'function') saveState();
+            if (typeof pradetiIstorijaIsNaujo === 'function') pradetiIstorijaIsNaujo();
         }
     }
 
@@ -108,6 +109,12 @@
     // skirtukui, todėl paprastas mygtukas svetainėje atidaro ne tą būseną.
     // Šis mygtukas dabartinius modulius persiduoda per nuorodą (?s=...).
     if (window.self !== window.top) {
+        // Telefone įterptame lange vienas pirštas tuščioje vietoje slenka houmy.lt
+        // puslapį (kitaip klientas „įstrigtų" brėžinyje); brėžinys — dviem pirštais.
+        if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
+            window.HOUMY_VIENAS_PIRSTAS_SLENKA = true;
+            document.documentElement.classList.add('vienas-pirstas-slenka');
+        }
         const fsBtn = document.createElement('button');
         fsBtn.id = 'pilno-ekrano-btn';
         fsBtn.innerHTML = '⛶ Per visą ekraną';
@@ -154,10 +161,27 @@ function atidarytiPilnaEkrana() {
     window.open(pilnoEkranoNuoroda(), '_blank');
 }
 
+// Trumpas pranešimas puslapio apačioje (vietoj naršyklės iššokančio lango —
+// įterptame houmy.lt lange toks langas rodytų svetimą adresą ir atrodytų įtartinai).
+function rodytiZinute(tekstas, trukmeMs) {
+    let z = document.getElementById('houmy-zinute');
+    if (!z) {
+        z = document.createElement('div');
+        z.id = 'houmy-zinute';
+        z.setAttribute('role', 'status');
+        z.style.cssText = 'position:fixed; left:50%; bottom:20px; transform:translateX(-50%); max-width:90%; z-index:10050; background:#222; color:#fff; padding:12px 16px; border-radius:8px; font-size:14px; line-height:1.4; box-shadow:0 4px 14px rgba(0,0,0,0.3); text-align:center; display:none;';
+        document.body.appendChild(z);
+    }
+    z.textContent = tekstas;
+    z.style.display = 'block';
+    clearTimeout(z._laikmatis);
+    z._laikmatis = setTimeout(() => { z.style.display = 'none'; }, trukmeMs || 4000);
+}
+
 // Nukopijuoja dabartinės dėlionės nuorodą (redaguojamą) į iškarpinę
 function kopijuotiDalinimosiNuoroda(btn) {
     if (document.querySelectorAll('.canvas-module').length === 0) {
-        return alert('Pirmiausia sudėliokite baldą — tada galėsite nusikopijuoti jo nuorodą.');
+        return rodytiZinute('Pirmiausia sudėliokite baldą — tada galėsite nusikopijuoti jo nuorodą.');
     }
     const nuoroda = pilnoEkranoNuoroda();
     const originalusTekstas = btn.innerHTML;
@@ -172,10 +196,12 @@ function kopijuotiDalinimosiNuoroda(btn) {
             laukas.value = nuoroda;
             document.body.appendChild(laukas);
             laukas.select();
-            document.execCommand('copy');
+            const ok = document.execCommand('copy');
             laukas.remove();
-            pavyko();
-        } catch (e) {}
+            if (ok) pavyko(); else throw new Error('copy');
+        } catch (e) {
+            rodytiZinute('Nepavyko nukopijuoti automatiškai. Paspauskite „Per visą ekraną" ir nukopijuokite adresą iš naršyklės.', 6000);
+        }
     });
 }
 
@@ -198,28 +224,63 @@ function kopijuotiUzklausosNuoroda(btn) {
 // Kliento versijoje papildomai valdomas kairės juostos plotis (true).
 ijungtiMeniuBrezinius(true);
 
-// Atidaro užklausos langą (tik jei baldas sudėliotas ir be klaidų)
+// Pranešimas užklausos formoje (klaida arba pastaba) — be iššokančių langų
+function formosPranesimas(id, html) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = html || '';
+    el.style.display = html ? 'block' : 'none';
+}
+const ATSARGINIAI_KONTAKTAI = 'Susisiekite tiesiogiai: <a href="tel:+37067504607">+370 675 04607</a> · <a href="mailto:info@houmy.lt">info@houmy.lt</a>';
+
+// Atidaro užklausos langą (jei baldas sudėliotas). Jei darbo lauke yra
+// persidengiančių ar atsiskyrusių modulių — tai parodoma formoje kaip pastaba
+// (klientas gali patikslinti arba vis tiek siųsti).
 function atidarytiUzklausosModal() {
     const moduliai = document.querySelectorAll('.canvas-module');
     if (moduliai.length === 0) {
-        return alert('Pirmiausia sudėliokite baldą — paspauskite norimą modulį kairėje.');
+        return rodytiZinute('Pirmiausia sudėliokite baldą — paspauskite norimą modulį kairėje.');
     }
-    if (typeof validateWorkspace === 'function' && !validateWorkspace()) return;
+    let pastaba = '';
+    if (typeof rastiDarboProblemas === 'function') {
+        const p = rastiDarboProblemas();
+        if (p.persidengia) pastaba = 'Dėmesio: kai kurie moduliai užlipę vienas ant kito. Galite patikslinti arba siųsti taip — mes pasitikslinsime.';
+        else if (p.atsiskyre) pastaba = 'Dėmesio: ne visi moduliai sujungti į vieną baldą. Galite patikslinti arba siųsti taip — mes pasitikslinsime.';
+    }
+    formosPranesimas('uzklausa-pastaba', pastaba);
+    formosPranesimas('uzklausa-klaida', '');
     // Rodom formą (jei prieš tai buvo sėkmės žinutė — grąžinam formą)
     document.getElementById('uzklausa-forma').style.display = 'flex';
     document.getElementById('uzklausa-sekme').style.display = 'none';
     document.getElementById('uzklausa-modal').style.display = 'flex';
 }
 
-// Išsiunčia užklausą: dėlionė -> houmy_proposals, kontaktai -> houmy_uzklausos
+// Laukia, kol užsikraus debesies ryšys (iki 8 s) — kad lėtame ryšyje
+// klientas negautų klaidingo „nėra interneto".
+async function lauktiDebesies() {
+    for (let i = 0; i < 40; i++) {
+        if (window.houmyCloud && window.houmyCloud.issaugotiUzklausaSuPasiulymu) return true;
+        await new Promise(r => setTimeout(r, 200));
+    }
+    return false;
+}
+
+// Išsiunčia užklausą: dėlionė (houmy_proposals) ir kontaktai (houmy_uzklausos)
+// įrašomi VIENU veiksmu.
 async function siustiUzklausa(btn) {
     const vardas = document.getElementById('uzklausa-vardas').value.trim();
     const pastas = document.getElementById('uzklausa-pastas').value.trim();
     const telefonas = document.getElementById('uzklausa-telefonas').value.trim();
     const komentaras = document.getElementById('uzklausa-komentaras').value.trim();
+    const kopija = !!(document.getElementById('uzklausa-kopija') || {}).checked;
+    formosPranesimas('uzklausa-klaida', '');
 
-    if (!pastas || !pastas.includes('@') || pastas.length < 5) {
-        return alert('Įveskite teisingą el. pašto adresą.');
+    // Tos pačios ribos kaip duomenų bazės taisyklėse (kitaip užklausa būtų atmesta)
+    if (!/^[^@\s,;<>]+@[^@\s,;<>]+\.[^@\s,;<>]+$/.test(pastas) || pastas.length > 100) {
+        return formosPranesimas('uzklausa-klaida', 'Įveskite teisingą el. pašto adresą.');
+    }
+    if (vardas.length > 150 || telefonas.length > 30 || komentaras.length > 1500) {
+        return formosPranesimas('uzklausa-klaida', 'Per ilgas tekstas: vardas iki 150, telefonas iki 30, komentaras iki 1500 simbolių.');
     }
 
     // Spąstai robotams: nematomą laukelį užpildo tik automatinės programos.
@@ -236,10 +297,7 @@ async function siustiUzklausa(btn) {
     let paskutine = 0;
     try { paskutine = parseInt(localStorage.getItem('houmyPaskutineUzklausa') || '0', 10); } catch (e) {}
     if (Date.now() - paskutine < 60000) {
-        return alert('Užklausa ką tik išsiųsta. Jei norite siųsti dar vieną — palaukite minutę.');
-    }
-    if (!window.houmyCloud || !window.houmyCloud.pasiruoses) {
-        return alert('Nėra interneto ryšio — bandykite dar kartą.');
+        return formosPranesimas('uzklausa-klaida', 'Užklausa ką tik išsiųsta. Jei norite siųsti dar vieną — palaukite minutę.');
     }
 
     const originalusTekstas = btn.innerHTML;
@@ -247,39 +305,43 @@ async function siustiUzklausa(btn) {
     btn.innerHTML = '⏳ Siunčiama...';
 
     try {
-        // Užpildom paslėptus laukus, kad pasiūlymo duomenys būtų pilni
-        // (surinktiPasiulymoDuomenis skaito šiuos laukus)
-        document.getElementById('client-name').value = vardas;
-        document.getElementById('client-term').value = (typeof appSettings !== 'undefined' && appSettings.prodTerm) || '';
-        document.getElementById('client-delivery').value = (typeof appSettings !== 'undefined' && appSettings.deliveryNote) || '';
-        document.getElementById('client-additional').value = (typeof appSettings !== 'undefined' && appSettings.additionalInfo) || '';
-        document.getElementById('client-discount').value = '';
-        document.getElementById('client-manual-price').value = '';
-        document.getElementById('client-fabric').value = '';
+        if (!await lauktiDebesies()) throw new Error('Debesies ryšys neužsikrovė');
 
-        const pasiulymas = surinktiPasiulymoDuomenis();
-        const proposalId = await window.houmyCloud.issaugotiPasiulyma(pasiulymas);
+        // Klientas siunčia tik savo dėlionę: be laisvo teksto (jį gali įrašyti tik
+        // administratorius) ir be asmens duomenų (jie lieka tik užklausoje).
+        const pilnas = surinktiPasiulymoDuomenis();
+        const pasiulymas = {
+            modules: pilnas.modules,
+            breakdown: pilnas.breakdown,
+            total: pilnas.total,
+            finalTotal: pilnas.total,
+            fabricGroup: '1',
+            fabricColor: pilnas.fabricColor
+        };
 
-        await window.houmyCloud.issaugotiUzklausa({
+        const uzklausa = {
             name: vardas,
             email: pastas,
             phone: telefonas,
             comment: komentaras,
             collection: document.getElementById('model-select').value,
-            total: pasiulymas.finalTotal,
-            proposalId: proposalId
-        });
+            total: pilnas.total
+        };
+        if (kopija) uzklausa.kopija = true; // klientas pats pasirinko gauti nuorodą el. paštu
+        const proposalId = await window.houmyCloud.issaugotiUzklausaSuPasiulymu(pasiulymas, uzklausa);
 
         try { localStorage.setItem('houmyPaskutineUzklausa', String(Date.now())); } catch (e) {}
 
         // Kliento nuoroda į jo dėlionę (atsidaro per pagrindinį peržiūros puslapį)
         const perziurosNuoroda = new URL('./', location.href).href + '?proposal=' + proposalId;
         document.getElementById('uzklausa-nuoroda').value = perziurosNuoroda;
+        const kopijosTekstas = document.getElementById('uzklausa-kopijos-tekstas');
+        if (kopijosTekstas) kopijosTekstas.style.display = kopija ? 'block' : 'none';
         document.getElementById('uzklausa-forma').style.display = 'none';
         document.getElementById('uzklausa-sekme').style.display = 'flex';
     } catch (klaida) {
         console.error('Užklausos siuntimo klaida:', klaida);
-        alert('Nepavyko išsiųsti užklausos. Patikrinkite interneto ryšį ir bandykite dar kartą, arba susisiekite: info@houmy.lt');
+        formosPranesimas('uzklausa-klaida', 'Nepavyko išsiųsti užklausos — bandykite dar kartą po minutės.<br>' + ATSARGINIAI_KONTAKTAI);
     } finally {
         btn.disabled = false;
         btn.innerHTML = originalusTekstas;
