@@ -12,10 +12,11 @@ Teisinis projekto savininkas: **MB „Praktiški baldai"** (įm. k. 303372464).
 
 | Paslauga | Kas / kur | Owner (savininkas) | Apmokėjimas | 2FA | Perdavimo būsena |
 |---|---|---|---|---|---|
-| Domenas houmy.lt ir DNS | ? (registratorius) | ? | ? | ? | **Užpildyti** |
+| Domenas houmy.lt | ? (registratorius) | ? | ? | ? | **Užpildyti registratorių** |
+| DNS houmy.lt | Cloudflare (nemokamas planas); įrašas `konfiguratorius` → GitHub Pages, „DNS only" | įmonės Cloudflare paskyra | nemokama | ? | — |
 | Įmonės el. paštas info@houmy.lt | Google paskyra; iš jos siunčiami konfigūratoriaus laiškai (programos slaptažodis — Firebase slaptažodžių saugykloje) | įmonė | ? | ? | **Patikrinti 2FA ir atkūrimą** |
 | Kodas (GitHub) | `ramunaspetraska-debug/Houmy-konfiguratorius` (viešas) | Ramūno asmeninė paskyra | nemokama | įjungta | **SKOLA:** perkelti į įmonės GitHub organizaciją su 2 savininkais |
-| Svetainės talpinimas | GitHub Pages (tame pačiame adrese dar 2 kitos svetainės) | Ramūno asmeninė paskyra | nemokama | — | **SKOLA:** savas adresas `konfiguratorius.houmy.lt` + organizacija |
+| Svetainės talpinimas | GitHub Pages, adresas **https://konfiguratorius.houmy.lt** (nuo 2026-10-01; senos github.io nuorodos nukreipiamos) | Ramūno asmeninė paskyra | nemokama | — | **SKOLA:** perkelti į organizaciją |
 | Firebase / Google Cloud | projektas `houmy-konfiguratorius` (Blaze planas) | Ramūno asmeninė Google paskyra | ? (kieno kortelė) | ? | **SKOLA:** įmonės Google paskyra kaip antras Owner; biudžeto įspėjimas |
 | Duomenų bazė | Realtime Database `houmy-konfiguratorius-eu` (Belgija) | kartu su Firebase | kartu | — | — |
 | Serverio funkcijos | 4 funkcijos, europe-west1 (žr. žemiau) | kartu su Firebase | kartu | — | — |
