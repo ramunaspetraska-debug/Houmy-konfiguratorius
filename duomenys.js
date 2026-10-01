@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.51 (aiškesnis technologijų laiškas)";
+const APP_VERSION = "V1.52 (patikimumas, privatumas, telefonas)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
