@@ -1,0 +1,10 @@
+# GitHub Pages: šie failai ir aplankai NEpublikuojami svetainėje
+# (jie reikalingi tik kūrimui ir priežiūrai).
+exclude:
+  - PASKYRU-IR-NUOSAVYBES-KONTROLINIS.md
+  - functions
+  - database.rules.json
+  - firebase.json
+  - .firebaserc
+  - testai
+  - LICENSE
