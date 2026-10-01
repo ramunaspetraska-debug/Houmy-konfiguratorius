@@ -3,9 +3,21 @@
 <html lang="lt">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HOUMY Baldų Konfigūratorius</title>
-    
+    <!-- Vidinė programa ir klientų pasiūlymai (?proposal=) — ne paieškai -->
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="description" content="HOUMY modulinių sofų pasiūlymas.">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="HOUMY">
+    <meta property="og:title" content="HOUMY sofos pasiūlymas">
+    <meta property="og:description" content="Jūsų HOUMY modulinės sofos variantas su kaina ir matmenimis.">
+    <meta property="og:image" content="https://ramunaspetraska-debug.github.io/Houmy-konfiguratorius/img/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+    <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+
     <link rel="stylesheet" href="styles.css?v=1.51">
 
     <!-- Kliento pasiūlymo (?proposal=) režimas: iškart paslepiam redagavimo įrankius,
@@ -43,11 +55,25 @@
         .menu-item { flex-direction: column; align-items: stretch; gap: 5px; padding: 8px 6px; min-width: 100px; }
         .menu-thumb { max-height: 52px; }
       }
+
+      /* Pasiūlymo spausdinimas / „Išsaugoti kaip PDF": brėžinys viršuje, po juo
+         sudėtis ir kaina — be jokių valdymo elementų */
+      @media print {
+        html.houmy-proposal, html.houmy-proposal body { height: auto !important; overflow: visible !important; background: #fff !important; }
+        html.houmy-proposal body { display: block !important; }
+        html.houmy-proposal #main-area { width: 100% !important; height: 115mm !important; }
+        html.houmy-proposal #workspace { height: 115mm !important; background-image: none !important; border: none !important; }
+        html.houmy-proposal #dimension-display { display: none !important; }
+        html.houmy-proposal #sidebar-right { width: 100% !important; max-height: none !important; box-shadow: none !important; border: none !important; padding: 0 10mm !important; }
+        html.houmy-proposal #mobile-color-fab, html.houmy-proposal #mobile-color-modal,
+        html.houmy-proposal #mobile-color-overlay, html.houmy-proposal .custom-modal,
+        html.houmy-proposal #pdf-template, html.houmy-proposal #blueprint-template { display: none !important; }
+      }
     </style>
     
     <!-- Išorinės bibliotekos su kontroliniu kodu (integrity): jei kas nors pakeistų
          failą CDN serveryje, naršyklė jo nevykdys. Keičiant versiją — perskaičiuoti kodą. -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script type="importmap">
     {
       "integrity": {
