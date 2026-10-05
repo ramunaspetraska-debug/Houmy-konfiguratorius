@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.54 (logotipas brėžinyje)";
+const APP_VERSION = "V1.55 (didesnis plotas telefone)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
