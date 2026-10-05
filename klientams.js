@@ -99,7 +99,10 @@
     const dalinimosiBtn = document.createElement('button');
     dalinimosiBtn.className = 'action-btn';
     dalinimosiBtn.id = 'dalintis-btn';
-    dalinimosiBtn.innerHTML = '🔗 Kopijuoti nuorodą';
+    // Ikona ir tekstas atskirai: telefone rodoma tik ikona (žr. klientams.html)
+    dalinimosiBtn.innerHTML = '<span class="ikona">🔗</span><span class="tekstas"> Kopijuoti nuorodą</span>';
+    dalinimosiBtn.title = 'Kopijuoti nuorodą';
+    dalinimosiBtn.setAttribute('aria-label', 'Kopijuoti nuorodą');
     dalinimosiBtn.style.cssText = 'background:#6c757d; font-size:12px; padding:9px; margin-top:6px;';
     dalinimosiBtn.onclick = function () { kopijuotiDalinimosiNuoroda(this); };
     document.getElementById('sidebar-right').appendChild(dalinimosiBtn);
@@ -186,7 +189,8 @@ function kopijuotiDalinimosiNuoroda(btn) {
     const nuoroda = pilnoEkranoNuoroda();
     const originalusTekstas = btn.innerHTML;
     const pavyko = () => {
-        btn.innerHTML = '✅ Nukopijuota!';
+        btn.innerHTML = '<span class="ikona">✅</span><span class="tekstas"> Nukopijuota!</span>';
+        rodytiZinute('Nuoroda nukopijuota — galite ją įklijuoti ir nusiųsti.', 2500);
         setTimeout(() => { btn.innerHTML = originalusTekstas; }, 2000);
     };
     navigator.clipboard.writeText(nuoroda).then(pavyko).catch(() => {

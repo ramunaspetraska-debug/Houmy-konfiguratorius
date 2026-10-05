@@ -70,19 +70,30 @@
       #uzklausa-klaida { background: #fdecea; color: #a71d2a; }
       #uzklausa-klaida a, #uzklausa-pastaba a { color: inherit; font-weight: bold; }
       #uzklausa-pastaba { background: #fff8e1; color: #6d5200; }
+      /* TELEFONAS: kuo daugiau vietos dėliojimui — žemesnės modulių kortelės,
+         siauresnė įrankių juosta, o apačioje VIENA eilutė: suma + „Gauti
+         pasiūlymą" + 🔗 (modulių sąrašas paslėptas — moduliai matyti brėžinyje) */
       @media (max-width: 768px) {
-        #toolbar { height: 46px; min-height: 46px; gap: 6px; }
-        .tool-btn, .toggle-label { min-width: 38px; min-height: 36px; font-size: 16px; justify-content: center; }
-        #zoom-controls button { width: 36px; height: 36px; font-size: 20px; }
-        #zoom-controls span { font-size: 12px; min-width: 40px; color: #0056b3; }
-        .menu-item { font-size: 11px; }
+        #sidebar-left { padding: 4px 6px; }
+        #module-list { gap: 4px; min-height: 0; }
+        .menu-item { font-size: 11px; padding: 4px !important; gap: 2px !important; min-width: 84px !important; }
         .menu-item small { font-size: 10px !important; color: #555 !important; }
-        #order-list { font-size: 12px; }
-        .order-total { font-size: 15px; }
+        .menu-thumb { max-height: 30px !important; }
+        #toolbar { height: 40px; min-height: 40px; gap: 6px; }
+        .tool-btn, .toggle-label { min-width: 36px; min-height: 32px; font-size: 15px; justify-content: center; }
+        #zoom-controls button { width: 34px; height: 34px; font-size: 20px; }
+        #zoom-controls span { font-size: 12px; min-width: 40px; color: #0056b3; }
         #dimension-display { font-size: 11px; }
-        #sidebar-right { max-height: 36vh; }
-        #uzklausa-btn { min-height: 46px; font-size: 16px; padding: 10px; }
-        #dalintis-btn { min-height: 40px; font-size: 14px !important; }
+        #pilno-ekrano-btn { padding: 6px 10px !important; font-size: 12px !important; }
+
+        #sidebar-right { flex-direction: row; align-items: center; gap: 8px; max-height: none; padding: 6px 8px; }
+        #sidebar-right > h2, #order-list, #module-chain-display, #discount-display { display: none !important; }
+        #sidebar-right .order-total { margin: 0; padding: 0; border: none; text-align: left; white-space: nowrap; font-size: 15px; flex: 0 0 auto; }
+        #sidebar-right .order-total br { display: none; }
+        #uzklausa-btn { flex: 1 1 auto; width: auto; min-height: 42px; margin: 0; padding: 8px 10px; font-size: 15px; }
+        #dalintis-btn { flex: 0 0 44px; width: 44px !important; min-height: 42px; margin: 0 !important; padding: 0 !important; }
+        #dalintis-btn .tekstas { display: none; }
+        #dalintis-btn .ikona { font-size: 18px; }
       }
       /* Įterptame lange telefone: vienas pirštas tuščioje vietoje slenka puslapį,
          moduliai tempiami kaip įprasta (žr. klientams.js) */
