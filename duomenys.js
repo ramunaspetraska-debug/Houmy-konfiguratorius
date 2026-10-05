@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.52 (patikimumas, privatumas, telefonas)";
+const APP_VERSION = "V1.53 (HOUMY logotipas)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
