@@ -208,6 +208,7 @@ exports.uzklausoslaiskas = onValueCreated(
                         "HOUMY komanda · MB „Praktiški baldai\"\n+370 675 04607 · info@houmy.lt\n\n" +
                         "Šį laišką gavote, nes HOUMY konfigūratoriuje paprašėte atsiųsti savo varianto nuorodą.",
                     html: `<div lang="lt" style="font-family:Arial,sans-serif; font-size:15px; color:#222; line-height:1.6; max-width:560px;">` +
+                        `<p style="margin:0 0 18px 0;"><img src="${PERZIUROS_BAZE}img/houmy-logo-email.png" alt="HOUMY" width="160" height="33" style="display:block; border:0;"></p>` +
                         `<p>Sveiki,</p><p>Dėkojame už užklausą. Jūsų sudėliotą HOUMY sofos variantą galite peržiūrėti čia:</p>` +
                         `<p><a href="${saugu(perziura)}" style="display:inline-block; padding:12px 20px; background:#111; color:#fff; text-decoration:none; border-radius:6px;">Peržiūrėti mano variantą</a></p>` +
                         `<p>Netrukus susisieksime dėl pasiūlymo.</p>` +

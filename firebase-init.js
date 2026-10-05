@@ -352,7 +352,7 @@ function rodytiPasiulymoPranesima(tekstas) {
     const ov = document.getElementById("houmy-proposal-loading");
     if (ov) {
         ov.innerHTML = '<div style="max-width:420px; text-align:center; padding:24px;">' +
-            '<div style="font-family:\'Montserrat\',sans-serif; font-weight:900; font-size:34px; color:#111; letter-spacing:1px;">HOUMY</div>' +
+            '<img src="img/houmy-logo.svg" alt="HOUMY" style="height:30px; width:auto; display:block; margin:0 auto;">' +
             '<p style="margin-top:16px; font-size:16px; color:#444;">' + saugusTekstas(tekstas) + '</p>' +
             '<p style="margin-top:8px; font-size:13px; color:#999;">Susisiekite su mumis: +370 675 04607 · info@houmy.lt</p>' +
             '</div>';
@@ -451,7 +451,7 @@ function atvaizduotiKlientoPasiulyma(p) {
     const sidebar = document.getElementById("sidebar-right");
     if (sidebar) {
         sidebar.innerHTML =
-            '<div style="font-family:\'Montserrat\',sans-serif; font-weight:900; font-size:26px; color:#111; letter-spacing:1px;">HOUMY</div>' +
+            '<img src="img/houmy-logo.svg" alt="HOUMY" style="height:22px; width:auto; display:block; align-self:flex-start; margin:2px 0 6px 0;">' +
             '<div style="font-size:13px; color:#007bff; font-weight:bold; margin:2px 0 12px 0;">' + (komercinis ? 'KOMERCINIS PASIŪLYMAS' : 'SUDĖLIOTAS VARIANTAS') + '</div>' +
             (klientoInfo ? '<div style="font-size:13px; color:#333; line-height:1.5; margin-bottom:10px;">' + klientoInfo + '</div>' : "") +
             (audinys ? '<div style="font-size:13px; color:#333; line-height:1.5; margin-bottom:10px; border-top:1px solid #eee; padding-top:8px;">' + audinys + '</div>' : "") +
