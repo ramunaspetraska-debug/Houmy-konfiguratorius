@@ -131,12 +131,19 @@ test("DESO: gamintojo U forma 452/462 cm ir kainos pagal Wersal CANDELO kaininin
         // OTM sėdimoji dalis + pufo dalis (70/80) = OTM gylis
         if (pagalId["otm_l_" + v].h !== pagalId["1bb_" + v].h + (v === "a" ? 70 : 80)) klaidos.push(`OTM ${v.toUpperCase()} gylis nesutampa su 1BB + pufo dalimi`);
     }
-    // U forma A I gr.: OTM + 3×1BB + C + OTM1S = 2800 €
-    const u = ["otm_l_a", "1bb_a", "1bb_a", "1bb_a", "c_a", "otm1s_p_a"].reduce((s, id) => s + kaina({}, "deso", pagalId[id], 1), 0);
-    if (u !== 2800) klaidos.push(`U forma A = ${u} €, turi būti 2800 €`);
-    // houmy.lt Candelo 70 XL 1990 € ≈ OTM + 2BB + 2P (Wersal 385+340+405 = 1130 = XL)
-    const xl = ["otm_l_a", "2bb_a", "2p_a"].reduce((s, id) => s + kaina({}, "deso", pagalId[id], 1), 0);
-    if (Math.abs(xl - 1990) > 10) klaidos.push(`OTM + 2BB + 2P A = ${xl} €, houmy.lt Candelo 70 XL 1990 €`);
+    // houmy.lt rinkiniai (katalogas Wersal_CORNERS_2025 p.139): [sudėtis, plotis cm, kaina €]
+    const rinkiniai = [
+        [["otm_l_a", "2bb_a", "c_a"], 372, null], [["otm_l_a", "2bb_a", "c_a", "otm1s_p_a"], null, 1990], // 70 XL
+        [["2l_a", "c_a"], 280, null], [["2l_a", "c_a", "otm1s_p_a"], null, 1490],                          // L 70
+        [["otm_l_a", "1bb_a", "1p_a"], 307, 1390],                                                          // mini 70 (kataloge 306)
+        [["1l_a", "1p_a"], 214, 930],                                                                       // sofa 214
+    ];
+    for (const [ids, plotis, suma] of rinkiniai) {
+        const p = ids.reduce((s, id) => s + pagalId[id].w, 0);
+        const k = ids.reduce((s, id) => s + kaina({}, "deso", pagalId[id], 1), 0);
+        if (plotis !== null && p !== plotis) klaidos.push(`${ids.join("+")}: ${p} cm, turi būti ${plotis}`);
+        if (suma !== null && Math.abs(k - suma) > 10) klaidos.push(`${ids.join("+")}: ${k} €, houmy.lt ${suma} €`);
+    }
     // I ir II audinio grupės kaina vienoda
     for (const m of rawModels.deso) if (kaina({}, "deso", m, 2) !== kaina({}, "deso", m, 1)) klaidos.push(`${m.id}: II gr. kaina skiriasi nuo I gr.`);
     assert.deepStrictEqual(klaidos, [], klaidos.join("\n"));
