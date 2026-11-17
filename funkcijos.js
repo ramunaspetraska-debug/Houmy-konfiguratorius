@@ -739,6 +739,10 @@ function detectBackSides(groupModules) {
         });
         return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
     });
+    // Formą (kampas / U) lemia SĖDIMI moduliai: porankiai ir staliukai neskaičiuojami,
+    // kitaip trumpas porankis šezlongo pusėje „užpildo" kampą ir kampas neatpažįstamas.
+    const sedimi = rects.filter((r, i) => !yraPriedas(groupModules[i]));
+    if (sedimi.length >= 2) rects = sedimi;
     let bMinX = Math.min(...rects.map(r => r.minX)), bMaxX = Math.max(...rects.map(r => r.maxX));
     let bMinY = Math.min(...rects.map(r => r.minY)), bMaxY = Math.max(...rects.map(r => r.maxY));
     let w = bMaxX - bMinX, h = bMaxY - bMinY;
