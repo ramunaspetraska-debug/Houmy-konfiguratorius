@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.60 (telpa telefone)";
+const APP_VERSION = "V1.61 (DESO breziniai ir pufai)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
