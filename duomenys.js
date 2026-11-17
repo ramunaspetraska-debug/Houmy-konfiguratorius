@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.58 (kampo gylis su porankiais)";
+const APP_VERSION = "V1.59 (pasuktos sofos gylis)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
