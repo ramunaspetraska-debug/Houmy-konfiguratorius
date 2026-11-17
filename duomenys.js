@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.56 (PILLOVE vidinėje programoje)";
+const APP_VERSION = "V1.57 (teisingas kampo gylis)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
