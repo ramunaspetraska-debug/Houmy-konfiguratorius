@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.55 (didesnis plotas telefone)";
+const APP_VERSION = "V1.56 (PILLOVE vidinėje programoje)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
