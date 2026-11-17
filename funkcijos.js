@@ -710,6 +710,13 @@ function updateOrderSummary() {
     totalPriceEl.innerText = total;
 }
 
+// Ar modulis yra porankis ar staliukas (kataloge isArmrest / isTable) — ne sėdima dalis.
+function yraPriedas(m) {
+    const base = (typeof rawModels !== 'undefined' && rawModels[m.dataset.collection])
+        ? rawModels[m.dataset.collection].find(x => x.id === m.dataset.id) : null;
+    return !!(base && (base.isArmrest || base.isTable));
+}
+
 // Nustato, kurios pusės yra sofos „nugara" (kur baldas statomas prie sienos).
 // PAGRINDINIS būdas – geometrinis: L formos „įpjova" (tuščias gabaritinio stačiakampio
 // kampas) rodo priekį/kambario pusę, o nugaros yra dvi priešingos pusės. Veikia
@@ -774,10 +781,8 @@ function detectBackSides(groupModules) {
     // ATSARGINIS: pagal atlošus (tiesioms sofoms). Atlošas bazėje (0,-1), pasukamas kampu.
     let up = 0, down = 0, left = 0, right = 0;
     groupModules.forEach(m => {
-        let base = (typeof rawModels !== 'undefined' && rawModels[m.dataset.collection])
-            ? rawModels[m.dataset.collection].find(x => x.id === m.dataset.id) : null;
         let isPuff = /^pf/i.test(m.dataset.id || '') || /^pf/i.test(m.dataset.name || '');
-        if ((base && base.isArmrest) || isPuff) return;
+        if (yraPriedas(m) || isPuff) return;
         let ang = (parseInt(m.dataset.angle) || 0) * Math.PI / 180;
         let bx = Math.sin(ang), by = -Math.cos(ang);
         if (Math.abs(bx) > Math.abs(by)) { if (bx > 0) right++; else left++; }
@@ -935,7 +940,12 @@ function updateDimensions() {
                     [{ x: -ddx, y: -ddy }, { x: ddx, y: -ddy }, { x: ddx, y: ddy }, { x: -ddx, y: ddy }].forEach(c => { xs.push(mcx + c.x * Math.cos(a) - c.y * Math.sin(a)); ys.push(mcy + c.x * Math.sin(a) + c.y * Math.cos(a)); });
                     return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
                 });
-                let far = depthOnRight ? dRects.filter(r => r.maxX >= maxX - 2) : dRects.filter(r => r.minX <= minX + 2);
+                // Gylis matuojamas pagal kraštinį SĖDIMĄ modulį, ne pagal porankį ar
+                // staliuką (jie dažnai trumpesni: pvz. PILLOVE porankis 96, sofa 102)
+                let sedimi = dRects.filter((r, i) => !yraPriedas(g[i]));
+                if (!sedimi.length) sedimi = dRects;
+                let krastas = depthOnRight ? Math.max(...sedimi.map(r => r.maxX)) : Math.min(...sedimi.map(r => r.minX));
+                let far = depthOnRight ? sedimi.filter(r => r.maxX >= krastas - 2) : sedimi.filter(r => r.minX <= krastas + 2);
                 if (far.length) {
                     let dMinY = Math.min(...far.map(r => r.minY)), dMaxY = Math.max(...far.map(r => r.maxY));
                     let depthCm = Math.round((dMaxY - dMinY) / scale);
