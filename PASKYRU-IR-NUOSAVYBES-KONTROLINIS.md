@@ -44,7 +44,7 @@ Administravimo skydelyje: „📨 Užklausos", „🕰 Istorija", „🔧 Techno
 5. **Kur atkūrimo kodai?** ?
 6. **Techninė pagalba be kūrėjo:** bet kuris JavaScript/Firebase programuotojas; šiame faile ir kode aprašyta, kas kur yra.
 7. **Kiek veiks pats?** Konfigūratorius veiks be priežiūros. Pirmiausia gali sugesti:
-   - Google Node.js palaikymas baigiasi **2027-04-30** (apie tai iš anksto praneš mėnesinis laiškas);
+   - Google Node.js 24 palaikymas baigiasi **2028-04-30** (apie tai iš anksto praneš mėnesinis laiškas);
    - info@houmy.lt slaptažodžio pakeitimas panaikina programos slaptažodį — **nustotų eiti laiškai** (užklausos vis tiek matomos skydelyje „📨 Užklausos");
    - neapmokėta Google sąskaita.
 
