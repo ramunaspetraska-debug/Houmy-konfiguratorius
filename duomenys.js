@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.57 (teisingas kampo gylis)";
+const APP_VERSION = "V1.58 (kampo gylis su porankiais)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
