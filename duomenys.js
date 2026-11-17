@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.59 (pasuktos sofos gylis)";
+const APP_VERSION = "V1.60 (telpa telefone)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
