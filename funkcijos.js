@@ -261,6 +261,7 @@ function changeZoom(f, e = null) {
     setTimeout(() => { updateDimensions(); }, 50);
 }
 
+let _centruojamaPoMastelio = false;
 function centerWorkspaceToModules() {
     const modules = Array.from(document.querySelectorAll('.canvas-module'));
     if (modules.length === 0 && !kambarys) return;
@@ -288,11 +289,41 @@ function centerWorkspaceToModules() {
     }
 
     const wsRect = document.getElementById('workspace').getBoundingClientRect();
+
+    // Vieta, kurią užima matmenų langelis: telefone jis viršuje, kompiuteryje apačioje,
+    // o su kambariu būna 3 eilučių — jo neuždengiam (paliekam tikrą jo aukštį).
+    const krastai = dimState > 0 ? 55 : 15;          // vieta matmenų linijoms šonuose
+    let virsus = krastai, apacia = krastai;
+    const dd = document.getElementById('dimension-display');
+    const ddR = (dd && dd.offsetParent) ? dd.getBoundingClientRect() : null;
+    if (ddR && ddR.height) {
+        const ddUzima = ddR.height + 10 + (dimState > 0 ? 40 : 5); // langelis + tarpas + matmens linija
+        if (ddR.top < wsRect.top + wsRect.height / 2) virsus = Math.max(virsus, ddR.bottom - wsRect.top + 10 + (dimState > 0 ? 40 : 5));
+        else apacia = Math.max(apacia, ddUzima);
+    }
+
+    // Jei baldas kartu su matmenų linijomis netelpa (pvz. 4 m sofa siaurame
+    // telefone) — mastelis sumažinamas, kad tilptų. Tik mažinama, ne didinama.
+    if (!_centruojamaPoMastelio) {
+        const telpaW = (wsRect.width - 2 * krastai) / (maxX - minX);
+        const telpaH = (wsRect.height - virsus - apacia) / (maxY - minY);
+        const k = Math.min(telpaW, telpaH);
+        if (k < 1 && isFinite(k) && scale > 0.4) {
+            const naujas = Math.max(0.4, scale * k);
+            _centruojamaPoMastelio = true;
+            changeZoom(naujas - scale);
+            centerWorkspaceToModules();
+            _centruojamaPoMastelio = false;
+            return;
+        }
+    }
+
     let sofaCX = (minX + maxX) / 2;
     let sofaCY = (minY + maxY) / 2;
-    
+
     currentPanX = (wsRect.width / 2) - sofaCX;
-    currentPanY = (wsRect.height / 2) - sofaCY;
+    // Vertikaliai — laisvos vietos (be matmenų langelio) centre
+    currentPanY = (virsus + (wsRect.height - virsus - apacia) / 2) - sofaCY;
 
     document.getElementById('canvas-wrapper').style.transform = `translate(${currentPanX}px, ${currentPanY}px)`;
     document.getElementById('workspace').style.backgroundPosition = `${currentPanX}px ${currentPanY}px`;
