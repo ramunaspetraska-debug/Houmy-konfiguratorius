@@ -948,8 +948,29 @@ function updateDimensions() {
                 // staliuką (jie dažnai trumpesni: pvz. PILLOVE porankis 96, sofa 102)
                 let sedimi = dRects.filter((r, i) => !yraPriedas(g[i]));
                 if (!sedimi.length) sedimi = dRects;
+                // Sofa pasukta 90° (ilgoji pusė vertikali) — gylis matuojamas horizontaliai,
+                // trumpojo galo viršuje arba apačioje (anksčiau čia matuodavo modulio plotį)
+                let vertikali = (maxY - minY) > (maxX - minX);
+                if (vertikali) {
+                    let farOnBottom = back.widthOnTop; // plotis viršuje -> gylis apačioje (ir atvirkščiai)
+                    let krastasY = farOnBottom ? Math.max(...sedimi.map(r => r.maxY)) : Math.min(...sedimi.map(r => r.minY));
+                    let farY = farOnBottom ? sedimi.filter(r => r.maxY >= krastasY - 2) : sedimi.filter(r => r.minY <= krastasY + 2);
+                    if (farY.length) {
+                        let dMinX = Math.min(...farY.map(r => r.minX)), dMaxX = Math.max(...farY.map(r => r.maxX));
+                        let depthCm = Math.round((dMaxX - dMinX) / scale);
+                        let dOff = 20;
+                        let dLineY = farOnBottom ? (maxY + dOff) : (minY - dOff);
+                        let dEdgeY = farOnBottom ? maxY : minY;
+                        let dTextY = farOnBottom ? (dLineY + 14) : (dLineY - 6);
+                        let dExt = "stroke='#aaa' stroke-width='0.5' stroke-dasharray='4,4' fill='none'";
+                        svgContent += `<line x1="${dMinX}" y1="${dEdgeY}" x2="${dMinX}" y2="${dLineY}" ${dExt} />`;
+                        svgContent += `<line x1="${dMaxX}" y1="${dEdgeY}" x2="${dMaxX}" y2="${dLineY}" ${dExt} />`;
+                        svgContent += `<path d="M ${dMinX} ${dLineY} L ${dMaxX} ${dLineY}" stroke="#555" stroke-width="0.8" fill="none" marker-start="url(#tick)" marker-end="url(#tick)" />`;
+                        svgContent += `<text x="${(dMinX + dMaxX) / 2}" y="${dTextY}" fill="#333" font-size="10" font-weight="500" text-anchor="middle" font-family="sans-serif" paint-order="stroke" stroke="#ffffff" stroke-width="3">${depthCm} cm</text>`;
+                    }
+                }
                 let krastas = depthOnRight ? Math.max(...sedimi.map(r => r.maxX)) : Math.min(...sedimi.map(r => r.minX));
-                let far = depthOnRight ? sedimi.filter(r => r.maxX >= krastas - 2) : sedimi.filter(r => r.minX <= krastas + 2);
+                let far = vertikali ? [] : (depthOnRight ? sedimi.filter(r => r.maxX >= krastas - 2) : sedimi.filter(r => r.minX <= krastas + 2));
                 if (far.length) {
                     let dMinY = Math.min(...far.map(r => r.minY)), dMaxY = Math.max(...far.map(r => r.maxY));
                     let depthCm = Math.round((dMaxY - dMinY) / scale);
