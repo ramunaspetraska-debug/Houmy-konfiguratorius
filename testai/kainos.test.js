@@ -98,3 +98,25 @@ test("DABARTINĖS debesies kainos: tinkamos ir nemažėja nuo I iki V grupės", 
     assert.deepStrictEqual(be, [], "Debesies kainos be modulio: " + be.join(", "));
     patikrintiKainas(kainos || {}, "Debesies");
 });
+
+test("PILLOVE: gamintojo išdėstymų plotis ir gylis kaip brėžinyje (PILLOVE.pdf p.4)", () => {
+    const pagalId = Object.fromEntries(rawModels.pillove.map(m => [m.id, m]));
+    // [moduliai iš kairės į dešinę, plotis cm, didžiausias gylis cm]
+    const isdestymai = [
+        [["al", "es15", "ch15", "ap"], 236, 157], [["al", "es15", "ch15", "bp"], 236, 157],
+        [["al", "es1", "ch1", "ap"], 216, 157],   [["al", "es1", "es1", "ch1", "bp"], 298, 157],
+        [["al", "es15", "es15", "ap"], 236, 102], [["al", "es15", "es15", "es15", "ap"], 328, 102],
+        [["al", "es1", "es1", "ap"], 216, 102],   [["al", "es1", "es1", "es1", "ap"], 298, 102],
+        [["al", "es15", "pf4", "ch15", "bp"], 328, 157], [["al", "es1", "pf3", "ch1", "bp"], 298, 157],
+    ];
+    const klaidos = [];
+    for (const [ids, plotis, gylis] of isdestymai) {
+        const mod = ids.map(id => pagalId[id]);
+        const p = mod.reduce((s, m) => s + m.w, 0), g = Math.max(...mod.map(m => m.h));
+        if (p !== plotis || g !== gylis) klaidos.push(`${ids.join(" + ")}: ${p}x${g}, turi būti ${plotis}x${gylis}`);
+    }
+    // Svetainėje parduodama sudėtis A L + ES1,5 + ES1,5 + A P = 1825 € (± apvalinimas)
+    const suma = ["al", "es15", "es15", "ap"].reduce((s, id) => s + pagalId[id].price, 0);
+    if (Math.abs(suma - 1825) > 4) klaidos.push(`A L + 2×ES1,5 + A P = ${suma} €, svetainėje 1825 €`);
+    assert.deepStrictEqual(klaidos, [], klaidos.join("\n"));
+});
