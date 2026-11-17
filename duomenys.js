@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.61 (DESO breziniai ir pufai)";
+const APP_VERSION = "V1.62 (DESO kainos)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
