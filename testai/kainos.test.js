@@ -120,3 +120,24 @@ test("PILLOVE: gamintojo išdėstymų plotis ir gylis kaip brėžinyje (PILLOVE.
     if (Math.abs(suma - 1825) > 4) klaidos.push(`A L + 2×ES1,5 + A P = ${suma} €, svetainėje 1825 €`);
     assert.deepStrictEqual(klaidos, [], klaidos.join("\n"));
 });
+
+test("DESO: gamintojo U forma 452/462 cm ir kainos pagal Wersal CANDELO kainininką", () => {
+    const pagalId = Object.fromEntries(rawModels.deso.map(m => [m.id, m]));
+    const klaidos = [];
+    // OTM + 3×1BB + C (CANDELO ELEMENTS.pdf: A=452; B gamintojas rašo 460, modulių suma 462)
+    for (const [v, plotis] of [["a", 452], ["b", 462]]) {
+        const p = pagalId["otm_l_" + v].w + 3 * pagalId["1bb_" + v].w + pagalId["c_" + v].w;
+        if (p !== plotis) klaidos.push(`U forma ${v.toUpperCase()}: ${p} cm, turi būti ${plotis}`);
+        // OTM sėdimoji dalis + pufo dalis (70/80) = OTM gylis
+        if (pagalId["otm_l_" + v].h !== pagalId["1bb_" + v].h + (v === "a" ? 70 : 80)) klaidos.push(`OTM ${v.toUpperCase()} gylis nesutampa su 1BB + pufo dalimi`);
+    }
+    // U forma A I gr.: OTM + 3×1BB + C + OTM1S = 2800 €
+    const u = ["otm_l_a", "1bb_a", "1bb_a", "1bb_a", "c_a", "otm1s_p_a"].reduce((s, id) => s + kaina({}, "deso", pagalId[id], 1), 0);
+    if (u !== 2800) klaidos.push(`U forma A = ${u} €, turi būti 2800 €`);
+    // houmy.lt Candelo 70 XL 1990 € ≈ OTM + 2BB + 2P (Wersal 385+340+405 = 1130 = XL)
+    const xl = ["otm_l_a", "2bb_a", "2p_a"].reduce((s, id) => s + kaina({}, "deso", pagalId[id], 1), 0);
+    if (Math.abs(xl - 1990) > 10) klaidos.push(`OTM + 2BB + 2P A = ${xl} €, houmy.lt Candelo 70 XL 1990 €`);
+    // I ir II audinio grupės kaina vienoda
+    for (const m of rawModels.deso) if (kaina({}, "deso", m, 2) !== kaina({}, "deso", m, 1)) klaidos.push(`${m.id}: II gr. kaina skiriasi nuo I gr.`);
+    assert.deepStrictEqual(klaidos, [], klaidos.join("\n"));
+});
