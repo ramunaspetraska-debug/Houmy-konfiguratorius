@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.65 (atlošai, kantas, medis)";
+const APP_VERSION = "V1.66 (CORE pagalvės, balti atlošai)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
