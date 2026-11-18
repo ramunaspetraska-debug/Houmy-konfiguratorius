@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.64 (brėžiniai pagal IWC)";
+const APP_VERSION = "V1.65 (atlošai, kantas, medis)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
