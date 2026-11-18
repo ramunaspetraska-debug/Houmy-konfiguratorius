@@ -1,4 +1,4 @@
-const APP_VERSION = "V1.63 (DESO 1L/1P)";
+const APP_VERSION = "V1.64 (brėžiniai pagal IWC)";
 
 const defaultSettings = {
     prodTerm: "6-8 savaitės",
